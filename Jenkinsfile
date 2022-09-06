@@ -44,7 +44,9 @@ def getDockerImage(Map conf=[:]){
     def prefixpath = conf.get("prefixpath", "/opt/rocm") // prefix:/opt/rocm
     def gpu_arch = conf.get("gpu_arch", "gfx908") // prebuilt dockers should have all the architectures enabled so one image can be used for all stages
     def no_cache = conf.get("no_cache", false)
-    def dockerArgs = "--build-arg BUILDKIT_INLINE_CACHE=1 --build-arg PREFIX=${prefixpath} --build-arg compiler_version='${params.COMPILER_VERSION}' "
+    def ccache_dir_mount = conf.get("ccache_dir_mount", "/ccache_dir_host_shared")
+
+    def dockerArgs = "--build-arg BUILDKIT_INLINE_CACHE=1 --build-arg PREFIX=${prefixpath} --build-arg compiler_version='${params.COMPILER_VERSION}' --build-arg ccache_dir_mount=${ccache_dir_mount} "
     if(env.CCACHE_HOST)
     {
         def check_host = sh(script:"""(printf "PING\r\n";) | nc -N ${env.CCACHE_HOST} 6379 """, returnStdout: true).trim()
@@ -125,6 +127,9 @@ def cmake_build(Map conf=[:]){
     def build_envs = "CTEST_PARALLEL_LEVEL=4 " + conf.get("build_env","")
     def prefixpath = conf.get("prefixpath","/opt/rocm")
     def setup_args = conf.get("setup_args","")
+    def ccache_envs = "CCACHE_BASEDIR=/var/jenkins/workspace "
+
+    setup_args = setup_args + " -DCMAKE_CXX_COMPILER_LAUNCHER=ccache"
 
     if (prefixpath != "/usr/local"){
         setup_args = setup_args + " -DCMAKE_PREFIX_PATH=${prefixpath} "
@@ -133,7 +138,7 @@ def cmake_build(Map conf=[:]){
     def build_type_debug = (conf.get("build_type",'release') == 'debug')
 
     //cmake_env can overwrite default CXX variables.
-    def cmake_envs = "CXX=${compiler} CXXFLAGS='-Werror' " + conf.get("cmake_ex_env","")
+    def cmake_envs = "CXX=${compiler} CXXFLAGS='-Werror' " + "${ccache_envs}" + conf.get("cmake_ex_env","")
 
     def package_build = (conf.get("package_build","") == "true")
 
@@ -197,11 +202,15 @@ def buildHipClangJob(Map conf=[:]){
 
         // Jenkins is complaining about the render group 
         // def dockerOpts="--device=/dev/kfd --device=/dev/dri --group-add video --group-add render --cap-add=SYS_PTRACE --security-opt seccomp=unconfined"
-        def dockerOpts="--device=/dev/kfd --device=/dev/dri --group-add video --cap-add=SYS_PTRACE --security-opt seccomp=unconfined"
+
+        def homedir = sh( script: "echo $HOME", returnStdout: true ).trim()
+        def ccache_dir_mount = conf.get("ccache_dir_mount", "/ccache_dir_host_shared")
+
+        def dockerOpts="--device=/dev/kfd --device=/dev/dri --group-add video --cap-add=SYS_PTRACE --security-opt seccomp=unconfined -v /${homedir}/.ccache/ccache:${ccache_dir_mount}"
         if (conf.get("enforce_xnack_on", false)) {
             dockerOpts = dockerOpts + " --env HSA_XNACK=1 --env GPU_ARCH='${gpu_arch}' "
         }
-        def dockerArgs = "--build-arg PREFIX=${prefixpath} --build-arg compiler_version='${params.COMPILER_VERSION}' "
+        def dockerArgs = "--build-arg PREFIX=${prefixpath} --build-arg compiler_version='${params.COMPILER_VERSION}' --build-arg ccache_dir_mount=${ccache_dir_mount}"
         if (params.COMPILER_VERSION != "release"){
             dockerOpts = dockerOpts + " --env HIP_CLANG_PATH='/llvm-project/build/bin' "
         }

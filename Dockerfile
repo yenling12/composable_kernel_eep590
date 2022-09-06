@@ -3,6 +3,7 @@ FROM ubuntu:18.04
 ARG ROCMVERSION=5.1
 ARG OSDB_BKC_VERSION
 ARG compiler_version
+ARG ccache_dir_mount
 
 RUN set -xe
 
@@ -81,6 +82,14 @@ RUN git clone -b master https://github.com/RadeonOpenCompute/rocm-cmake.git  && 
   cmake  .. && cmake --build . && cmake --build . --target install
 
 WORKDIR /
+
+RUN rm -rf /tmp/ccache* && mkdir /tmp/ccache && wget https://github.com/ccache/ccache/archive/7f1572ae9ca958fa923a66235f6a64a360b03523.tar.gz -O /tmp/ccache.tar.gz && \
+    tar zxvf /tmp/ccache.tar.gz -C /tmp/ && mkdir /tmp/ccache/build && \
+    cd /tmp/ccache/build && \
+    cmake -DZSTD_FROM_INTERNET=ON -DHIREDIS_FROM_INTERNET=ON .. && make -j install && \
+    ccache -s
+ENV CCACHE_DIR=$ccache_dir_mount
+RUN sh -c "echo CCACHE_DIR = '$CCACHE_DIR'"
 
 ENV compiler_version=$compiler_version
 RUN sh -c "echo compiler version = '$compiler_version'"
