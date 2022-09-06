@@ -529,6 +529,7 @@ pipeline {
                 }
             }
         }
+        /*
         stage("Static checks") {
             when {
                 beforeAgent true
@@ -565,6 +566,7 @@ pipeline {
                 }
             }
         }
+        */
 		stage("Tests")
         {
             when {
@@ -580,7 +582,7 @@ pipeline {
                         setup_args = """ -D CMAKE_CXX_FLAGS=" --offload-arch=gfx908 -O3 " -DBUILD_DEV=On """
                     }
                     steps{
-                        buildHipClangJobAndReboot(setup_args:setup_args, config_targets: "check", no_reboot:true, build_type: 'Release', gpu_arch: "gfx908")
+                        buildHipClangJobAndReboot(setup_args:setup_args, config_targets: "examples", no_reboot:true, build_type: 'Release', gpu_arch: "gfx908")
                     }
                 }
                 stage("Run Tests: gfx90a")
@@ -595,11 +597,12 @@ pipeline {
                         setup_args = """ -D CMAKE_CXX_FLAGS="--offload-arch=gfx90a -O3 " -DBUILD_DEV=On """
                     }
                     steps{
-                        buildHipClangJobAndReboot(setup_args:setup_args, config_targets: "check", no_reboot:true, build_type: 'Release', gpu_arch: "gfx90a")
+                        buildHipClangJobAndReboot(setup_args:setup_args, config_targets: "examples", no_reboot:true, build_type: 'Release', gpu_arch: "gfx90a")
                     }
                 }
             }
         }
+        /*
         stage("Client App")
         {
             when {
@@ -683,6 +686,7 @@ pipeline {
                 }
             }
         }
+        */
 
         /* enable after the cmake file supports packaging
         stage("Packages") {
