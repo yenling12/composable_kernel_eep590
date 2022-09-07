@@ -30,7 +30,7 @@ bool run_splitK_gemm_bias(const ProblemSize& problem_size, const ExecutionConfig
     static_assert(sizeof(BDataType) == sizeof(KernelBDataType));
 #endif
 
-    auto& [M, N, K, StrideA, StrideB, StrideC, KBatch] = problem_size;
+    auto& [M, N, K, StrideA, StrideB, StrideE, KBatch] = problem_size;
 
     auto f_host_tensor_descriptor =
         [](std::size_t row, std::size_t col, std::size_t stride, auto layout) {
@@ -48,21 +48,36 @@ bool run_splitK_gemm_bias(const ProblemSize& problem_size, const ExecutionConfig
 
     Tensor<ADataType> a_m_k(f_host_tensor_descriptor(M, K, StrideA, ALayout{}));
     Tensor<BDataType> b_k_n(f_host_tensor_descriptor(K, N, StrideB, BLayout{}));
-    Tensor<CDataType> c_m_n_device_result(f_host_tensor_descriptor(M, N, StrideC, CLayout{}));
-
-    // A[M0, M1, K0, K1]
-    std::vector<ck::index_t> a_ms_ks_lengths{M, KBatch, 64};
-    std::vector<ck::index_t> a_ms_ks_strides{524288, 4096, 128, 1};
-    // B[N0, N1, K0, K1]
-    std::vector<ck::index_t> b_ns_ks_lengths{32, 64, 32, 64};
-    std::vector<ck::index_t> b_ns_ks_strides{524288, 4096, 128, 1};
-    // E[M0, M1, N0, N1]
-    std::vector<ck::index_t> e_ms_ns_lengths{30, 128, 32, 64};
-    std::vector<ck::index_t> e_ms_ns_strides{524288, 4096, 128, 1};
+    Tensor<DDataType> d_m_n(f_host_tensor_descriptor(M, N, 0, ELayout{}));
+    Tensor<EDataType> e_m_n_host_result(f_host_tensor_descriptor(M, N, StrideE, ELayout{}));
+    Tensor<EDataType> e_m_n_device_result(f_host_tensor_descriptor(M, N, StrideE, ELayout{}));
 
     std::cout << "a_m_k: " << a_m_k.mDesc << std::endl;
     std::cout << "b_k_n: " << b_k_n.mDesc << std::endl;
-    std::cout << "c_m_n: " << c_m_n_device_result.mDesc << std::endl;
+    std::cout << "e_m_n: " << e_m_n_device_result.mDesc << std::endl;
+
+    auto f_tensor_length_stride_descriptor = 
+        [](std::size_t row, std::size_t col, std::size_t stride, auto layout){
+            if (std::is_same<decltype(layout), ck::tensor_layout::gemm::RowMajor>::value)
+            {
+                return {std::vector<std::size_t>({row, col}),
+                        std::vector<std::size_t>({stride, 1})};
+            }
+            else
+            {
+                return {std::vector<std::size_t>({row, col}),
+                        std::vector<std::size_t>({1, stride})};
+            }
+        };
+
+    std::vector<ck::index_t> a_ms_ks_lengths = f_tensor_length_stride_descriptor(M, K, StrideA, ALayout{})[0];
+    std::vector<ck::index_t> a_ms_ks_strides = f_tensor_length_stride_descriptor(M, K, StrideA, ALayout{})[1];
+    std::vector<ck::index_t> b_ns_ks_lengths = f_tensor_length_stride_descriptor(N, K, StrideB, Row{})[0];
+    std::vector<ck::index_t> b_ns_ks_strides = f_tensor_length_stride_descriptor(N, K, StrideB, Row{})[1];
+    std::vector<ck::index_t> d_ms_ns_lengths = f_tensor_length_stride_descriptor(M, N, 0, Row{})[0];
+    std::vector<ck::index_t> d_ms_ns_strides = f_tensor_length_stride_descriptor(M, N, 0, Row{})[1];
+    std::vector<ck::index_t> e_ms_ns_lengths = f_tensor_length_stride_descriptor(M, N, StrideE, ELayout{})[0];
+    std::vector<ck::index_t> e_ms_ns_strides = f_tensor_length_stride_descriptor(M, N, StrideE, ELayout{})[1];
 
     switch(config.init_method)
     {
@@ -70,38 +85,45 @@ bool run_splitK_gemm_bias(const ProblemSize& problem_size, const ExecutionConfig
     case 1:
         a_m_k.GenerateTensorValue(GeneratorTensor_2<ADataType>{-5, 5});
         b_k_n.GenerateTensorValue(GeneratorTensor_2<BDataType>{-5, 5});
+        d_m_n.GenerateTensorValue(GeneratorTensor_2<BDataType>{-5, 5});
         break;
     case 2:
         a_m_k.GenerateTensorValue(GeneratorTensor_3<ADataType>{0.0, 1.0});
         b_k_n.GenerateTensorValue(GeneratorTensor_3<BDataType>{-0.5, 0.5});
+        d_m_n.GenerateTensorValue(GeneratorTensor_3<BDataType>{-0.5, 0.5});
         break;
     default:
         a_m_k.GenerateTensorValue(GeneratorTensor_Sequential<0>{});
         b_k_n.GenerateTensorValue(GeneratorTensor_Sequential<1>{});
+        d_m_n.GenerateTensorValue(GeneratorTensor_Sequential<1>{});
     }
 
     DeviceMem a_m_k_device_buf(sizeof(ADataType) * a_m_k.mDesc.GetElementSpaceSize());
     DeviceMem b_k_n_device_buf(sizeof(BDataType) * b_k_n.mDesc.GetElementSpaceSize());
-    DeviceMem c_m_n_device_buf(sizeof(CDataType) * c_m_n_device_result.mDesc.GetElementSpaceSize());
+    DeviceMem d_m_n_device_buf(sizeof(DDataType) * d_m_n.mDesc.GetElementSpaceSize());
+    DeviceMem e_m_n_device_buf(sizeof(EDataType) * e_m_n_device_result.mDesc.GetElementSpaceSize());
 
 #ifdef BUILD_INT4_EXAMPLE
     const Tensor<KernelADataType> a_m_k_converted(a_m_k);
     const Tensor<KernelBDataType> b_k_n_converted(b_k_n);
+    const Tensor<KernelDDataType> d_m_n_converted(d_m_n);
 
     a_m_k_device_buf.ToDevice(a_m_k_converted.mData.data());
     b_k_n_device_buf.ToDevice(b_k_n_converted.mData.data());
+    d_m_n_device_buf.ToDevice(d_m_n_converted.mData.data());
 #else
     a_m_k_device_buf.ToDevice(a_m_k.mData.data());
     b_k_n_device_buf.ToDevice(b_k_n.mData.data());
+    d_m_n_device_buf.ToDevice(d_m_n.mData.data());
 #endif
-    c_m_n_device_buf.SetZero();
+    e_m_n_device_buf.SetZero();
 
     auto a_element_op = AElementOp{};
     auto b_element_op = BElementOp{};
-    auto c_element_op = CElementOp{};
+    auto cde_element_op = CDEElementOp{};
 
     // do GEMM
-    auto gemm     = DeviceGemmInstance{};
+    auto gemm     = DeviceOpInstance{};
     auto invoker  = gemm.MakeInvoker();
     auto argument = gemm.MakeArgument(
 #ifdef BUILD_INT4_EXAMPLE
@@ -110,17 +132,20 @@ bool run_splitK_gemm_bias(const ProblemSize& problem_size, const ExecutionConfig
 #else
         static_cast<ADataType*>(a_m_k_device_buf.GetDeviceBuffer()),
         static_cast<BDataType*>(b_k_n_device_buf.GetDeviceBuffer()),
+        std::array<const void*, 1>{static_cast<DDataType*>(d_m_n_device_buf.GetDeviceBuffer())},
 #endif
-        static_cast<CDataType*>(c_m_n_device_buf.GetDeviceBuffer()),
-        M,
-        N,
-        K,
-        StrideA,
-        StrideB,
-        StrideC,
+        static_cast<EDataType*>(e_m_n_device_buf.GetDeviceBuffer()),
+        a_ms_ks_lengths,
+        a_ms_ks_strides,
+        b_ns_ks_lengths,
+        b_ns_ks_strides,
+        std::array<std::vector<ck::index_t>, 1>{d_ms_ns_lengths},
+        std::array<std::vector<ck::index_t>, 1>{d_ms_ns_strides},
+        e_ms_ns_lengths,
+        e_ms_ns_strides,
         a_element_op,
         b_element_op,
-        c_element_op,
+        cde_element_op,
         KBatch);
 
     if(!gemm.IsSupportedArgument(argument))
@@ -135,22 +160,23 @@ bool run_splitK_gemm_bias(const ProblemSize& problem_size, const ExecutionConfig
 
     if(config.do_verification)
     {
-        c_m_n_device_buf.FromDevice(c_m_n_device_result.mData.data());
-        using ReferenceGemmInstance = ck::tensor_operation::host::ReferenceGemm<ADataType,
+        e_m_n_device_buf.FromDevice(e_m_n_device_result.mData.data());
+        using ReferenceGemmInstance = ck::tensor_operation::host::ReferenceGemmBias2D<ADataType,
                                                                                 BDataType,
-                                                                                CDataType,
+                                                                                DDataType
+                                                                                EDataType,
                                                                                 AccDataType,
                                                                                 AElementOp,
                                                                                 BElementOp,
-                                                                                CElementOp>;
+                                                                                CDEElementOp>;
 
         auto ref_gemm    = ReferenceGemmInstance{};
         auto ref_invoker = ref_gemm.MakeInvoker();
 
-        Tensor<CDataType> c_m_n_host_result(f_host_tensor_descriptor(M, N, StrideC, CLayout{}));
+        Tensor<CDataType> e_m_n_host_result(f_host_tensor_descriptor(M, N, StrideC, CLayout{}));
 
         auto ref_argument = ref_gemm.MakeArgument(
-            a_m_k, b_k_n, c_m_n_host_result, a_element_op, b_element_op, c_element_op);
+            a_m_k, b_k_n, e_m_n_host_result, d_m_n, a_element_op, b_element_op, c_element_op);
 
         ref_invoker.Run(ref_argument);
 
@@ -164,7 +190,7 @@ bool run_splitK_gemm_bias(const ProblemSize& problem_size, const ExecutionConfig
         }
         else
         {
-            pass &= ck::utils::check_err(c_m_n_device_result.mData, c_m_n_host_result.mData);
+            pass &= ck::utils::check_err(e_m_n_device_result.mData, e_m_n_host_result.mData);
         }
     }
 

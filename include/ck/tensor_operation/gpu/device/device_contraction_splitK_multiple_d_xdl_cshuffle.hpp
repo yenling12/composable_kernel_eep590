@@ -195,8 +195,8 @@ template <index_t NumDimG,
           typename CDEBlockTransferClusterLengths_MBlock_MPerBlock_NBlock_NPerBlock,
           index_t CDEBlockTransferScalarPerVector_NPerBlock,
           LoopScheduler LoopSched = make_default_loop_scheduler()>
-struct DeviceBatchedContractionMultipleD_Xdl_CShuffle
-    : public DeviceBatchedContractionMultipleD<NumDimG,
+struct DeviceSplitKContractionMultipleD_Xdl_CShuffle
+    : public DeviceSplitKContractionMultipleD<NumDimG,
                                                NumDimM,
                                                NumDimN,
                                                NumDimK,
@@ -208,7 +208,7 @@ struct DeviceBatchedContractionMultipleD_Xdl_CShuffle
                                                BElementwiseOperation,
                                                CDEElementwiseOperation>
 {
-    using DeviceOp = DeviceBatchedContractionMultipleD_Xdl_CShuffle;
+    using DeviceOp = DeviceSplitKContractionMultipleD_Xdl_CShuffle;
 
     static constexpr index_t NumDTensor = DsDataType::Size();
 
@@ -658,7 +658,8 @@ struct DeviceBatchedContractionMultipleD_Xdl_CShuffle
                  const std::vector<index_t>& e_gs_ms_ns_strides,
                  AElementwiseOperation a_element_op,
                  BElementwiseOperation b_element_op,
-                 CDEElementwiseOperation cde_element_op)
+                 CDEElementwiseOperation cde_element_op,
+                 const index_t KBatch)
             : p_a_grid_{static_cast<const ADataType*>(p_a_grid)},
               p_b_grid_{static_cast<const BDataType*>(p_b_grid)},
               p_ds_grid_{},
@@ -680,7 +681,7 @@ struct DeviceBatchedContractionMultipleD_Xdl_CShuffle
                   GridwiseGemm::MakeDefaultBGridDescriptor_BK0_N_BK1(b_grid_desc_n_k_)},
               ds_grid_desc_mblock_mperblock_nblock_nperblock_{},
               e_grid_desc_mblock_mperblock_nblock_nperblock_{},
-              block_2_etile_map_{GridwiseGemm::MakeDefaultBlock2ETileMap(e_grid_desc_m_n_)},
+              block_2_etile_map_{GridwiseGemm::MakeDefaultBlock2ETileMap(e_grid_desc_m_n_, KBatch)},
               a_element_op_{a_element_op},
               b_element_op_{b_element_op},
               cde_element_op_{cde_element_op},
@@ -1056,7 +1057,7 @@ struct DeviceBatchedContractionMultipleD_Xdl_CShuffle
         auto str = std::stringstream();
 
         // clang-format off
-        str << "DeviceBatchedContractionMultipleD_Xdl_CShuffle"
+        str << "DeviceSplitKContractionMultipleD_Xdl_CShuffle"
             << "<"
             << NumDimG << ", "
             << NumDimM << ", "

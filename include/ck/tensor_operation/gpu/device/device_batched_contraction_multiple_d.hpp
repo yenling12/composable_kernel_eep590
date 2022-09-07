@@ -59,6 +59,43 @@ struct DeviceBatchedContractionMultipleD : public BaseOperator
     virtual std::unique_ptr<BaseInvoker> MakeInvokerPointer() = 0;
 };
 
+
+template <index_t NumDimG,
+          index_t NumDimM,
+          index_t NumDimN,
+          index_t NumDimK,
+          typename ADataType,
+          typename BDataType,
+          typename DsDataType,
+          typename EDataType,
+          typename AElementwiseOperation,
+          typename BElementwiseOperation,
+          typename CDEElementwiseOperation>
+struct DeviceSplitKContractionMultipleD : public BaseOperator
+{
+    static constexpr index_t NumDTensor = DsDataType::Size();
+
+    virtual std::unique_ptr<BaseArgument>
+    MakeArgumentPointer(const void* p_a,
+                        const void* p_b,
+                        std::array<const void*, NumDTensor> p_ds,
+                        void* p_e,
+                        const std::vector<index_t>& a_gs_ms_ns_lengths,
+                        const std::vector<index_t>& a_gs_ms_ks_strides,
+                        const std::vector<index_t>& b_gs_ns_ks_lengths,
+                        const std::vector<index_t>& b_gs_ns_ks_strides,
+                        const std::array<std::vector<index_t>, NumDTensor>& ds_gs_ms_ns_lengths,
+                        const std::array<std::vector<index_t>, NumDTensor>& ds_gs_ms_ns_strides,
+                        const std::vector<index_t>& e_gs_ms_ns_lengths,
+                        const std::vector<index_t>& e_gs_ms_ns_strides,
+                        AElementwiseOperation a_element_op,
+                        BElementwiseOperation b_element_op,
+                        CDEElementwiseOperation cde_element_op,
+                        const index_t k_batch) = 0;
+
+    virtual std::unique_ptr<BaseInvoker> MakeInvokerPointer() = 0;
+};
+
 } // namespace device
 } // namespace tensor_operation
 } // namespace ck
