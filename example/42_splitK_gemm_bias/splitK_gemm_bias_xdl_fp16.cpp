@@ -8,7 +8,7 @@
 
 #include "ck/ck.hpp"
 #include "ck/tensor_operation/gpu/device/gemm_specialization.hpp"
-#include "ck/tensor_operation/gpu/device/device_gemm_xdl_splitk_c_shuffle.hpp"
+#include "ck/tensor_operation/gpu/device/device_contraction_splitK_multiple_d_xdl_cshuffle.hpp"
 #include "ck/tensor_operation/gpu/element/element_wise_operation.hpp"
 
 #include "ck/library/utility/check_err.hpp"
@@ -51,7 +51,7 @@ static constexpr ck::index_t NumDimM = 1;
 static constexpr ck::index_t NumDimN = 1;
 static constexpr ck::index_t NumDimK = 1;
 
-static constexpr auto GemmDefault = ck::tensor_operation::device::GemmSpecialization::MNKPadding;
+static constexpr auto GemmSpec = ck::tensor_operation::device::GemmSpecialization::MNKPadding;
 
 // clang-format off
 using DeviceOpInstanceKKN = ck::tensor_operation::device::

@@ -15,12 +15,13 @@
 #include "ck/tensor_operation/gpu/device/tensor_specialization.hpp"
 #include "ck/tensor_operation/gpu/device/matrix_padder.hpp"
 #include "ck/tensor_operation/gpu/grid/gridwise_gemm_multiple_d_xdl_cshuffle.hpp"
+#include "ck/tensor_operation/gpu/grid/gridwise_gemm_splitk_multiple_d_xdl_cshuffle.hpp"
 #include "ck/host_utility/device_prop.hpp"
 #include "ck/host_utility/kernel_launch.hpp"
 
 namespace ck {
 
-template <typename GridwiseGemm,
+template <typename GridwiseGemmAtomicAdd,
           typename FloatAB,
           typename FloatDsPointer,
           typename FloatE,
@@ -57,7 +58,7 @@ __global__ void
             const Block2ETileMap block_2_etile_map)
 {
 #if(!defined(__HIP_DEVICE_COMPILE__) || defined(__gfx908__) || defined(__gfx90a__))
-    __shared__ char p_shared[GridwiseGemm::GetSharedMemoryNumberOfByte()];
+    __shared__ char p_shared[GridwiseGemmAtomicAdd::GetSharedMemoryNumberOfByte()];
 
     const index_t num_blocks_per_batch =
         __builtin_amdgcn_readfirstlane(get_grid_size() / batch_count);
@@ -80,7 +81,7 @@ __global__ void
     static_for<0, NumDTensor, 1>{}(
         [&](auto i) { p_ds_grid_grp(i) = p_ds_grid[i] + ds_batch_offset[i]; });
 
-    GridwiseGemm::template Run<HasMainKBlockLoop>(p_a_grid + a_batch_offset,
+    GridwiseGemmAtomicAdd::template Run<HasMainKBlockLoop>(p_a_grid + a_batch_offset,
                                                   p_b_grid + b_batch_offset,
                                                   p_ds_grid_grp,
                                                   p_e_grid + e_batch_offset,
@@ -538,56 +539,8 @@ struct DeviceSplitKContractionMultipleD_Xdl_CShuffle
         EGridDesc_G_M_N e_grid_desc_g_m_n_;
     };
 
-    // GridwiseGemm
-    using GridwiseGemm = GridwiseGemmMultipleD_xdl_cshuffle<
-        ADataType, // TODO: distinguish A/B datatype
-        AccDataType,
-        CShuffleDataType,
-        DsDataType,
-        EDataType,
-        AElementwiseOperation,
-        BElementwiseOperation,
-        CDEElementwiseOperation,
-        InMemoryDataOperationEnum::Set,
-        AGridDesc_M_K,
-        BGridDesc_N_K,
-        DsGridDesc_M_N,
-        EGridDesc_M_N,
-        NumGemmKPrefetchStage,
-        BlockSize,
-        MPerBlock,
-        NPerBlock,
-        KPerBlock,
-        AK1,
-        BK1,
-        MPerXDL,
-        NPerXDL,
-        MXdlPerWave,
-        NXdlPerWave,
-        ABlockTransferThreadClusterLengths_AK0_M_AK1,
-        ABlockTransferThreadClusterArrangeOrder,
-        ABlockTransferSrcAccessOrder,
-        ABlockTransferSrcVectorDim,
-        ABlockTransferSrcScalarPerVector,
-        ABlockTransferDstScalarPerVector_AK1,
-        false,
-        ABlockLdsExtraM,
-        BBlockTransferThreadClusterLengths_BK0_N_BK1,
-        BBlockTransferThreadClusterArrangeOrder,
-        BBlockTransferSrcAccessOrder,
-        BBlockTransferSrcVectorDim,
-        BBlockTransferSrcScalarPerVector,
-        BBlockTransferDstScalarPerVector_BK1,
-        false,
-        BBlockLdsExtraN,
-        CShuffleMXdlPerWavePerShuffle,
-        CShuffleNXdlPerWavePerShuffle,
-        CDEBlockTransferClusterLengths_MBlock_MPerBlock_NBlock_NPerBlock,
-        CDEBlockTransferScalarPerVector_NPerBlock,
-        LoopSched>;
-
-    // GridwiseGemm
-    using GridwiseGemmAtomicAdd = GridwiseGemmMultipleD_xdl_cshuffle<
+    // GridwiseGemmAtomicAdd atomicadd
+    using GridwiseGemmAtomicAdd = GridwiseGemmSplitKMultipleD_xdl_cshuffle<
         ADataType, // TODO: distinguish A/B datatype
         AccDataType,
         CShuffleDataType,
@@ -635,11 +588,11 @@ struct DeviceSplitKContractionMultipleD_Xdl_CShuffle
         LoopSched>;
 
     using AGridDesc_AK0_M_AK1 = remove_cvref_t<decltype(
-        GridwiseGemm::MakeDefaultAGridDescriptor_AK0_M_AK1(AGridDesc_M_K{}))>;
+        GridwiseGemmAtomicAdd::MakeDefaultAGridDescriptor_AK0_M_AK1(AGridDesc_M_K{}))>;
     using BGridDesc_BK0_N_BK1 = remove_cvref_t<decltype(
-        GridwiseGemm::MakeDefaultBGridDescriptor_BK0_N_BK1(BGridDesc_N_K{}))>;
+        GridwiseGemmAtomicAdd::MakeDefaultBGridDescriptor_BK0_N_BK1(BGridDesc_N_K{}))>;
 
-    using Block2ETileMap = typename GridwiseGemm::DefaultBlock2ETileMap;
+    using Block2ETileMap = typename GridwiseGemmAtomicAdd::DefaultBlock2ETileMap;
 
     // Argument
     struct Argument : public BaseArgument
@@ -676,12 +629,12 @@ struct DeviceSplitKContractionMultipleD_Xdl_CShuffle
               e_grid_desc_g_m_n_{
                   DeviceOp::MakeEGridDescriptor_G_M_N(e_gs_ms_ns_lengths, e_gs_ms_ns_strides)},
               a_grid_desc_ak0_m_ak1_{
-                  GridwiseGemm::MakeDefaultAGridDescriptor_AK0_M_AK1(a_grid_desc_m_k_)},
+                  GridwiseGemmAtomicAdd::MakeDefaultAGridDescriptor_AK0_M_AK1(a_grid_desc_m_k_)},
               b_grid_desc_bk0_n_bk1_{
-                  GridwiseGemm::MakeDefaultBGridDescriptor_BK0_N_BK1(b_grid_desc_n_k_)},
+                  GridwiseGemmAtomicAdd::MakeDefaultBGridDescriptor_BK0_N_BK1(b_grid_desc_n_k_)},
               ds_grid_desc_mblock_mperblock_nblock_nperblock_{},
               e_grid_desc_mblock_mperblock_nblock_nperblock_{},
-              block_2_etile_map_{GridwiseGemm::MakeDefaultBlock2ETileMap(e_grid_desc_m_n_, KBatch)},
+              block_2_etile_map_{GridwiseGemmAtomicAdd::MakeDefaultBlock2ETileMap(e_grid_desc_m_n_, 1, 1, KBatch)},
               a_element_op_{a_element_op},
               b_element_op_{b_element_op},
               cde_element_op_{cde_element_op},
@@ -711,18 +664,18 @@ struct DeviceSplitKContractionMultipleD_Xdl_CShuffle
             });
 
             // populate desc for Ds/E
-            if(GridwiseGemm::CheckValidity(a_grid_desc_m_k_,
+            if(GridwiseGemmAtomicAdd::CheckValidity(a_grid_desc_m_k_,
                                            b_grid_desc_n_k_,
                                            ds_grid_desc_m_n_,
                                            e_grid_desc_m_n_,
                                            block_2_etile_map_))
             {
                 e_grid_desc_mblock_mperblock_nblock_nperblock_ =
-                    GridwiseGemm::MakeEGridDescriptor_MBlock_MPerBlock_NBlock_NPerBlock(
+                    GridwiseGemmAtomicAdd::MakeEGridDescriptor_MBlock_MPerBlock_NBlock_NPerBlock(
                         e_grid_desc_m_n_);
 
                 ds_grid_desc_mblock_mperblock_nblock_nperblock_ =
-                    GridwiseGemm::MakeDsGridDescriptor_MBlock_MPerBlock_NBlock_NPerBlock(
+                    GridwiseGemmAtomicAdd::MakeDsGridDescriptor_MBlock_MPerBlock_NBlock_NPerBlock(
                         ds_grid_desc_m_n_);
             }
 
@@ -753,7 +706,7 @@ struct DeviceSplitKContractionMultipleD_Xdl_CShuffle
         // pointers
         const ADataType* p_a_grid_;
         const BDataType* p_b_grid_;
-        typename GridwiseGemm::DsGridPointer p_ds_grid_;
+        typename GridwiseGemmAtomicAdd::DsGridPointer p_ds_grid_;
         EDataType* p_e_grid_;
 
         // tensor descriptors for problem definiton
@@ -768,9 +721,9 @@ struct DeviceSplitKContractionMultipleD_Xdl_CShuffle
         // tensor descriptors for block/thread-wise copy
         AGridDesc_AK0_M_AK1 a_grid_desc_ak0_m_ak1_;
         BGridDesc_BK0_N_BK1 b_grid_desc_bk0_n_bk1_;
-        typename GridwiseGemm::DsGridDescriptor_MBlock_MPerBlock_NBlock_NPerBlock
+        typename GridwiseGemmAtomicAdd::DsGridDescriptor_MBlock_MPerBlock_NBlock_NPerBlock
             ds_grid_desc_mblock_mperblock_nblock_nperblock_;
-        typename GridwiseGemm::EGridDescriptor_MBlock_MPerBlock_NBlock_NPerBlock
+        typename GridwiseGemmAtomicAdd::EGridDescriptor_MBlock_MPerBlock_NBlock_NPerBlock
             e_grid_desc_mblock_mperblock_nblock_nperblock_;
 
         // block-to-e-tile map
@@ -804,7 +757,7 @@ struct DeviceSplitKContractionMultipleD_Xdl_CShuffle
 
         float Run(const Argument& arg, const StreamConfig& stream_config = StreamConfig{})
         {
-            if(!GridwiseGemm::CheckValidity(arg.a_grid_desc_m_k_,
+            if(!GridwiseGemmAtomicAdd::CheckValidity(arg.a_grid_desc_m_k_,
                                             arg.b_grid_desc_n_k_,
                                             arg.ds_grid_desc_m_n_,
                                             arg.e_grid_desc_m_n_,
@@ -826,19 +779,19 @@ struct DeviceSplitKContractionMultipleD_Xdl_CShuffle
                 constexpr bool has_main_loop = has_main_k_block_loop.value;
 
                 const auto kernel = kernel_contraction_multiple_d_xdl_cshuffle<
-                    GridwiseGemm,
+                    GridwiseGemmAtomicAdd,
                     ADataType, // TODO: distiguish A/B datatype
-                    typename GridwiseGemm::DsGridPointer,
+                    typename GridwiseGemmAtomicAdd::DsGridPointer,
                     EDataType,
                     AElementwiseOperation,
                     BElementwiseOperation,
                     CDEElementwiseOperation,
                     DeviceOp::AGridDesc_AK0_M_AK1,
                     DeviceOp::BGridDesc_BK0_N_BK1,
-                    typename GridwiseGemm::DsGridDescriptor_MBlock_MPerBlock_NBlock_NPerBlock,
-                    typename GridwiseGemm::EGridDescriptor_MBlock_MPerBlock_NBlock_NPerBlock,
+                    typename GridwiseGemmAtomicAdd::DsGridDescriptor_MBlock_MPerBlock_NBlock_NPerBlock,
+                    typename GridwiseGemmAtomicAdd::EGridDescriptor_MBlock_MPerBlock_NBlock_NPerBlock,
                     ComputePtrOffsetOfStridedBatch,
-                    typename GridwiseGemm::DefaultBlock2ETileMap,
+                    typename GridwiseGemmAtomicAdd::DefaultBlock2ETileMap,
                     has_main_loop>;
 
                 return launch_and_time_kernel(stream_config,
@@ -862,7 +815,7 @@ struct DeviceSplitKContractionMultipleD_Xdl_CShuffle
                                               arg.block_2_etile_map_);
             };
 
-            if(GridwiseGemm::CalculateHasMainKBlockLoop(K))
+            if(GridwiseGemmAtomicAdd::CalculateHasMainKBlockLoop(K))
             {
                 return launch_kernel(integral_constant<bool, true>{});
             }
@@ -887,7 +840,7 @@ struct DeviceSplitKContractionMultipleD_Xdl_CShuffle
             return false;
         }
 
-        if(!GridwiseGemm::CheckValidity(arg.a_grid_desc_m_k_,
+        if(!GridwiseGemmAtomicAdd::CheckValidity(arg.a_grid_desc_m_k_,
                                         arg.b_grid_desc_n_k_,
                                         arg.ds_grid_desc_m_n_,
                                         arg.e_grid_desc_m_n_,

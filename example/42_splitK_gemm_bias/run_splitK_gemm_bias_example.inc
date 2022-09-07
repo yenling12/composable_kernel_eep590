@@ -56,28 +56,14 @@ bool run_splitK_gemm_bias(const ProblemSize& problem_size, const ExecutionConfig
     std::cout << "b_k_n: " << b_k_n.mDesc << std::endl;
     std::cout << "e_m_n: " << e_m_n_device_result.mDesc << std::endl;
 
-    auto f_tensor_length_stride_descriptor = 
-        [](std::size_t row, std::size_t col, std::size_t stride, auto layout){
-            if (std::is_same<decltype(layout), ck::tensor_layout::gemm::RowMajor>::value)
-            {
-                return {std::vector<std::size_t>({row, col}),
-                        std::vector<std::size_t>({stride, 1})};
-            }
-            else
-            {
-                return {std::vector<std::size_t>({row, col}),
-                        std::vector<std::size_t>({1, stride})};
-            }
-        };
-
-    std::vector<ck::index_t> a_ms_ks_lengths = f_tensor_length_stride_descriptor(M, K, StrideA, ALayout{})[0];
-    std::vector<ck::index_t> a_ms_ks_strides = f_tensor_length_stride_descriptor(M, K, StrideA, ALayout{})[1];
-    std::vector<ck::index_t> b_ns_ks_lengths = f_tensor_length_stride_descriptor(N, K, StrideB, Row{})[0];
-    std::vector<ck::index_t> b_ns_ks_strides = f_tensor_length_stride_descriptor(N, K, StrideB, Row{})[1];
-    std::vector<ck::index_t> d_ms_ns_lengths = f_tensor_length_stride_descriptor(M, N, 0, Row{})[0];
-    std::vector<ck::index_t> d_ms_ns_strides = f_tensor_length_stride_descriptor(M, N, 0, Row{})[1];
-    std::vector<ck::index_t> e_ms_ns_lengths = f_tensor_length_stride_descriptor(M, N, StrideE, ELayout{})[0];
-    std::vector<ck::index_t> e_ms_ns_strides = f_tensor_length_stride_descriptor(M, N, StrideE, ELayout{})[1];
+    std::vector<ck::index_t> a_ms_ks_lengths = {M, K};
+    std::vector<ck::index_t> a_ms_ks_strides = {StrideA, 1};
+    std::vector<ck::index_t> b_ns_ks_lengths = {N, K};
+    std::vector<ck::index_t> b_ns_ks_strides = {StrideB, 1};
+    std::vector<ck::index_t> d_ms_ns_lengths = {M, N};
+    std::vector<ck::index_t> d_ms_ns_strides = {0, 1};
+    std::vector<ck::index_t> e_ms_ns_lengths = {M, N}
+    std::vector<ck::index_t> e_ms_ns_strides = {StrideE, 1};
 
     switch(config.init_method)
     {
@@ -176,7 +162,7 @@ bool run_splitK_gemm_bias(const ProblemSize& problem_size, const ExecutionConfig
         Tensor<CDataType> e_m_n_host_result(f_host_tensor_descriptor(M, N, StrideC, CLayout{}));
 
         auto ref_argument = ref_gemm.MakeArgument(
-            a_m_k, b_k_n, e_m_n_host_result, d_m_n, a_element_op, b_element_op, c_element_op);
+            a_m_k, b_k_n, e_m_n_host_result, d_m_n, a_element_op, b_element_op, cde_element_op);
 
         ref_invoker.Run(ref_argument);
 
