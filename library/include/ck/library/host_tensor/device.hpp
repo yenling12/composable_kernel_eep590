@@ -69,7 +69,7 @@ struct KernelTimer
     std::unique_ptr<KernelTimerImpl> impl;
 };
 
-#define HIP_EXT 1
+#define HIP_EXT 0
 template <typename... Args, typename F>
 float launch_and_time_kernel(const StreamConfig& stream_config,
                              F kernel,
