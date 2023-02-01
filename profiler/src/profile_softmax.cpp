@@ -5,7 +5,8 @@
 #include <vector>
 #include <unordered_map>
 
-#include "profiler/include/profile_softmax_impl.hpp"
+#include "profiler/profile_softmax_impl.hpp"
+#include "profiler_operation_registry.hpp"
 
 using ck::index_t;
 using ck::profiler::SoftmaxDataType;
@@ -98,8 +99,8 @@ int profile_softmax(int argc, char* argv[])
                                                                                  length,
                                                                                  stride,
                                                                                  reduce,
-                                                                                 float(alpha),
-                                                                                 float(beta));
+                                                                                 double(alpha),
+                                                                                 double(beta));
         }
         else if(data_type == SoftmaxDataType::F32_F32)
         {
@@ -110,8 +111,8 @@ int profile_softmax(int argc, char* argv[])
                                                                        length,
                                                                        stride,
                                                                        reduce,
-                                                                       float(alpha),
-                                                                       float(beta));
+                                                                       double(alpha),
+                                                                       double(beta));
         }
         else
         {
@@ -130,8 +131,8 @@ int profile_softmax(int argc, char* argv[])
                                                                                  length,
                                                                                  stride,
                                                                                  reduce,
-                                                                                 float(alpha),
-                                                                                 float(beta));
+                                                                                 double(alpha),
+                                                                                 double(beta));
         }
         else if(data_type == SoftmaxDataType::F32_F32)
         {
@@ -142,8 +143,8 @@ int profile_softmax(int argc, char* argv[])
                                                                        length,
                                                                        stride,
                                                                        reduce,
-                                                                       float(alpha),
-                                                                       float(beta));
+                                                                       double(alpha),
+                                                                       double(beta));
         }
         else
         {
@@ -164,3 +165,5 @@ int profile_softmax(int argc, char* argv[])
 //     profile_normalization(argc, argv);
 //     return 0;
 // }
+
+REGISTER_PROFILER_OPERATION("softmax", "Softmax", profile_softmax);
