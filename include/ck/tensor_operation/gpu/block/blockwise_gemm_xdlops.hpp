@@ -859,24 +859,19 @@ struct BlockwiseGemmXdlops_v2
                       "wrong!");
     }
 
-    __host__ __device__ BlockwiseGemmXdlops_v2(index_t switch_flag,
-                                               Tuple4 b_origin = CalculateBThreadOriginDataIndex(),
-                                               Tuple4 a_origin = CalculateAThreadOriginDataIndex())
-        : switch_flag_(switch_flag), a_thread_copy_(a_origin), b_thread_copy_(b_origin)
-    {
-        static_assert(AMmaTileDesc::IsKnownAtCompileTime() && BMmaTileDesc::IsKnownAtCompileTime(),
-                      "wrong! Desc should be known at compile-time");
-
-        static_assert(ThisThreadBlock::GetNumOfThread() == MWaves * NWaves * WaveSize,
-                      "ThisThreadBlock::GetNumOfThread() != MWaves * NWaves * WaveSize\n");
-
-        static_assert(MPerBlock % (MPerXDL * MRepeat) == 0 && NPerBlock % (NPerXDL * NRepeat) == 0,
-                      "wrong!");
-    }
-
     __host__ __device__ BlockwiseGemmXdlops_v2(const BlockwiseGemmXdlops_v2& other)
         : a_thread_copy_(other.a_origin), b_thread_copy_(other.b_origin)
     {
+    }
+
+    __device__ void SetABlockStartWindow(Tuple4 a_origin = CalculateAThreadOriginDataIndex())
+    {
+        a_thread_copy_.SetSrcCoord(a_origin);
+    }
+
+    __device__ void SetBBlockStartWindow(Tuple4 b_origin = CalculateBThreadOriginDataIndex())
+    {
+        b_thread_copy_.SetSrcCoord(b_origin);
     }
 
     // transposed XDL output supporting C_xdl' = B_xdl' * A_xdl'
@@ -1141,7 +1136,6 @@ struct BlockwiseGemmXdlops_v2
                                                          B_K1,
                                                          B_K1>;
 
-    index_t switch_flag_;
     AThreadCopy a_thread_copy_;
     BThreadCopy b_thread_copy_;
 };
