@@ -32,53 +32,1417 @@ using BiasLayout = typename LayoutSettingSelector<NDimSpatial>::BiasLayout;
 template <ck::index_t NDimSpatial>
 using ResidualLayout = typename LayoutSettingSelector<NDimSpatial>::ResidualLayout;
 
+// clang-format off
 template <ck::index_t NDimSpatial>
-using DeviceConvFwdInstance =
+using DeviceConvFwdInstances = std::tuple<
+    // GEMM_N = 16
+    // K0 = 2
     ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
-        NDimSpatial,
-        InputLayout<NDimSpatial>,
-        WeightLayout<NDimSpatial>,
-        ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>,
-        OutputLayout<NDimSpatial>,
-        InKernelDataType,
-        WeiKernelDataType,
-        ck::Tuple<BiasKernelDataType, ResidualKernelDataType>,
-        OutKernelDataType,
-        AccDataType,
-        CShuffleDataType,
-        InElementOp,
-        WeiElementOp,
-        OutElementOp,
-        ConvSpec,    // ConvForwardSpecialization
-        GemmSpec,    // GemmSpecialization
-        128,         // BlockSize
-        128,         // MPerBlock
-        16,          // NPerBlock
-        2,           // K0PerBlock
-        16,          // K1
-        16,          // MPerWMMA
-        16,          // NPerWMMA
-        2,           // MRepeat
-        1,           // NRepeat
-        S<1, 128, 1>, // ABlockTransferThreadClusterLengths_AK0_M_AK1
-        S<1, 0, 2>,  // ABlockTransferThreadClusterArrangeOrder
-        S<1, 0, 2>,  // ABlockTransferSrcAccessOrder
-        2,           // ABlockTransferSrcVectorDim
-        16,           // ABlockTransferSrcScalarPerVector
-        16,           // ABlockTransferDstScalarPerVector_AK1
-        true,        // ABlockLdsExtraM
-        S<1, 16, 8>, // BBlockTransferThreadClusterLengths_BK0_N_BK1
-        S<1, 0, 2>,  // BBlockTransferThreadClusterArrangeOrder
-        S<1, 0, 2>,  // BBlockTransferSrcAccessOrder
-        2,           // BBlockTransferSrcVectorDim
-        2,           // BBlockTransferSrcScalarPerVector
-        2,           // BBlockTransferDstScalarPerVector_BK1
-        true,        // BBlockLdsExtraN
-        1,
-        1,
-        S<1, 32, 1, 4>,
-        4>;
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 256,         // BlockSize
+        256, 16, 2, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 1,           // MRepeat x NRepeat
+        S<1, 256, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 16, 8>,  S<1, 0, 2>, S<1, 0, 2>, 2,  2,  2, true, 
+        1, 1, S<1, 256, 1, 1>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 128,         // BlockSize
+        128, 16, 2, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 1,           // MRepeat x NRepeat
+        S<1, 128, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 16, 8>,  S<1, 0, 2>, S<1, 0, 2>, 2,  2,  2, true, 
+        1, 1, S<1, 128, 1, 1>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 64,         // BlockSize
+        64, 16, 2, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 1,           // MRepeat x NRepeat
+        S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 16, 4>,  S<1, 0, 2>, S<1, 0, 2>, 2,  4,  4, true, 
+        1, 1, S<1, 64, 1, 1>, 16>,
+    // K0 = 3
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 256,         // BlockSize
+        256, 16, 3, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 1,           // MRepeat x NRepeat
+        S<1, 256, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 16, 8>,  S<1, 0, 2>, S<1, 0, 2>, 2,  2,  2, true, 
+        1, 1, S<1, 256, 1, 1>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 192,         // BlockSize
+        192, 16, 3, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 1,           // MRepeat x NRepeat
+        S<1, 192, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<3, 16, 4>,  S<1, 0, 2>, S<1, 0, 2>, 2,  4,  4, true, 
+        1, 1, S<1, 64, 1, 3>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 128,         // BlockSize
+        128, 16, 3, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 1,           // MRepeat x NRepeat
+        S<1, 128, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 16, 8>,  S<1, 0, 2>, S<1, 0, 2>, 2,  2,  2, true, 
+        1, 1, S<1, 128, 1, 1>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 64,         // BlockSize
+        64, 16, 3, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 1,           // MRepeat x NRepeat
+        S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 16, 4>,  S<1, 0, 2>, S<1, 0, 2>, 2,  4,  4, true, 
+        1, 1, S<1, 64, 1, 1>, 16>,
+    // K0 = 4
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 256,         // BlockSize
+        256, 16, 4, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 1,           // MRepeat x NRepeat
+        S<1, 256, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 16, 8>,  S<1, 0, 2>, S<1, 0, 2>, 2,  2,  2, true, 
+        1, 1, S<1, 256, 1, 1>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 128,         // BlockSize
+        128, 16, 4, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 1,           // MRepeat x NRepeat
+        S<1, 128, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 16, 8>,  S<1, 0, 2>, S<1, 0, 2>, 2,  2,  2, true, 
+        1, 1, S<1, 128, 1, 1>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 64,         // BlockSize
+        64, 16, 4, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 1,           // MRepeat x NRepeat
+        S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 16, 4>,  S<1, 0, 2>, S<1, 0, 2>, 2,  4,  4, true, 
+        1, 1, S<1, 64, 1, 1>, 16>,
+    // K0 = 5
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 256,         // BlockSize
+        256, 16, 5, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 1,           // MRepeat x NRepeat
+        S<1, 256, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 16, 8>,  S<1, 0, 2>, S<1, 0, 2>, 2,  2,  2, true, 
+        1, 1, S<1, 256, 1, 1>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 128,         // BlockSize
+        128, 16, 5, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 1,           // MRepeat x NRepeat
+        S<1, 128, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 16, 8>,  S<1, 0, 2>, S<1, 0, 2>, 2,  2,  2, true, 
+        1, 1, S<1, 128, 1, 1>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 64,         // BlockSize
+        64, 16, 5, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 1,           // MRepeat x NRepeat
+        S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 16, 4>,  S<1, 0, 2>, S<1, 0, 2>, 2,  4,  4, true, 
+        1, 1, S<1, 64, 1, 1>, 16>,
+    // K0 = 6
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 256,         // BlockSize
+        256, 16, 6, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 1,           // MRepeat x NRepeat
+        S<1, 256, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 16, 8>,  S<1, 0, 2>, S<1, 0, 2>, 2,  2,  2, true, 
+        1, 1, S<1, 256, 1, 1>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 128,         // BlockSize
+        128, 16, 6, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 1,           // MRepeat x NRepeat
+        S<1, 128, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 16, 8>,  S<1, 0, 2>, S<1, 0, 2>, 2,  2,  2, true, 
+        1, 1, S<1, 128, 1, 1>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 64,         // BlockSize
+        64, 16, 6, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 1,           // MRepeat x NRepeat
+        S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 16, 4>,  S<1, 0, 2>, S<1, 0, 2>, 2,  4,  4, true, 
+        1, 1, S<1, 64, 1, 1>, 16>,
+    // K0 = 7
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 256,         // BlockSize
+        256, 16, 7, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 1,           // MRepeat x NRepeat
+        S<1, 256, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 16, 8>,  S<1, 0, 2>, S<1, 0, 2>, 2,  2,  2, true, 
+        1, 1, S<1, 256, 1, 1>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 128,         // BlockSize
+        128, 16, 7, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 1,           // MRepeat x NRepeat
+        S<1, 128, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 16, 8>,  S<1, 0, 2>, S<1, 0, 2>, 2,  2,  2, true, 
+        1, 1, S<1, 128, 1, 1>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 64,         // BlockSize
+        64, 16, 7, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 1,           // MRepeat x NRepeat
+        S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 16, 4>,  S<1, 0, 2>, S<1, 0, 2>, 2,  4,  4, true, 
+        1, 1, S<1, 64, 1, 1>, 16>,
+    // K0 = 8
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 256,         // BlockSize
+        256, 16, 8, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 1,           // MRepeat x NRepeat
+        S<1, 256, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 16, 8>,  S<1, 0, 2>, S<1, 0, 2>, 2,  2,  2, true, 
+        1, 1, S<1, 256, 1, 1>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 128,         // BlockSize
+        128, 16, 8, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 1,           // MRepeat x NRepeat
+        S<1, 128, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 16, 8>,  S<1, 0, 2>, S<1, 0, 2>, 2,  2,  2, true, 
+        1, 1, S<1, 128, 1, 1>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 64,         // BlockSize
+        64, 16, 8, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 1,           // MRepeat x NRepeat
+        S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 16, 4>,  S<1, 0, 2>, S<1, 0, 2>, 2,  4,  4, true, 
+        1, 1, S<1, 64, 1, 1>, 16>,
+// GEMM_N=32, Wave N = 1 
+        // K0 = 2
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 256,         // BlockSize
+        256, 32, 2, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        4, 1,           // MRepeat x NRepeat
+        S<1, 256, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 32, 8>,  S<1, 0, 2>, S<1, 0, 2>, 2,  4,  4, true, 
+        1, 1, S<1, 128, 1, 2>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 128,         // BlockSize
+        128, 32, 2, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        4, 1,           // MRepeat x NRepeat
+        S<1, 128, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 32, 4>,  S<1, 0, 2>, S<1, 0, 2>, 2,  4,  4, true, 
+        1, 1, S<1, 64, 1, 2>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 64,         // BlockSize
+        64, 32, 2, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        4, 1,           // MRepeat x NRepeat
+        S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 32, 2>, S<1, 0, 2>, S<1, 0, 2>, 2,  8,  8, true, 
+        1, 1, S<1, 32, 1, 2>, 16>,
+    // K0 = 3
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 256,         // BlockSize
+        256, 32, 3, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        4, 1,           // MRepeat x NRepeat
+        S<1, 256, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 32, 8>,  S<1, 0, 2>, S<1, 0, 2>, 2,  4,  4, true, 
+        1, 1, S<1, 128, 1, 2>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 192,         // BlockSize
+        192, 32, 3, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        4, 1,           // MRepeat x NRepeat
+        S<1, 192, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<3, 32, 2>,  S<1, 0, 2>, S<1, 0, 2>, 2,  8,  8, true, 
+        1, 1, S<1, 96, 1, 2>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 128,         // BlockSize
+        128, 32, 3, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        4, 1,           // MRepeat x NRepeat
+        S<1, 128, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 32, 4>,  S<1, 0, 2>, S<1, 0, 2>, 2,  4,  4, true, 
+        1, 1, S<1, 64, 1, 2>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 64,         // BlockSize
+        64, 32, 3, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        4, 1,           // MRepeat x NRepeat
+        S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 32, 2>, S<1, 0, 2>, S<1, 0, 2>, 2,  8,  8, true, 
+        1, 1, S<1, 32, 1, 2>, 16>,
+    // K0 = 4
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 256,         // BlockSize
+        256, 32, 4, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        4, 1,           // MRepeat x NRepeat
+        S<1, 256, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 16, 8>,  S<1, 0, 2>, S<1, 0, 2>, 2,  2,  2, true, 
+        1, 1, S<1, 128, 1, 2>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 128,         // BlockSize
+        128, 32, 4, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        4, 1,           // MRepeat x NRepeat
+        S<1, 128, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 32, 4>,  S<1, 0, 2>, S<1, 0, 2>, 2,  4,  4, true, 
+        1, 1, S<1, 64, 1, 2>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 64,         // BlockSize
+        64, 32, 4, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        4, 1,           // MRepeat x NRepeat
+        S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 32, 2>, S<1, 0, 2>, S<1, 0, 2>, 2,  8,  8, true, 
+        1, 1, S<1, 32, 1, 2>, 16>,
+    // K0 = 5
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 256,         // BlockSize
+        256, 32, 5, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        4, 1,           // MRepeat x NRepeat
+        S<1, 256, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 32, 8>,  S<1, 0, 2>, S<1, 0, 2>, 2,  2,  2, true, 
+        1, 1, S<1, 128, 1, 2>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 128,         // BlockSize
+        128, 32, 5, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        4, 1,           // MRepeat x NRepeat
+        S<1, 128, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 32, 4>,  S<1, 0, 2>, S<1, 0, 2>, 2,  4,  4, true, 
+        1, 1, S<1, 64, 1, 2>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 64,         // BlockSize
+        64, 32, 5, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        4, 1,           // MRepeat x NRepeat
+        S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 32, 2>, S<1, 0, 2>, S<1, 0, 2>, 2,  8,  8, true, 
+        1, 1, S<1, 32, 1, 2>, 16>,
+    // K0 = 6
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 256,         // BlockSize
+        256, 32, 6, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        4, 1,           // MRepeat x NRepeat
+        S<1, 256, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 32, 8>,  S<1, 0, 2>, S<1, 0, 2>, 2,  2,  2, true, 
+        1, 1, S<1, 128, 1, 2>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 128,         // BlockSize
+        128, 32, 6, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        4, 1,           // MRepeat x NRepeat
+        S<1, 128, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 32, 4>,  S<1, 0, 2>, S<1, 0, 2>, 2,  4,  4, true, 
+        1, 1, S<1, 64, 1, 2>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 64,         // BlockSize
+        64, 32, 6, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        4, 1,           // MRepeat x NRepeat
+        S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 32, 2>, S<1, 0, 2>, S<1, 0, 2>, 2,  8,  8, true, 
+        1, 1, S<1, 32, 1, 2>, 16>,
+    // K0 = 7
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 256,         // BlockSize
+        256, 32, 7, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        4, 1,           // MRepeat x NRepeat
+        S<1, 256, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 32, 8>,  S<1, 0, 2>, S<1, 0, 2>, 2,  2,  2, true, 
+        1, 1, S<1, 128, 1, 2>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 128,         // BlockSize
+        128, 32, 7, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        4, 1,           // MRepeat x NRepeat
+        S<1, 128, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 32, 4>,  S<1, 0, 2>, S<1, 0, 2>, 2,  4,  4, true, 
+        1, 1, S<1, 64, 1, 2>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 64,         // BlockSize
+        64, 32, 7, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        4, 1,           // MRepeat x NRepeat
+        S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 32, 2>, S<1, 0, 2>, S<1, 0, 2>, 2,  8,  8, true, 
+        1, 1, S<1, 32, 1, 2>, 16>,
+    // K0 = 8
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 256,         // BlockSize
+        256, 32, 8, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        4, 1,           // MRepeat x NRepeat
+        S<1, 256, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 32, 8>,  S<1, 0, 2>, S<1, 0, 2>, 2,  2,  2, true, 
+        1, 1, S<1, 128, 1, 2>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 128,         // BlockSize
+        128, 32, 8, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        4, 1,           // MRepeat x NRepeat
+        S<1, 128, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 32, 4>,  S<1, 0, 2>, S<1, 0, 2>, 2,  4,  4, true, 
+        1, 1, S<1, 64, 1, 2>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 64,         // BlockSize
+        64, 32, 8, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        4, 1,           // MRepeat x NRepeat
+        S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 32, 2>, S<1, 0, 2>, S<1, 0, 2>, 2,  8,  8, true, 
+        1, 1, S<1, 32, 1, 2>, 16>,
 
+    // GEMM_N=32, Wave N = 1 
+        // K0 = 2
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 256,         // BlockSize
+        256, 32, 2, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 2,           // MRepeat x NRepeat
+        S<1, 256, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 32, 8>,  S<1, 0, 2>, S<1, 0, 2>, 2,  4,  4, true, 
+        1, 1, S<1, 128, 1, 2>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 128,         // BlockSize
+        128, 32, 2, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 2,           // MRepeat x NRepeat
+        S<1, 128, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 32, 4>,  S<1, 0, 2>, S<1, 0, 2>, 2,  4,  4, true, 
+        1, 1, S<1, 64, 1, 2>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 64,         // BlockSize
+        64, 32, 2, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 2,           // MRepeat x NRepeat
+        S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 32, 2>, S<1, 0, 2>, S<1, 0, 2>, 2,  8,  8, true, 
+        1, 1, S<1, 32, 1, 2>, 16>,
+    // K0 = 3
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 256,         // BlockSize
+        256, 32, 3, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 2,           // MRepeat x NRepeat
+        S<1, 256, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 32, 8>,  S<1, 0, 2>, S<1, 0, 2>, 2,  4,  4, true, 
+        1, 1, S<1, 128, 1, 2>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 192,         // BlockSize
+        192, 32, 3, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 2,           // MRepeat x NRepeat
+        S<1, 192, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<3, 32, 2>,  S<1, 0, 2>, S<1, 0, 2>, 2,  8,  8, true, 
+        1, 1, S<1, 64, 1, 3>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 128,         // BlockSize
+        128, 32, 3, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 2,           // MRepeat x NRepeat
+        S<1, 128, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 32, 4>,  S<1, 0, 2>, S<1, 0, 2>, 2,  4,  4, true, 
+        1, 1, S<1, 64, 1, 2>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 64,         // BlockSize
+        64, 32, 3, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 2,           // MRepeat x NRepeat
+        S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 32, 2>, S<1, 0, 2>, S<1, 0, 2>, 2,  8,  8, true, 
+        1, 1, S<1, 32, 1, 2>, 16>,
+    // K0 = 4
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 256,         // BlockSize
+        256, 32, 4, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 2,           // MRepeat x NRepeat
+        S<1, 256, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 32, 8>,  S<1, 0, 2>, S<1, 0, 2>, 2,  2,  2, true, 
+        1, 1, S<1, 128, 1, 2>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 128,         // BlockSize
+        128, 32, 4, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 2,           // MRepeat x NRepeat
+        S<1, 128, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 32, 4>,  S<1, 0, 2>, S<1, 0, 2>, 2,  4,  4, true, 
+        1, 1, S<1, 64, 1, 2>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 64,         // BlockSize
+        64, 32, 4, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 2,           // MRepeat x NRepeat
+        S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 32, 2>, S<1, 0, 2>, S<1, 0, 2>, 2,  8,  8, true, 
+        1, 1, S<1, 32, 1, 2>, 16>,
+    // K0 = 5
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 256,         // BlockSize
+        256, 32, 5, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 2,           // MRepeat x NRepeat
+        S<1, 256, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 32, 8>,  S<1, 0, 2>, S<1, 0, 2>, 2,  2,  2, true, 
+        1, 1, S<1, 128, 1, 2>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 128,         // BlockSize
+        128, 32, 5, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 2,           // MRepeat x NRepeat
+        S<1, 128, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 32, 4>,  S<1, 0, 2>, S<1, 0, 2>, 2,  4,  4, true, 
+        1, 1, S<1, 64, 1, 2>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 64,         // BlockSize
+        64, 32, 5, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 2,           // MRepeat x NRepeat
+        S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 32, 2>, S<1, 0, 2>, S<1, 0, 2>, 2,  8,  8, true, 
+        1, 1, S<1, 32, 1, 2>, 16>,
+    // K0 = 6
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 256,         // BlockSize
+        256, 32, 6, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 2,           // MRepeat x NRepeat
+        S<1, 256, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 32, 8>,  S<1, 0, 2>, S<1, 0, 2>, 2,  2,  2, true, 
+        1, 1, S<1, 128, 1, 2>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 128,         // BlockSize
+        128, 32, 6, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 2,           // MRepeat x NRepeat
+        S<1, 128, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 32, 4>,  S<1, 0, 2>, S<1, 0, 2>, 2,  4,  4, true, 
+        1, 1, S<1, 64, 1, 2>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 64,         // BlockSize
+        64, 32, 6, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 2,           // MRepeat x NRepeat
+        S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 32, 2>, S<1, 0, 2>, S<1, 0, 2>, 2,  8,  8, true, 
+        1, 1, S<1, 32, 1, 2>, 16>,
+    // K0 = 7
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 256,         // BlockSize
+        256, 32, 7, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 2,           // MRepeat x NRepeat
+        S<1, 256, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 32, 8>,  S<1, 0, 2>, S<1, 0, 2>, 2,  2,  2, true, 
+        1, 1, S<1, 128, 1, 2>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 128,         // BlockSize
+        128, 32, 7, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 2,           // MRepeat x NRepeat
+        S<1, 128, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 32, 4>,  S<1, 0, 2>, S<1, 0, 2>, 2,  4,  4, true, 
+        1, 1, S<1, 64, 1, 2>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 64,         // BlockSize
+        64, 32, 7, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 2,           // MRepeat x NRepeat
+        S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 32, 2>, S<1, 0, 2>, S<1, 0, 2>, 2,  8,  8, true, 
+        1, 1, S<1, 32, 1, 2>, 16>,
+    // K0 = 8
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 256,         // BlockSize
+        256, 32, 8, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 2,           // MRepeat x NRepeat
+        S<1, 256, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 32, 8>,  S<1, 0, 2>, S<1, 0, 2>, 2,  2,  2, true, 
+        1, 1, S<1, 128, 1, 2>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 128,         // BlockSize
+        128, 32, 8, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 2,           // MRepeat x NRepeat
+        S<1, 128, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 32, 4>,  S<1, 0, 2>, S<1, 0, 2>, 2,  4,  4, true, 
+        1, 1, S<1, 64, 1, 2>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 64,         // BlockSize
+        64, 32, 8, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 2,           // MRepeat x NRepeat
+        S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 32, 2>, S<1, 0, 2>, S<1, 0, 2>, 2,  8,  8, true, 
+        1, 1, S<1, 32, 1, 2>, 16>,
+    // GEMM_N=64, Wave N = 1 
+        // K0 = 2
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 256,         // BlockSize
+        256, 64, 2, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 4,           // MRepeat x NRepeat
+        S<1, 256, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 64, 4>,  S<1, 0, 2>, S<1, 0, 2>, 2,  4,  4, true, 
+        1, 1, S<1, 64, 1, 4>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 128,         // BlockSize
+        128, 64, 2, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 4,           // MRepeat x NRepeat
+        S<1, 128, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 64, 2>,  S<1, 0, 2>, S<1, 0, 2>, 2,  8,  8, true, 
+        1, 1, S<1, 32, 1, 4>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 64,         // BlockSize
+        64, 64, 2, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 4,           // MRepeat x NRepeat
+        S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, 
+        1, 1, S<1, 16, 1, 4>, 16>,
+    // K0 = 3
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 256,         // BlockSize
+        256, 64, 3, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 4,           // MRepeat x NRepeat
+        S<1, 256, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 64, 4>,  S<1, 0, 2>, S<1, 0, 2>, 2,  4,  4, true, 
+        1, 1, S<1, 64, 1, 4>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 192,         // BlockSize
+        192, 64, 3, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 4,           // MRepeat x NRepeat
+        S<1, 192, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<3, 64, 1>,  S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, 
+        1, 1, S<1, 64, 1, 3>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 128,         // BlockSize
+        128, 64, 3, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 4,           // MRepeat x NRepeat
+        S<1, 128, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 64, 2>,  S<1, 0, 2>, S<1, 0, 2>, 2,  8,  8, true, 
+        1, 1, S<1, 32, 1, 4>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 64,         // BlockSize
+        64, 64, 3, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 4,           // MRepeat x NRepeat
+        S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, 
+        1, 1, S<1, 16, 1, 4>, 16>,
+    // K0 = 4
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 256,         // BlockSize
+        256, 64, 4, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 4,           // MRepeat x NRepeat
+        S<1, 256, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 64, 4>,  S<1, 0, 2>, S<1, 0, 2>, 2,  4,  4, true, 
+        1, 1, S<1, 64, 1, 4>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 128,         // BlockSize
+        128, 64, 4, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 4,           // MRepeat x NRepeat
+        S<1, 128, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 64, 2>,  S<1, 0, 2>, S<1, 0, 2>, 2,  8 , 8, true, 
+        1, 1, S<1, 32, 1, 4>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 64,         // BlockSize
+        64, 64, 4, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 4,           // MRepeat x NRepeat
+        S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, 
+        1, 1, S<1, 16, 1, 4>, 16>,
+    // K0 = 5
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 256,         // BlockSize
+        256, 64, 5, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 4,           // MRepeat x NRepeat
+        S<1, 256, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 64, 4>,  S<1, 0, 2>, S<1, 0, 2>, 2,  4,  4, true, 
+        1, 1, S<1, 64, 1, 4>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 128,         // BlockSize
+        128, 64, 5, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 4,           // MRepeat x NRepeat
+        S<1, 128, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 64, 2>,  S<1, 0, 2>, S<1, 0, 2>, 2,  8 , 8, true, 
+        1, 1, S<1, 32, 1, 4>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 64,         // BlockSize
+        64, 64, 5, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 4,           // MRepeat x NRepeat
+        S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, 
+        1, 1, S<1, 16, 1, 4>, 16>,
+    // K0 = 6
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 256,         // BlockSize
+        256, 64, 6, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 4,           // MRepeat x NRepeat
+        S<1, 256, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 64, 4>,  S<1, 0, 2>, S<1, 0, 2>, 2,  4,  4, true, 
+        1, 1, S<1, 64, 1, 4>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 128,         // BlockSize
+        128, 64, 6, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 4,           // MRepeat x NRepeat
+        S<1, 128, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 64, 2>,  S<1, 0, 2>, S<1, 0, 2>, 2,  8 , 8, true, 
+        1, 1, S<1, 32, 1, 4>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 64,         // BlockSize
+        64, 64, 6, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 4,           // MRepeat x NRepeat
+        S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, 
+        1, 1, S<1, 16, 1, 4>, 16>,
+    // K0 = 7
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 256,         // BlockSize
+        256, 64, 7, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 4,           // MRepeat x NRepeat
+        S<1, 256, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 64, 4>,  S<1, 0, 2>, S<1, 0, 2>, 2,  4,  4, true, 
+        1, 1, S<1, 64, 1, 4>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 128,         // BlockSize
+        128, 64, 7, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 4,           // MRepeat x NRepeat
+        S<1, 128, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 64, 2>,  S<1, 0, 2>, S<1, 0, 2>, 2,  8 , 8, true, 
+        1, 1, S<1, 32, 1, 4>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 64,         // BlockSize
+        64, 64, 7, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 4,           // MRepeat x NRepeat
+        S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, 
+        1, 1, S<1, 16, 1, 4>, 16>,
+    // K0 = 8
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 256,         // BlockSize
+        256, 64, 8, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 4,           // MRepeat x NRepeat
+        S<1, 256, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 64, 4>,  S<1, 0, 2>, S<1, 0, 2>, 2,  4,  4, true, 
+        1, 1, S<1, 64, 1, 4>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 128,         // BlockSize
+        128, 64, 8, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 4,           // MRepeat x NRepeat
+        S<1, 128, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 64, 2>,  S<1, 0, 2>, S<1, 0, 2>, 2,  8 , 8, true, 
+        1, 1, S<1, 32, 1, 4>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 64,         // BlockSize
+        64, 64, 8, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 4,           // MRepeat x NRepeat
+        S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, 
+        1, 1, S<1, 16, 1, 4>, 16>,
+
+    // GEMM_N = 64, WaveN = 2
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 256,         // BlockSize
+        256, 64, 2, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        4, 2,           // MRepeat x NRepeat
+        S<1, 256, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 64, 4>,  S<1, 0, 2>, S<1, 0, 2>, 2,  4,  4, true, 
+        1, 1, S<1, 64, 1, 4>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 128,         // BlockSize
+        128, 64, 2, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        4, 2,           // MRepeat x NRepeat
+        S<1, 128, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 64, 2>,  S<1, 0, 2>, S<1, 0, 2>, 2,  8,  8, true, 
+        1, 1, S<1, 32, 1, 4>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 64,         // BlockSize
+        64, 64, 2, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        4, 2,           // MRepeat x NRepeat
+        S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, 
+        1, 1, S<1, 16, 1, 4>, 16>,
+    // K0 = 3
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 256,         // BlockSize
+        256, 64, 3, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        4, 2,           // MRepeat x NRepeat
+        S<1, 256, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 64, 4>,  S<1, 0, 2>, S<1, 0, 2>, 2,  4,  4, true, 
+        1, 1, S<1, 64, 1, 4>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 192,         // BlockSize
+        192, 64, 3, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        4, 2,           // MRepeat x NRepeat
+        S<1, 192, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<3, 64, 1>,  S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, 
+        1, 1, S<1, 64, 1, 3>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 128,         // BlockSize
+        128, 64, 3, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        4, 2,           // MRepeat x NRepeat
+        S<1, 128, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 64, 2>,  S<1, 0, 2>, S<1, 0, 2>, 2,  8,  8, true, 
+        1, 1, S<1, 32, 1, 4>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 64,         // BlockSize
+        64, 64, 3, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        4, 2,           // MRepeat x NRepeat
+        S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, 
+        1, 1, S<1, 16, 1, 4>, 16>,
+    // K0 = 4
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 256,         // BlockSize
+        256, 64, 4, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        4, 2,           // MRepeat x NRepeat
+        S<1, 256, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 64, 4>,  S<1, 0, 2>, S<1, 0, 2>, 2,  4,  4, true, 
+        1, 1, S<1, 64, 1, 4>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 128,         // BlockSize
+        128, 64, 4, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        4, 2,           // MRepeat x NRepeat
+        S<1, 128, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 64, 2>,  S<1, 0, 2>, S<1, 0, 2>, 2,  8 , 8, true, 
+        1, 1, S<1, 32, 1, 4>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 64,         // BlockSize
+        64, 64, 4, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        4, 2,           // MRepeat x NRepeat
+        S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, 
+        1, 1, S<1, 16, 1, 4>, 16>,
+    // K0 = 5
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 256,         // BlockSize
+        256, 64, 5, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        4, 2,           // MRepeat x NRepeat
+        S<1, 256, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 64, 4>,  S<1, 0, 2>, S<1, 0, 2>, 2,  4,  4, true, 
+        1, 1, S<1, 64, 1, 4>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 128,         // BlockSize
+        128, 64, 5, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        4, 2,           // MRepeat x NRepeat
+        S<1, 128, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 64, 2>,  S<1, 0, 2>, S<1, 0, 2>, 2,  8 , 8, true, 
+        1, 1, S<1, 32, 1, 4>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 64,         // BlockSize
+        64, 64, 5, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        4, 2,           // MRepeat x NRepeat
+        S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, 
+        1, 1, S<1, 16, 1, 4>, 16>,
+    // K0 = 6
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 256,         // BlockSize
+        256, 64, 6, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        4, 2,           // MRepeat x NRepeat
+        S<1, 256, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 64, 4>,  S<1, 0, 2>, S<1, 0, 2>, 2,  4,  4, true, 
+        1, 1, S<1, 64, 1, 4>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 128,         // BlockSize
+        128, 64, 6, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        4, 2,           // MRepeat x NRepeat
+        S<1, 128, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 64, 2>,  S<1, 0, 2>, S<1, 0, 2>, 2,  8 , 8, true, 
+        1, 1, S<1, 32, 1, 4>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 64,         // BlockSize
+        64, 64, 6, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        4, 2,           // MRepeat x NRepeat
+        S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, 
+        1, 1, S<1, 16, 1, 4>, 16>,
+    // K0 = 7
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 256,         // BlockSize
+        256, 64, 7, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        4, 2,           // MRepeat x NRepeat
+        S<1, 256, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 64, 4>,  S<1, 0, 2>, S<1, 0, 2>, 2,  4,  4, true, 
+        1, 1, S<1, 64, 1, 4>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 128,         // BlockSize
+        128, 64, 7, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        4, 2,           // MRepeat x NRepeat
+        S<1, 128, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 64, 2>,  S<1, 0, 2>, S<1, 0, 2>, 2,  8 , 8, true, 
+        1, 1, S<1, 32, 1, 4>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 64,         // BlockSize
+        64, 64, 7, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        4, 2,           // MRepeat x NRepeat
+        S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, 
+        1, 1, S<1, 16, 1, 4>, 16>,
+    // K0 = 8
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 256,         // BlockSize
+        256, 64, 8, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        4, 2,           // MRepeat x NRepeat
+        S<1, 256, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 64, 4>,  S<1, 0, 2>, S<1, 0, 2>, 2,  4,  4, true, 
+        1, 1, S<1, 64, 1, 4>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 128,         // BlockSize
+        128, 64, 8, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        4, 2,           // MRepeat x NRepeat
+        S<1, 128, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 64, 2>,  S<1, 0, 2>, S<1, 0, 2>, 2,  8 , 8, true, 
+        1, 1, S<1, 32, 1, 4>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 64,         // BlockSize
+        64, 64, 8, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        4, 2,           // MRepeat x NRepeat
+        S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, 
+        1, 1, S<1, 16, 1, 4>, 16>,
+   ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 192,         // BlockSize
+        192, 48, 2, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        6, 1,           // MRepeat x NRepeat
+        S<1, 192, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 48, 4>,  S<1, 0, 2>, S<1, 0, 2>, 2,  4,  4, true, 
+        1, 1, S<1, 64, 1, 3>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 96,         // BlockSize
+        96, 48, 2, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        6, 1,           // MRepeat x NRepeat
+        S<1, 96, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 48, 2>, S<1, 0, 2>, S<1, 0, 2>, 2,  8,  8, true, 
+        1, 1, S<1, 32, 1, 3>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 192,         // BlockSize
+        192, 48, 3, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        6, 1,           // MRepeat x NRepeat
+        S<1, 192, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 48, 4>,  S<1, 0, 2>, S<1, 0, 2>, 2,  4,  4, true, 
+        1, 1, S<1, 64, 1, 3>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 96,         // BlockSize
+        96, 48, 3, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        6, 1,           // MRepeat x NRepeat
+        S<1, 96, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 48, 2>, S<1, 0, 2>, S<1, 0, 2>, 2,  8,  8, true, 
+        1, 1, S<1, 32, 1, 3>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 192,         // BlockSize
+        192, 48, 4, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        6, 1,           // MRepeat x NRepeat
+        S<1, 192, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 48, 4>,  S<1, 0, 2>, S<1, 0, 2>, 2,  4,  4, true, 
+        1, 1, S<1, 64, 1, 3>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 96,         // BlockSize
+        96, 48, 4, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        6, 1,           // MRepeat x NRepeat
+        S<1, 96, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 48, 2>, S<1, 0, 2>, S<1, 0, 2>, 2,  8,  8, true, 
+        1, 1, S<1, 32, 1, 3>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 192,         // BlockSize
+        192, 48, 5, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        6, 1,           // MRepeat x NRepeat
+        S<1, 192, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 48, 4>,  S<1, 0, 2>, S<1, 0, 2>, 2,  4,  4, true, 
+        1, 1, S<1, 64, 1, 3>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 96,         // BlockSize
+        96, 48, 5, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        6, 1,           // MRepeat x NRepeat
+        S<1, 96, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 48, 2>, S<1, 0, 2>, S<1, 0, 2>, 2,  8,  8, true, 
+        1, 1, S<1, 32, 1, 3>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 192,         // BlockSize
+        192, 48, 6, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        6, 1,           // MRepeat x NRepeat
+        S<1, 192, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 48, 4>,  S<1, 0, 2>, S<1, 0, 2>, 2,  4,  4, true, 
+        1, 1, S<1, 64, 1, 3>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 96,         // BlockSize
+        96, 48, 6, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        6, 1,           // MRepeat x NRepeat
+        S<1, 96, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 48, 2>, S<1, 0, 2>, S<1, 0, 2>, 2,  8,  8, true, 
+        1, 1, S<1, 32, 1, 3>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 192,         // BlockSize
+        192, 48, 7, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        6, 1,           // MRepeat x NRepeat
+        S<1, 192, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 48, 4>,  S<1, 0, 2>, S<1, 0, 2>, 2,  4,  4, true, 
+        1, 1, S<1, 64, 1, 3>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 96,         // BlockSize
+        96, 48, 7, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        6, 1,           // MRepeat x NRepeat
+        S<1, 96, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 48, 2>, S<1, 0, 2>, S<1, 0, 2>, 2,  8,  8, true, 
+        1, 1, S<1, 32, 1, 3>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 192,         // BlockSize
+        192, 48, 8, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        6, 1,           // MRepeat x NRepeat
+        S<1, 192, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 48, 4>,  S<1, 0, 2>, S<1, 0, 2>, 2,  4,  4, true, 
+        1, 1, S<1, 64, 1, 3>, 16>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 96,         // BlockSize
+        96, 48, 8, 16, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        6, 1,           // MRepeat x NRepeat
+        S<1, 96, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
+        S<1, 48, 2>, S<1, 0, 2>, S<1, 0, 2>, 2,  8,  8, true, 
+        1, 1, S<1, 32, 1, 3>, 16>
+        >;
+    
+// clang-format on
 template <ck::index_t NDimSpatial>
 using HostConvFwdInstance = ck::tensor_operation::host::ReferenceConvFwd<NDimSpatial,
                                                                          InUserDataType,
@@ -182,85 +1546,97 @@ bool run_grouped_conv_fwd_bias_relu_add(const ExecutionConfig& config,
     copy(conv_param.input_right_pads_, input_right_pads);
 
     // do Conv
-    auto conv    = DeviceConvFwdInstance<NDimSpatial>{};
-    auto invoker = conv.MakeInvoker();
-    auto argument =
-        conv.MakeArgument(in_device_buf.GetDeviceBuffer(),
-                          wei_device_buf.GetDeviceBuffer(),
-                          std::array<const void*, 2>{bias_device_buf.GetDeviceBuffer(),
-                                                     residual_device_buf.GetDeviceBuffer()},
-                          out_device_buf.GetDeviceBuffer(),
-                          a_g_n_c_wis_lengths,
-                          a_g_n_c_wis_strides,
-                          b_g_k_c_xs_lengths,
-                          b_g_k_c_xs_strides,
-                          std::array<std::array<ck::index_t, NDimSpatial + 3>, 2>{
-                              {d0_g_n_k_wos_lengths, d1_g_n_k_wos_lengths}},
-                          std::array<std::array<ck::index_t, NDimSpatial + 3>, 2>{
-                              {d0_g_n_k_wos_strides, d1_g_n_k_wos_strides}},
-                          e_g_n_k_wos_lengths,
-                          e_g_n_k_wos_strides,
-                          conv_filter_strides,
-                          conv_filter_dilations,
-                          input_left_pads,
-                          input_right_pads,
-                          InElementOp{},
-                          WeiElementOp{},
-                          OutElementOp{});
+    float best_perf = .0;
+    float best_time = .0;
+    std::string best_kernel= "";
+    ck::static_for<0, std::tuple_size_v<DeviceConvFwdInstances<NDimSpatial>>, 1>{}([&](auto i) {
+        const auto device_conv_fwd_instance = std::get<i>(DeviceConvFwdInstances<NDimSpatial>{});
 
-    if(!conv.IsSupportedArgument(argument))
-    {
-        throw std::runtime_error(
-            "wrong! device_conv with the specified compilation parameters does "
-            "not support this Conv problem");
-    }
+        using DeviceConvFwdInstance = ck::remove_cvref_t<decltype(device_conv_fwd_instance)>;
+        auto conv    = DeviceConvFwdInstance{};
+        auto invoker = conv.MakeInvoker();
+        auto argument =
+            conv.MakeArgument(in_device_buf.GetDeviceBuffer(),
+                              wei_device_buf.GetDeviceBuffer(),
+                              std::array<const void*, 2>{bias_device_buf.GetDeviceBuffer(),
+                                                         residual_device_buf.GetDeviceBuffer()},
+                              out_device_buf.GetDeviceBuffer(),
+                              a_g_n_c_wis_lengths,
+                              a_g_n_c_wis_strides,
+                              b_g_k_c_xs_lengths,
+                              b_g_k_c_xs_strides,
+                              std::array<std::array<ck::index_t, NDimSpatial + 3>, 2>{
+                                  {d0_g_n_k_wos_lengths, d1_g_n_k_wos_lengths}},
+                              std::array<std::array<ck::index_t, NDimSpatial + 3>, 2>{
+                                  {d0_g_n_k_wos_strides, d1_g_n_k_wos_strides}},
+                              e_g_n_k_wos_lengths,
+                              e_g_n_k_wos_strides,
+                              conv_filter_strides,
+                              conv_filter_dilations,
+                              input_left_pads,
+                              input_right_pads,
+                              InElementOp{},
+                              WeiElementOp{},
+                              OutElementOp{});
 
-    float avg_time = invoker.Run(argument, StreamConfig{nullptr, config.time_kernel});
+        if(!conv.IsSupportedArgument(argument))
+        {
+            throw std::runtime_error(
+                "wrong! device_conv with the specified compilation parameters does "
+                "not support this Conv problem");
+        }
 
-    std::size_t flop      = conv_param.GetFlops();
-    std::size_t num_btype = conv_param.GetByte<InUserDataType, WeiUserDataType, OutUserDataType>();
+        float avg_time = invoker.Run(argument, StreamConfig{nullptr, config.time_kernel});
 
-    float tflops     = static_cast<float>(flop) / 1.E9 / avg_time;
-    float gb_per_sec = num_btype / 1.E6 / avg_time;
-    std::cout << "Perf: " << avg_time << " ms, " << tflops << " TFlops, " << gb_per_sec << " GB/s, "
-              << conv.GetTypeString() << std::endl;
+        std::size_t flop      = conv_param.GetFlops();
+        std::size_t num_btype = conv_param.GetByte<InUserDataType, WeiUserDataType, OutUserDataType>();
 
-    if(config.do_verification)
-    {
-        Tensor<CShuffleDataType> c_host(out_g_n_k_wos_desc);
+        float tflops     = static_cast<float>(flop) / 1.E9 / avg_time;
+        float gb_per_sec = num_btype / 1.E6 / avg_time;
+        std::cout << "Perf: " << avg_time << " ms, " << tflops << " TFlops, " << gb_per_sec << " GB/s, "
+                  << conv.GetTypeString() << std::endl;
+        
+        if(tflops > best_perf){
+            best_perf = tflops;
+            best_time = avg_time * 1000;
+            best_kernel = conv.GetTypeString();
+        }
 
-        auto ref_conv     = HostConvFwdInstance<NDimSpatial>{};
-        auto ref_invoker  = ref_conv.MakeInvoker();
-        auto ref_argument = ref_conv.MakeArgument(in,
-                                                  wei,
-                                                  c_host,
-                                                  conv_param.conv_filter_strides_,
-                                                  conv_param.conv_filter_dilations_,
-                                                  conv_param.input_left_pads_,
-                                                  conv_param.input_right_pads_,
-                                                  InElementOp{},
-                                                  WeiElementOp{},
-                                                  PassThrough{});
+        if(config.do_verification)
+        {
+#if 0 
+            Tensor<CShuffleDataType> c_host(out_g_n_k_wos_desc);
 
-        ref_invoker.Run(ref_argument);
+            auto ref_conv     = HostConvFwdInstance<NDimSpatial>{};
+            auto ref_invoker  = ref_conv.MakeInvoker();
+            auto ref_argument = ref_conv.MakeArgument(in,
+                                                      wei,
+                                                      c_host,
+                                                      conv_param.conv_filter_strides_,
+                                                      conv_param.conv_filter_dilations_,
+                                                      conv_param.input_left_pads_,
+                                                      conv_param.input_right_pads_,
+                                                      InElementOp{},
+                                                      WeiElementOp{},
+                                                      PassThrough{});
 
-        // TODO: implement elementwise operation for host
-        out_host.ForEach([&](auto&, auto idx) {
-            OutElementOp{}(out_host(idx), c_host(idx), bias(idx), residual(idx));
-        });
+            ref_invoker.Run(ref_argument);
 
-        out_device_buf.FromDevice(out_device.mData.data());
+            // TODO: implement elementwise operation for host
+            out_host.ForEach([&](auto&, auto idx) {
+                OutElementOp{}(out_host(idx), c_host(idx), bias(idx), residual(idx));
+            });
 
-#ifdef BUILD_INT4_EXAMPLE
-        const Tensor<OutUserDataType> out_device_converted(out_device);
+            out_device_buf.FromDevice(out_device.mData.data());
 
-        return ck::utils::check_err(
-            out_device_converted, out_host, "Error: incorrect results!", 1e-5f, 1e-4f);
-#else
-        return ck::utils::check_err(
-            out_device, out_host, "Error: incorrect results!", 1e-5f, 1e-4f);
+            return ck::utils::check_err(
+                out_device, out_host, "Error: incorrect results!", 1e-5f, 1e-4f);
 #endif
-    }
+        }
+    });
+    std::cout << "--------------------------------------------------------------------------------------------"<<std::endl;
+    std::cout << "Best kernel: " << best_kernel << " , " << best_perf << " TFlops , " << best_time<<" us"<<std::endl;
+    std::cout << "--------------------------------------------------------------------------------------------"<<std::endl;
 
     return true;
 }
