@@ -143,6 +143,26 @@ struct AddHardswishAdd
     }
 };
 
+struct AddHardTanhAdd
+{
+    template <typename Y, typename X0, typename X1, typename X2>
+    __host__ __device__ constexpr void operator()(Y&, const X0&, const X1&, const X2&) const;
+
+    template <>
+    __host__ __device__ constexpr void operator()<int8_t, int8_t, int8_t, int8_t>(int8_t& y, 
+                                                                                  const int8_t& x0, 
+                                                                                  const int8_t& x1,
+                                                                                  const int8_t& x2) const
+    {
+        int32_t a = x0 + x1;
+        int32_t b = a;
+        if(b>1) b = 1;
+        else if(b<-1) b = -1;
+        int32_t c = b + x2;
+        y         = c;
+    }
+};
+
 // C = A * B
 // E = C + D0 + D1
 struct AddAdd

@@ -102,6 +102,9 @@ struct intrin_wmma_i32_16x16x16_iu8_w32<16, 16, neg_a, neg_b, clamp>
                 bit_cast<int32x4_t>(reg_b),
                 reg_c.template AsType<int32x8_t>()[Number<0>{}],
                 clamp);
+
+        // amd_assembly_wmma_f32_16x16x16_iu8_w32(
+            // neg_a, reg_a, neg_b, reg_b, reg_c.template AsType<int32x8_t>()(Number<0>{}), clamp);
     }
 };
 

@@ -51,33 +51,33 @@ using DeviceConvFwdInstance =
         OutElementOp,
         ConvSpec,    // ConvForwardSpecialization
         GemmSpec,    // GemmSpecialization
-        256,         // BlockSize
+        128,         // BlockSize
         128,         // MPerBlock
-        128,         // NPerBlock
-        4,           // K0PerBlock
-        8,           // K1
+        16,          // NPerBlock
+        2,           // K0PerBlock
+        16,          // K1
         16,          // MPerWMMA
         16,          // NPerWMMA
-        4,           // MRepeat
-        2,           // NRepeat
-        S<4, 64, 1>, // ABlockTransferThreadClusterLengths_AK0_M_AK1
+        2,           // MRepeat
+        1,           // NRepeat
+        S<1, 128, 1>, // ABlockTransferThreadClusterLengths_AK0_M_AK1
         S<1, 0, 2>,  // ABlockTransferThreadClusterArrangeOrder
         S<1, 0, 2>,  // ABlockTransferSrcAccessOrder
         2,           // ABlockTransferSrcVectorDim
-        8,           // ABlockTransferSrcScalarPerVector
-        8,           // ABlockTransferDstScalarPerVector_AK1
+        16,           // ABlockTransferSrcScalarPerVector
+        16,           // ABlockTransferDstScalarPerVector_AK1
         true,        // ABlockLdsExtraM
-        S<4, 64, 1>, // BBlockTransferThreadClusterLengths_BK0_N_BK1
+        S<1, 16, 8>, // BBlockTransferThreadClusterLengths_BK0_N_BK1
         S<1, 0, 2>,  // BBlockTransferThreadClusterArrangeOrder
         S<1, 0, 2>,  // BBlockTransferSrcAccessOrder
         2,           // BBlockTransferSrcVectorDim
-        8,           // BBlockTransferSrcScalarPerVector
-        8,           // BBlockTransferDstScalarPerVector_BK1
+        2,           // BBlockTransferSrcScalarPerVector
+        2,           // BBlockTransferDstScalarPerVector_BK1
         true,        // BBlockLdsExtraN
         1,
         1,
-        S<1, 32, 1, 8>,
-        8>;
+        S<1, 32, 1, 4>,
+        4>;
 
 template <ck::index_t NDimSpatial>
 using HostConvFwdInstance = ck::tensor_operation::host::ReferenceConvFwd<NDimSpatial,

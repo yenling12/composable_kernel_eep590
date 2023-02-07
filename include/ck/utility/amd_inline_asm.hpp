@@ -361,5 +361,14 @@ __device__ void amd_assembly_wmma_f32_16x16x16_f16_w32(half16_t a, half16_t b, f
     asm volatile("v_wmma_f32_16x16x16_f16 %0, %1, %2, %0" : "=v"(c) : "v"(a), "v"(b), "0"(c));
 }
 
+// __device__ void amd_assembly_wmma_f32_16x16x16_iu8_w32(bool neg_a, int8x16_t a, 
+                                                    //    bool neg_b, int8x16_t b, 
+                                                    //    int32x8_t& c, bool clamp)
+// {
+    // asm volatile("v_wmma_f32_16x16x16_iu8 %0, %1, %2, %0 neg_lo:[%3, %4, %5]" 
+                //  : "=v"(c) 
+                //  : "v"(a), "v"(b), "0"(c), ""(neg_a), ""(neg_b), ""(clamp));
+// }
+
 } // namespace ck
 #endif
