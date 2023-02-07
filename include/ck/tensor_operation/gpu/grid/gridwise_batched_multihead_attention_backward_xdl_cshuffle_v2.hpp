@@ -1333,8 +1333,8 @@ struct GridwiseBatchedMultiheadAttentionBackward_Xdl_CShuffle
             typename Gemm1::ABlockwiseCopy{tensor_operation::element_wise::PassThrough{}};
 
         // dQ: blockwise gemm
-        auto qgrad_blockwise_gemm = typename Gemm1::BlockwiseGemm{};
-        qgrad_blockwise_gemm.SetBBlockStartWindow(make_tuple(0, 0, 0, 0));
+        auto qgrad_blockwise_gemm =
+            typename Gemm1::BlockwiseGemm{make_tuple(0, 0, 0, 0), make_tuple(0, 0, 0, 0)};
 
         // dQ: B matrix blockwise copy        
         auto k_thread_origin = qgrad_blockwise_gemm.CalculateBThreadOriginDataIndex();
