@@ -709,7 +709,7 @@ struct DeviceGroupedConvFwdDlMultipleD_NHWC_KYXC_NHWK
         namespace ctc = tensor_layout::convolution;
 
         // check device
-        if(!(ck::get_device_name() == "gfx906" || ck::get_device_name() == "gfx1030"))
+        if(!(ck::get_device_name() == "gfx906" || ck::get_device_name() == "gfx1030" || ck::get_device_name() == "gfx1100"))
         {
             return false;
         }
