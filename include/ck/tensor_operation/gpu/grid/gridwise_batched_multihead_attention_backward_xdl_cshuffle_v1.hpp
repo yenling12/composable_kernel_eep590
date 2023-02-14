@@ -1508,7 +1508,7 @@ struct GridwiseBatchedMultiheadAttentionBackward_Xdl_CShuffle_V2
                      n3, // NInputNum
                      n4>,
             Sequence<0, 1, 2, 3, 4, 5, 6, 7, 8, 9>,
-            9,  // DstVectorDim
+            9, // DstVectorDim
             1, // DstScalarPerVector
             InMemoryDataOperationEnum::Set,
             1, // DstScalarStrideInVector

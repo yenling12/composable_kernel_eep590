@@ -347,6 +347,23 @@ struct ThreadwiseTensorSliceTransfer_v3r1
                     src_vector_refs, dst_vector_refs);
             });
         }
+        else if constexpr(SrcVectorDim == DstVectorDim && SrcScalarPerVector % 2 == 0 &&
+                          DstScalarPerVector % 2 == 0 &&
+                          is_same<half_t, remove_cvref_t<SrcData>>::value &&
+                          is_same<bhalf_t, remove_cvref_t<DstData>>::value)
+        {
+            auto NewSliceLengths = SliceLengths{}.template Modify(
+                Number<SrcVectorDim>{}, Number<SliceLengths{}[SrcVectorDim] / 2>{});
+            auto VectorStep = SliceLengths{} / NewSliceLengths;
+            static_ford<decltype(NewSliceLengths)>{}([&](auto idx) {
+                // convert from SrcData to DstData here
+                auto nidx = idx * VectorStep;
+                auto vhalf =
+                    src_thread_scratch_tuple_[thread_scratch_id].template GetAsType<half2_t>(nidx);
+                dst_thread_scratch_.template SetAsType<bhalf2_t>(nidx,
+                                                                 type_convert<bhalf2_t>(vhalf));
+            });
+        }
         else
         {
             static_ford<SliceLengths>{}([&](auto idx) {
