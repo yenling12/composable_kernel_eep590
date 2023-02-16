@@ -11,14 +11,14 @@
 #include "ck/ck.hpp"
 #include "ck/utility/reduction_enums.hpp"
 #include "ck/tensor_operation/gpu/device/reduction_operator_mapping.hpp"
-#include "ck/tensor_operation/gpu/device/device_reduce_multiblock.hpp"
+#include "ck/tensor_operation/gpu/device/impl/device_reduce_multiblock.hpp"
+#include "ck/library/reference_tensor_operation/cpu/reference_reduce.hpp"
 
 #include "ck/library/utility/check_err.hpp"
 #include "ck/library/utility/device_memory.hpp"
 #include "ck/library/utility/host_tensor.hpp"
 #include "ck/library/utility/host_tensor_generator.hpp"
 #include "ck/library/utility/host_common_util.hpp"
-#include "ck/library/utility/host_reduction.hpp"
 
 using namespace ck;
 using namespace ck::tensor_operation::device;
@@ -90,15 +90,15 @@ static bool time_kernel;
 int main(int argc, char* argv[])
 {
     // used by the device reduction
-    const std::vector<int> reduceDims_1    = {4};
-    const std::vector<int> invariantDims_1 = {0, 1, 2, 3};
+    const std::array<int, 1> reduceDims_1 = {4};
+    // const std::array<int, 4> invariantDims_1 = {0, 1, 2, 3};
 
-    const std::vector<int> reduceDims_2    = {3};
-    const std::vector<int> invariantDims_2 = {0, 1, 2};
+    const std::array<int, 1> reduceDims_2 = {3};
+    // const std::array<int, 3> invariantDims_2 = {0, 1, 2};
 
     // used by the host reduction
-    const std::vector<int> reduceDims    = {3, 4};
-    const std::vector<int> invariantDims = {0, 1, 2};
+    const std::array<int, 2> reduceDims = {3, 4};
+    // const std::array<int, 3> invariantDims = {0, 1, 2};
 
     const std::vector<size_t> inLengths_1 = {64, 320, 80, 4, 128};
 
@@ -191,52 +191,71 @@ int main(int argc, char* argv[])
         reduce_unary_operator<ReduceOpId, true, true>::GetElementwiseOperator(
             static_cast<int32_t>(reduce_total_length));
 
+    std::array<index_t, 5> arrInLengths_1;
+    std::array<index_t, 5> arrInStrides_1;
+    std::array<index_t, 4> arrInLengths_2;
+    std::array<index_t, 4> arrInStrides_2;
+    std::array<index_t, 3> arrOutLengths;
+    std::array<index_t, 3> arrOutStrides;
+
+    ck::ranges::copy(inLengths_1, arrInLengths_1.begin());
+    ck::ranges::copy(inStrides_1, arrInStrides_1.begin());
+    ck::ranges::copy(inLengths_2, arrInLengths_2.begin());
+    ck::ranges::copy(inStrides_2, arrInStrides_2.begin());
+    ck::ranges::copy(outLengths, arrOutLengths.begin());
+    ck::ranges::copy(outStrides, arrOutStrides.begin());
+
     if(do_verify)
     {
-        ReductionHost<InOutDataType,
-                      AccDataType,
-                      InOutDataType,
-                      ReduceOperation,
-                      InElementwiseOperation,
-                      AccElementwiseOperation,
-                      5, // Rank
-                      2, // NumReduceDim
-                      PropagateNan,
-                      OutputIndex>
-            hostReduce(in_1.mDesc, out_ref.mDesc, invariantDims, reduceDims);
+        using ReferenceReduceInstance =
+            ck::tensor_operation::host::ReferenceReduce<InOutDataType,
+                                                        AccDataType,
+                                                        InOutDataType,
+                                                        5,
+                                                        2,
+                                                        ReduceOperation,
+                                                        InElementwiseOperation,
+                                                        AccElementwiseOperation,
+                                                        PropagateNan,
+                                                        OutputIndex>;
 
-        hostReduce.Run(alpha,
-                       in_1.mData.data(),
-                       beta,
-                       out_ref.mData.data(),
-                       nullptr,
-                       in_elementwise_op,
-                       acc_elementwise_op);
+        auto reduce_ref = ReferenceReduceInstance{};
+
+        auto argument_ptr_ref = reduce_ref.MakeArgumentPointer(arrInLengths_1,
+                                                               arrInStrides_1,
+                                                               arrOutLengths,
+                                                               arrOutStrides,
+                                                               reduceDims,
+                                                               static_cast<double>(alpha),
+                                                               static_cast<double>(beta),
+                                                               in_1.mData.data(),
+                                                               nullptr,
+                                                               out_ref.mData.data(),
+                                                               nullptr,
+                                                               in_elementwise_op,
+                                                               acc_elementwise_op);
+
+        if(!reduce_ref.IsSupportedArgument(argument_ptr_ref.get()))
+        {
+            std::cout << "The runtime parameters not supported by the reduce reference, exiting!"
+                      << std::endl;
+            return (false);
+        };
+
+        auto invoker_ptr_ref = reduce_ref.MakeInvokerPointer();
+
+        invoker_ptr_ref->Run(argument_ptr_ref.get());
     };
-
-    std::vector<ck::index_t> i_inLengths_1;
-    std::vector<ck::index_t> i_inStrides_1;
-    std::vector<ck::index_t> i_inLengths_2;
-    std::vector<ck::index_t> i_inStrides_2;
-    std::vector<ck::index_t> i_outLengths;
-    std::vector<ck::index_t> i_outStrides;
-
-    i_inLengths_1.assign(inLengths_1.begin(), inLengths_1.end());
-    i_inStrides_1.assign(inStrides_1.begin(), inStrides_1.end());
-    i_inLengths_2.assign(inLengths_2.begin(), inLengths_2.end());
-    i_inStrides_2.assign(inStrides_2.begin(), inStrides_2.end());
-    i_outLengths.assign(outLengths.begin(), outLengths.end());
-    i_outStrides.assign(outStrides.begin(), outStrides.end());
 
     auto reduce_1 = DeviceReduceInstance_1{};
 
-    auto argument_ptr_1 = reduce_1.MakeArgumentPointer(i_inLengths_1,
-                                                       i_inStrides_1,
-                                                       i_inLengths_2,
-                                                       i_inStrides_2,
+    auto argument_ptr_1 = reduce_1.MakeArgumentPointer(arrInLengths_1,
+                                                       arrInStrides_1,
+                                                       arrInLengths_2,
+                                                       arrInStrides_2,
                                                        reduceDims_1,
-                                                       1.0f,
-                                                       0.0f,
+                                                       1.0,
+                                                       0.0,
                                                        in_1_dev.GetDeviceBuffer(),
                                                        nullptr,
                                                        in_2_dev.GetDeviceBuffer(),
@@ -246,22 +265,21 @@ int main(int argc, char* argv[])
 
     if(!reduce_1.IsSupportedArgument(argument_ptr_1.get()))
     {
-        std::cout
-            << "The runtime parameters seems not supported by the DeviceReduce instance, exiting!"
-            << std::endl;
+        std::cout << "The runtime parameters seems supported by the DeviceReduce instance, exiting!"
+                  << std::endl;
     };
 
     auto invoker_ptr_1 = reduce_1.MakeInvokerPointer();
 
     auto reduce_2 = DeviceReduceInstance_2{};
 
-    auto argument_ptr_2 = reduce_2.MakeArgumentPointer(i_inLengths_2,
-                                                       i_inStrides_2,
-                                                       i_outLengths,
-                                                       i_outStrides,
+    auto argument_ptr_2 = reduce_2.MakeArgumentPointer(arrInLengths_2,
+                                                       arrInStrides_2,
+                                                       arrOutLengths,
+                                                       arrOutStrides,
                                                        reduceDims_2,
-                                                       alpha,
-                                                       beta,
+                                                       static_cast<double>(alpha),
+                                                       static_cast<double>(beta),
                                                        in_2_dev.GetDeviceBuffer(),
                                                        nullptr,
                                                        out_dev.GetDeviceBuffer(),
@@ -294,7 +312,7 @@ int main(int argc, char* argv[])
     if(do_verify)
     {
         out_dev.FromDevice(out.mData.data());
-        pass = pass && ck::utils::check_err(out.mData, out_ref.mData);
+        pass = pass && ck::utils::check_err(out, out_ref);
     };
 
     return (pass ? 0 : 1);
