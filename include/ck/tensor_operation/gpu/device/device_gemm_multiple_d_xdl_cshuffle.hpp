@@ -765,7 +765,7 @@ struct DeviceGemmMultipleD_Xdl_CShuffle : public DeviceGemmMultipleD<ALayout,
         using EGridDesc_MBlock_MPerBlock_NBlock_NPerBlock  = remove_cvref_t<decltype(
             GridwiseGemm::MakeEGridDescriptor_MBlock_MPerBlock_NBlock_NPerBlock(EGridDesc_M_N{}))>;
             
-        __device__ constexpr Descriptor(DsDesc... dsdesc)
+        __device__ constexpr Descriptor()
         {
             static_assert(GridwiseGemm::CheckValidity(AGridDesc_M_K{},
                                            BGridDesc_N_K{},
