@@ -229,42 +229,46 @@ int main(int argc, char* argv[])
     get_problems(problems, input_layout);
 
     bool pass = true;
-    for(auto& p : problems)
+    for (ck::index_t b2c_M01 = 8; b2c_M01 <= 8; ++b2c_M01)
     {
-        GemmParams& problem_size          = std::get<0>(p);
-        const LayoutConfig& layout_config = std::get<1>(p);
-        const auto& factory               = std::get<2>(p);
-        std::vector<std::unique_ptr<BaseOperator>> ops;
-        factory(ops);
+        std::cout << "\n>>>> M01 := " << b2c_M01 << "\n" << std::endl;
+        for(auto& p : problems)
+        {
+            GemmParams& problem_size          = std::get<0>(p);
+            const LayoutConfig& layout_config = std::get<1>(p);
+            const auto& factory               = std::get<2>(p);
+            std::vector<std::unique_ptr<BaseOperator>> ops;
+            factory(ops);
 
-        // overwrite strides
-        problem_size.StrideA = layout_config.ARowMajor ? problem_size.K : problem_size.M;
-        problem_size.StrideB = layout_config.BRowMajor ? problem_size.N : problem_size.K;
-        problem_size.StrideC = layout_config.CRowMajor ? problem_size.N : problem_size.M;
+            // overwrite strides
+            problem_size.StrideA = layout_config.ARowMajor ? problem_size.K : problem_size.M;
+            problem_size.StrideB = layout_config.BRowMajor ? problem_size.N : problem_size.K;
+            problem_size.StrideC = layout_config.CRowMajor ? problem_size.N : problem_size.M;
 
-        if(!layout_config.ARowMajor && !layout_config.BRowMajor)
-        {
-            auto op_ptr = dynamic_cast<DeviceGemmNN*>(ops[0].get());
-            pass &= ck::gemm_util::TestGemm<AccDataType>{}(
-                op_ptr, problem_size, do_verification, time_kernel);
-        }
-        else if(!layout_config.ARowMajor && layout_config.BRowMajor)
-        {
-            auto op_ptr = dynamic_cast<DeviceGemmNT*>(ops[0].get());
-            pass &= ck::gemm_util::TestGemm<AccDataType>{}(
-                op_ptr, problem_size, do_verification, time_kernel);
-        }
-        else if(layout_config.ARowMajor && !layout_config.BRowMajor)
-        {
-            auto op_ptr = dynamic_cast<DeviceGemmTN*>(ops[0].get());
-            pass &= ck::gemm_util::TestGemm<AccDataType>{}(
-                op_ptr, problem_size, do_verification, time_kernel);
-        }
-        else if(layout_config.ARowMajor && layout_config.BRowMajor)
-        {
-            auto op_ptr = dynamic_cast<DeviceGemmTT*>(ops[0].get());
-            pass &= ck::gemm_util::TestGemm<AccDataType>{}(
-                op_ptr, problem_size, do_verification, time_kernel);
+            if(!layout_config.ARowMajor && !layout_config.BRowMajor)
+            {
+                auto op_ptr = dynamic_cast<DeviceGemmNN*>(ops[0].get());
+                pass &= ck::gemm_util::TestGemm<AccDataType>{}(
+                    op_ptr, problem_size, do_verification, time_kernel, b2c_M01);
+            }
+            else if(!layout_config.ARowMajor && layout_config.BRowMajor)
+            {
+                auto op_ptr = dynamic_cast<DeviceGemmNT*>(ops[0].get());
+                pass &= ck::gemm_util::TestGemm<AccDataType>{}(
+                    op_ptr, problem_size, do_verification, time_kernel, b2c_M01);
+            }
+            else if(layout_config.ARowMajor && !layout_config.BRowMajor)
+            {
+                auto op_ptr = dynamic_cast<DeviceGemmTN*>(ops[0].get());
+                pass &= ck::gemm_util::TestGemm<AccDataType>{}(
+                    op_ptr, problem_size, do_verification, time_kernel, b2c_M01);
+            }
+            else if(layout_config.ARowMajor && layout_config.BRowMajor)
+            {
+                auto op_ptr = dynamic_cast<DeviceGemmTT*>(ops[0].get());
+                pass &= ck::gemm_util::TestGemm<AccDataType>{}(
+                    op_ptr, problem_size, do_verification, time_kernel, b2c_M01);
+            }
         }
     }
 

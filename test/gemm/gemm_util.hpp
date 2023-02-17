@@ -63,7 +63,8 @@ bool RunDeviceGEMM(DeviceGemmPtr_& gemmPtr,
                    AElementwiseOperation a_element_op,
                    BElementwiseOperation b_element_op,
                    CElementwiseOperation c_element_op,
-                   bool time_kernel)
+                   bool time_kernel,
+                   ck::index_t b2c_M01)
 {
     DeviceMem a_m_k_device_buf(sizeof(ADataType) * A.mDesc.GetElementSpaceSize());
     DeviceMem b_k_n_device_buf(sizeof(BDataType) * B.mDesc.GetElementSpaceSize());
@@ -82,7 +83,8 @@ bool RunDeviceGEMM(DeviceGemmPtr_& gemmPtr,
                                      params.StrideC,
                                      a_element_op,
                                      b_element_op,
-                                     c_element_op);
+                                     c_element_op,
+                                     b2c_M01);
 
     if(gemmPtr->IsSupportedArgument(argument_ptr.get()))
     {
@@ -187,7 +189,8 @@ struct TestGemm
                                    CElementwiseOperation>* gemmPtr,
                     const GemmParams& params = GemmParams{},
                     bool do_verification     = true,
-                    bool time_kernel         = false)
+                    bool time_kernel         = false,
+                    ck::index_t b2c_M01      = 8)
     {
         std::cout << "ALayout = " << ALayout{}.name << ", BLayout = " << BLayout{}.name
                   << ", CLayout = " << CLayout{}.name << std::endl;
@@ -222,7 +225,8 @@ struct TestGemm
 
         // Act
         bool is_supported = ck::gemm_util::RunDeviceGEMM(
-            gemmPtr, params, a, b, c_device, a_element_op, b_element_op, c_element_op, time_kernel);
+            gemmPtr, params, a, b, c_device, a_element_op, b_element_op, c_element_op, time_kernel,
+            b2c_M01);
 
         if(is_supported && do_verification)
         {
