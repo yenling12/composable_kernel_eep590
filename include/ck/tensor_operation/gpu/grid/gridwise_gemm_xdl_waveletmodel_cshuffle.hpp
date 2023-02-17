@@ -241,10 +241,10 @@ struct GridwiseGemm_k0mk1_k0nk1_mn_xdl_waveletmodel_cshuffle
 #if 0
     // return block_id to E matrix tile idx (m0, n0) mapping
     __host__ __device__ static constexpr auto
-    MakeDefaultBlock2ETileMap(const EGridDesc_M_N& e_grid_desc_m_n)
+    MakeDefaultBlock2ETileMap(const EGridDesc_M_N& e_grid_desc_m_n, index_t b2c_M01 = 8)
     {
         return BlockToCTileMap_M00_N0_M01Adapt<MPerBlock, NPerBlock, EGridDesc_M_N>(
-            e_grid_desc_m_n);
+            e_grid_desc_m_n, b2c_M01);
     }
 #else
 

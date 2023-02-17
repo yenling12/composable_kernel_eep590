@@ -268,7 +268,8 @@ struct DeviceGemm_Xdl_WaveletModel_CShuffle : public DeviceGemm<ALayout,
                  index_t StrideE,
                  AElementwiseOperation a_element_op,
                  BElementwiseOperation b_element_op,
-                 CDEElementwiseOperation cde_element_op)
+                 CDEElementwiseOperation cde_element_op,
+                 index_t b2c_M01)
             : p_a_grid_{static_cast<const ADataType*>(p_a_grid)},
               p_b_grid_{static_cast<const BDataType*>(p_b_grid)},
               p_e_grid_{static_cast<EDataType*>(p_e_grid)},
@@ -280,7 +281,7 @@ struct DeviceGemm_Xdl_WaveletModel_CShuffle : public DeviceGemm<ALayout,
               b_grid_desc_bk0_n_bk1_{
                   GridwiseGemm::MakeDefaultBGridDescriptor_BK0_N_BK1(b_grid_desc_n_k_)},
               e_grid_desc_mblock_mperblock_nblock_nperblock_{},
-              block_2_etile_map_{GridwiseGemm::MakeDefaultBlock2ETileMap(e_grid_desc_m_n_)},
+              block_2_etile_map_{GridwiseGemm::MakeDefaultBlock2ETileMap(e_grid_desc_m_n_, b2c_M01)},
               a_element_op_{a_element_op},
               b_element_op_{b_element_op},
               cde_element_op_{cde_element_op}
@@ -359,13 +360,13 @@ struct DeviceGemm_Xdl_WaveletModel_CShuffle : public DeviceGemm<ALayout,
                 throw std::runtime_error("wrong! GridwiseGemm has invalid setting");
             }
 
-#if 0
+#if 1
             const index_t grid_size =
                 arg.block_2_etile_map_.CalculateGridSize(arg.e_grid_desc_m_n_);
 #else
             const index_t grid_size = GridwiseGemm::CalculateGridSize(arg.e_grid_desc_m_n_);
 #endif
-            const auto K            = arg.a_grid_desc_m_k_.GetLength(I1);
+            const auto K = arg.a_grid_desc_m_k_.GetLength(I1);
 
             auto launch_kernel = [&](auto has_main_k_block_loop) {
                 constexpr bool has_main_loop = has_main_k_block_loop.value;
@@ -449,7 +450,8 @@ struct DeviceGemm_Xdl_WaveletModel_CShuffle : public DeviceGemm<ALayout,
                              index_t StrideE,
                              AElementwiseOperation a_element_op,
                              BElementwiseOperation b_element_op,
-                             CDEElementwiseOperation cde_element_op)
+                             CDEElementwiseOperation cde_element_op,
+                             index_t b2c_M01)
     {
         return Argument{p_a,
                         p_b,
@@ -462,7 +464,8 @@ struct DeviceGemm_Xdl_WaveletModel_CShuffle : public DeviceGemm<ALayout,
                         StrideE,
                         a_element_op,
                         b_element_op,
-                        cde_element_op};
+                        cde_element_op,
+                        b2c_M01};
     }
 
     static auto MakeInvoker() { return Invoker{}; }
@@ -480,7 +483,8 @@ struct DeviceGemm_Xdl_WaveletModel_CShuffle : public DeviceGemm<ALayout,
                         index_t StrideE,
                         AElementwiseOperation a_element_op,
                         BElementwiseOperation b_element_op,
-                        CDEElementwiseOperation cde_element_op) override
+                        CDEElementwiseOperation cde_element_op,
+                        index_t b2c_M01) override
     {
         return std::make_unique<Argument>(static_cast<const ADataType*>(p_a),
                                           static_cast<const BDataType*>(p_b),
@@ -493,7 +497,8 @@ struct DeviceGemm_Xdl_WaveletModel_CShuffle : public DeviceGemm<ALayout,
                                           StrideE,
                                           a_element_op,
                                           b_element_op,
-                                          cde_element_op);
+                                          cde_element_op,
+                                          b2c_M01);
     }
 
     // polymorphic

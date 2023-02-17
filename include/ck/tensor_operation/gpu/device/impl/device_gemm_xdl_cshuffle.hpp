@@ -411,7 +411,8 @@ struct DeviceGemm_Xdl_CShuffle : public DeviceGemm<ALayout,
                  index_t StrideC,
                  AElementwiseOperation a_element_op,
                  BElementwiseOperation b_element_op,
-                 CElementwiseOperation c_element_op)
+                 CElementwiseOperation c_element_op,
+                 index_t /*b2c_M01 = 8*/)
             : p_a_grid_{p_a_grid},
               p_b_grid_{p_b_grid},
               p_c_grid_{p_c_grid},
@@ -618,7 +619,8 @@ struct DeviceGemm_Xdl_CShuffle : public DeviceGemm<ALayout,
                              index_t StrideC,
                              AElementwiseOperation a_element_op,
                              BElementwiseOperation b_element_op,
-                             CElementwiseOperation c_element_op)
+                             CElementwiseOperation c_element_op,
+                             index_t b2c_M01 = 8)
     {
         return Argument{p_a,
                         p_b,
@@ -631,7 +633,8 @@ struct DeviceGemm_Xdl_CShuffle : public DeviceGemm<ALayout,
                         StrideC,
                         a_element_op,
                         b_element_op,
-                        c_element_op};
+                        c_element_op,
+                        b2c_M01};
     }
 
     static auto MakeInvoker() { return Invoker{}; }
@@ -648,7 +651,8 @@ struct DeviceGemm_Xdl_CShuffle : public DeviceGemm<ALayout,
                                                       index_t StrideC,
                                                       AElementwiseOperation a_element_op,
                                                       BElementwiseOperation b_element_op,
-                                                      CElementwiseOperation c_element_op) override
+                                                      CElementwiseOperation c_element_op,
+                                                      index_t b2c_M01) override
     {
         return std::make_unique<Argument>(static_cast<const ADataType*>(p_a),
                                           static_cast<const BDataType*>(p_b),
@@ -661,7 +665,8 @@ struct DeviceGemm_Xdl_CShuffle : public DeviceGemm<ALayout,
                                           StrideC,
                                           a_element_op,
                                           b_element_op,
-                                          c_element_op);
+                                          c_element_op,
+                                          b2c_M01);
     }
 
     // polymorphic
