@@ -193,22 +193,23 @@ int main(int argc, char* argv[])
         exit(0);
     }
 
+    // A layout [G0, G1, M, K]
     std::vector<ck::index_t> a_gs_ms_ks_lengths{G0, G1, M, K};
-    std::vector<ck::index_t> a_gs_ms_ks_strides{M * G1 * K, M * K, K, 1}; // A layout [G0, M, G1, K]
+    std::vector<ck::index_t> a_gs_ms_ks_strides{M * G1 * K, M * K, K, 1};
 
+    // B0 layout [G0, G1, N, K]
     std::vector<ck::index_t> b0_gs_ns_ks_lengths{G0, G1, N, K};
-    std::vector<ck::index_t> b0_gs_ns_ks_strides{
-        N * G1 * K, N * K, K, 1}; // B0 layout [G0, N, G1, K]
+    std::vector<ck::index_t> b0_gs_ns_ks_strides{N * G1 * K, N * K, K, 1};
 
+    // B1 layout [G0, G1, N, O]
     std::vector<ck::index_t> b1_gs_os_ns_lengths{G0, G1, O, N};
-    std::vector<ck::index_t> b1_gs_os_ns_strides{
-        N * G1 * O, O, 1, G1 * O}; // B1 layout [G0, N, G1, O]
+    std::vector<ck::index_t> b1_gs_os_ns_strides{G1 * N * O, N * O, 1, O};
 
+    // C layout [G0, M, G1, O]
     std::vector<ck::index_t> c_gs_ms_os_lengths{G0, G1, M, O};
-    std::vector<ck::index_t> c_gs_ms_os_strides{
-        M * G1 * O, O, G1 * O, 1}; // C layout [G0, M, G1, O]
+    std::vector<ck::index_t> c_gs_ms_os_strides{M * G1 * O, O, G1 * O, 1};
 
-    // D layout [G0, M, G1, N]
+    // D layout [G0, G1, N]
     std::vector<ck::index_t> d0_gs_ms_ns_lengths{G0, G1, M, N};
     std::vector<ck::index_t> d0_gs_ms_ns_strides{G1 * N, N, 0, 1};
 
