@@ -71,6 +71,75 @@ __device__ double2_t atomic_add<double2_t>(double2_t* p_dst, const double2_t& x)
     return vy.template AsType<double2_t>()[I0];
 }
 
+inline __host__ __device__ half2_t add_fp16x2_t(const half2_t& a, const half2_t& b)
+{
+    half2_t rtn;
+    rtn[0] = a[0] + b[0];
+    rtn[1] = a[1] + b[1];
+    return rtn;
+}
+
+template <>
+__device__ half2_t atomic_add<half2_t>(half2_t* p_dst, const half2_t& x)
+{
+    uint32_t * dword_addr = reinterpret_cast<uint32_t*>(p_dst);
+    uint32_t cur_v = *dword_addr;
+    uint32_t old_v, new_v;
+
+    do {
+        old_v = cur_v;
+        half2_t new_ = add_fp16x2_t(*reinterpret_cast<half2_t*>(&cur_v), x);
+        new_v = *reinterpret_cast<uint32_t*>(&new_);
+        cur_v = atomicCAS(dword_addr, old_v, new_v);
+    }while(cur_v != old_v);
+
+    return x;
+}
+
+// union U16BF16 {
+//     uint16_t u16;
+//     bhalf_t bf16;
+// };
+ 
+// inline __host__ __device__ bhalf_t add_bf16_t(const bhalf_t& a, const bhalf_t& b){
+//     U16BF16 xa {.bf16 = a};
+//     U16BF16 xb {.bf16 = b};
+    
+//     U16BF16 xr;
+//     xr.u16 = xa.u16 + xb.u16;
+//     return xr.bf16;
+// }
+
+inline __host__ __device__ bhalf_t add_bf16_t(const bhalf_t& a, const bhalf_t& b)
+{
+    return type_convert<bhalf_t>(type_convert<float>(a) + type_convert<float>(b));
+}
+
+inline __host__ __device__ bhalf2_t add_bf16x2_t(const bhalf2_t& a, const bhalf2_t& b)
+{
+    bhalf2_t rtn;
+    rtn[0] = add_bf16_t(a[0], b[0]);
+    rtn[1] = add_bf16_t(a[1], b[1]);
+    return rtn;
+}
+
+template <>
+__device__ bhalf2_t atomic_add<bhalf2_t>(bhalf2_t* p_dst, const bhalf2_t& x)
+{
+    uint32_t * dword_addr = reinterpret_cast<uint32_t*>(p_dst);
+    uint32_t cur_v = *dword_addr;
+    uint32_t old_v, new_v;
+
+    do {
+        old_v = cur_v;
+        bhalf2_t new_ = add_bf16x2_t(*reinterpret_cast<bhalf2_t*>(&cur_v), x);
+        new_v = *reinterpret_cast<uint32_t*>(&new_);
+        cur_v = atomicCAS(dword_addr, old_v, new_v);
+    }while(cur_v != old_v);
+
+    return x;
+}
+
 // Caution: DO NOT REMOVE
 // intentionally have only declaration but no definition to cause compilation failure when trying to
 // instantiate this template. The purpose is to make the implementation of atomic_max explicit for

@@ -1092,7 +1092,7 @@ struct GridwiseBatchedMultiheadAttentionBackward_Xdl_CShuffle_PT1
         static_assert(ThreadClusterLength_M * ThreadSliceLength_M == BlockSliceLength_M_, "");
 
         using SrcBufType = StaticBuffer<AddressSpaceEnum::Vgpr,
-                                        DataType,
+                                        FloatGemmAcc,
                                         ThreadSliceLength_M * ThreadSliceLength_O,
                                         true>;
 
@@ -1721,7 +1721,7 @@ struct GridwiseBatchedMultiheadAttentionBackward_Xdl_CShuffle_PT1
         // performs for y
         auto y_threadwise_copy = ThreadwiseTensorSliceTransfer_v2<
             DataType,
-            DataType,
+            FloatGemmAcc,
             YGridDescriptor_MBlock_MPerBlock_OBlock_OPerBlock,
             decltype(y_thread_desc_m0_m1_o0_o1),
             decltype(y_thread_desc_m0_m1_o0_o1.GetLengths()),
@@ -1735,7 +1735,7 @@ struct GridwiseBatchedMultiheadAttentionBackward_Xdl_CShuffle_PT1
         // performs for ygrad
         auto ygrad_threadwise_copy = ThreadwiseTensorSliceTransfer_v2<
             DataType,
-            DataType,
+            FloatGemmAcc,
             decltype(YDotYGrad_M_O::ygrad_block_desc_m_o),
             decltype(ygrad_thread_desc_m_o),
             decltype(ygrad_thread_desc_m_o.GetLengths()),
@@ -1955,25 +1955,25 @@ struct GridwiseBatchedMultiheadAttentionBackward_Xdl_CShuffle_PT1
             blockwise_softmax.RunWithPreCalcStats(s_slash_p_thread_buf, lse_thread_buf);
 
             // save z to global
-            if(p_z_grid)
-            {
-                // P_dropped
-                blockwise_dropout.template ApplyDropout<decltype(s_slash_p_thread_buf),
-                                                        decltype(z_tenor_buffer),
-                                                        true>(
-                    s_slash_p_thread_buf, ph, z_tenor_buffer);
+                if(p_z_grid)
+                {
+                    // P_dropped
+                    blockwise_dropout.template ApplyDropout<decltype(s_slash_p_thread_buf),
+                                                            decltype(z_tenor_buffer),
+                                                            true>(
+                        s_slash_p_thread_buf, ph, z_tenor_buffer);
 
                 z_thread_copy_vgpr_to_global.Run(z_thread_desc_m0_n0_m1_n1_m2_n2_m3_n3_n4_n5,
-                                                 make_tuple(I0, I0, I0, I0, I0, I0, I0, I0, I0, I0),
-                                                 z_tenor_buffer,
-                                                 z_grid_desc_m0_n0_m1_n1_m2_n2_m3_n3_n4_n5,
-                                                 z_grid_buf);
-            }
-            else
-            {
-                // P_dropped
-                blockwise_dropout.template ApplyDropout<decltype(s_slash_p_thread_buf), true>(
-                    s_slash_p_thread_buf, ph);
+                        make_tuple(I0, I0, I0, I0, I0, I0, I0, I0, I0, I0),
+                        z_tenor_buffer,
+                        z_grid_desc_m0_n0_m1_n1_m2_n2_m3_n3_n4_n5,
+                        z_grid_buf);
+                }
+                else
+                {
+                    // P_dropped
+                    blockwise_dropout.template ApplyDropout<decltype(s_slash_p_thread_buf), true>(
+                        s_slash_p_thread_buf, ph);
             }
 
             block_sync_lds(); // wait for gemm1 LDS read

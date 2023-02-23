@@ -35,7 +35,7 @@ Kernel outputs:
 #include "ck/ck.hpp"
 #include "ck/tensor_operation/gpu/device/gemm_specialization.hpp"
 #include "ck/tensor_operation/gpu/device/tensor_specialization.hpp"
-#include "ck/tensor_operation/gpu/device/impl/device_batched_multihead_attention_backward_xdl_cshuffle_pt1.hpp"
+#include "ck/tensor_operation/gpu/device/impl/device_batched_multihead_attention_backward_xdl_cshuffle_pt1_bf16v1.hpp"
 #include "ck/tensor_operation/gpu/element/element_wise_operation.hpp"
 
 #include "ck/library/utility/check_err.hpp"
@@ -49,7 +49,7 @@ Kernel outputs:
 template <ck::index_t... Is>
 using S = ck::Sequence<Is...>;
 
-using F16 = ck::half_t;
+using BF16 = ck::bhalf_t;
 using F32 = float;
 using U16 = unsigned short;
 
@@ -59,7 +59,7 @@ using Scale       = ck::tensor_operation::element_wise::Scale;
 using QKVElementOp = PassThrough;
 using YElementOp   = PassThrough;
 
-using DataType         = F16;
+using DataType         = BF16;
 using AccDataType      = F32;
 using ShuffleDataType  = F32;
 using LSEDataType      = F32;
@@ -344,8 +344,8 @@ int run(int argc, char* argv[])
     ck::index_t N  = 512; // 512
     ck::index_t K  = 64;
     ck::index_t O  = 64;
-    ck::index_t G0 = 4; // 54
-    ck::index_t G1 = 6; // 16
+    ck::index_t G0 = 54; // 54
+    ck::index_t G1 = 16; // 16
 
     float alpha = 1.f / std::sqrt(K);
 
@@ -768,9 +768,9 @@ int run(int argc, char* argv[])
             {
                 auto idx_gmo = idx_gmn;
                 idx_gmo[2]   = o;
-                ygrad_dot_y += ygrad_g_m_o(idx_gmo) * y_g_m_o(idx_gmo);
+                ygrad_dot_y += ck::type_convert<AccDataType>(ygrad_g_m_o(idx_gmo)) * ck::type_convert<AccDataType>(y_g_m_o(idx_gmo));
             }
-            self(idx_gmn) = p_g_m_n(idx_gmn) * (pgrad_g_m_n(idx_gmn) - ygrad_dot_y);
+            self(idx_gmn) = ck::type_convert<DataType>(ck::type_convert<AccDataType>(p_g_m_n(idx_gmn)) * (ck::type_convert<AccDataType>(pgrad_g_m_n(idx_gmn)) - ygrad_dot_y));
         });
 #if PRINT_HOST
         {
