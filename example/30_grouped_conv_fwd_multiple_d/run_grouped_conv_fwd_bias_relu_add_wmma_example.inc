@@ -35,6 +35,7 @@ using ResidualLayout = typename LayoutSettingSelector<NDimSpatial>::ResidualLayo
 // clang-format off
 template <ck::index_t NDimSpatial>
 using DeviceConvFwdInstances = std::tuple<
+#if 0
 // Instances provide to AIT Fp16
     ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
         NDimSpatial, 
@@ -157,7 +158,8 @@ using DeviceConvFwdInstances = std::tuple<
         S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 8, 8, true,
         S<1, 64, 1>,  S<1, 0, 2>, S<1, 0, 2>, 2, 8, 8, true, 
         4, 1, S<1, 64, 1, 1>, 8>
-#if 0
+#endif
+#if 1
     // GEMM_N = 16
     // K0 = 8
     ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
@@ -225,7 +227,7 @@ using DeviceConvFwdInstances = std::tuple<
         2, 1,           // MRepeat x NRepeat
         S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 16, 16, true, // ABlockTransferThreadClusterLengths_AK0_M_AK1, ArrangeOrder, SrcAccessOrder, VectorDim, SrcScalarPerVector, DstScalarPerVector_AK1, LdsExtraM
         S<1, 16, 4>,  S<1, 0, 2>, S<1, 0, 2>, 2,  4,  4, true, 
-        2, 1, S<1, 64, 1, 1>, 16>
+        2, 1, S<1, 64, 1, 1>, 16>,
     // K0 = 2
     ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
         NDimSpatial, 
