@@ -209,9 +209,9 @@ int main(int argc, char* argv[])
     std::vector<ck::index_t> c_gs_ms_os_lengths{G0, G1, M, O};
     std::vector<ck::index_t> c_gs_ms_os_strides{M * G1 * O, O, G1 * O, 1};
 
-    // D layout [G0, G1, N]
+    // D layout [G0, N]
     std::vector<ck::index_t> d0_gs_ms_ns_lengths{G0, G1, M, N};
-    std::vector<ck::index_t> d0_gs_ms_ns_strides{G1 * N, N, 0, 1};
+    std::vector<ck::index_t> d0_gs_ms_ns_strides{N, 0, 0, 1};
 
     Tensor<ADataType> a_gs_ms_ks(a_gs_ms_ks_lengths, a_gs_ms_ks_strides);
     Tensor<B0DataType> b0_gs_ns_ks(b0_gs_ns_ks_lengths, b0_gs_ns_ks_strides);
