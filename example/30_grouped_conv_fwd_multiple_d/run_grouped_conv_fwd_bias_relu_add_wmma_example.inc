@@ -35,19 +35,8 @@ using ResidualLayout = typename LayoutSettingSelector<NDimSpatial>::ResidualLayo
 // clang-format off
 template <ck::index_t NDimSpatial>
 using DeviceConvFwdInstances = std::tuple<
-#if 0
+#if 1
 // Instances provide to AIT Fp16
-    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
-        NDimSpatial, 
-        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
-        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
-        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 256,         // BlockSize
-        512, 16, 4, 8, // MPerBlock x NPerBlock x K0PerBlock x K1
-        16, 16,         // MPerWMMA x NPerWMMA
-        4, 1,           // MRepeat x NRepeat
-        S<1, 256, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 8, 8, true,
-        S<4, 16, 4>,  S<1, 0, 2>, S<1, 0, 2>, 2, 2, 2, true, 
-        2, 1, S<1, 256, 1, 1>, 8>,
     ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
         NDimSpatial, 
         InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
@@ -55,21 +44,21 @@ using DeviceConvFwdInstances = std::tuple<
         InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 256,         // BlockSize
         256, 64, 8, 8, // MPerBlock x NPerBlock x K0PerBlock x K1
         16, 16,         // MPerWMMA x NPerWMMA
-        2, 4,           // MRepeat x NRepeat
-        S<1, 256, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 8, 8, true,
-        S<4, 64, 1>,  S<1, 0, 2>, S<1, 0, 2>, 2, 8, 8, true, 
-        2, 2, S<1, 256, 1, 1>, 8>,
+        8, 1,           // MRepeat x NRepeat
+        S<4, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 8, 8, true,
+        S<4, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 8, 8, true, 
+        1, 1, S<1, 32, 1, 8>, 8>,
     ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
         NDimSpatial, 
         InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
         InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
         InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 256,         // BlockSize
-        256, 64, 4, 8, // MPerBlock x NPerBlock x K0PerBlock x K1
+        64, 256, 8, 8, // MPerBlock x NPerBlock x K0PerBlock x K1
         16, 16,         // MPerWMMA x NPerWMMA
         2, 4,           // MRepeat x NRepeat
-        S<1, 256, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 8, 8, true,
-        S<4, 64, 1>,  S<1, 0, 2>, S<1, 0, 2>, 2, 8, 8, true, 
-        2, 2, S<1, 256, 1, 1>, 8>,
+        S<4, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 8, 8, true,
+        S<4, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 8, 8, true, 
+        1, 1, S<1, 32, 1, 8>, 8>,
     ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
         NDimSpatial, 
         InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
@@ -77,10 +66,10 @@ using DeviceConvFwdInstances = std::tuple<
         InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 256,         // BlockSize
         256, 128, 4, 8, // MPerBlock x NPerBlock x K0PerBlock x K1
         16, 16,         // MPerWMMA x NPerWMMA
-        4, 4,           // MRepeat x NRepeat
-        S<1, 256, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 8, 8, true,
-        S<4, 64, 1>,  S<1, 0, 2>, S<1, 0, 2>, 2, 8, 8, true, 
-        4, 2, S<1, 256, 1, 1>, 8>,
+        8, 2,           // MRepeat x NRepeat
+        S<4, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 8, 8, true,
+        S<4, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 8, 8, true, 
+        1, 1, S<1, 32, 1, 8>, 8>,
     ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
         NDimSpatial, 
         InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
@@ -88,10 +77,10 @@ using DeviceConvFwdInstances = std::tuple<
         InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 256,         // BlockSize
         256, 128, 8, 8, // MPerBlock x NPerBlock x K0PerBlock x K1
         16, 16,         // MPerWMMA x NPerWMMA
-        4, 4,           // MRepeat x NRepeat
-        S<1, 256, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 8, 8, true,
-        S<4, 64, 1>,  S<1, 0, 2>, S<1, 0, 2>, 2, 8, 8, true, 
-        4, 2, S<1, 256, 1, 1>, 8>,
+        8, 2,           // MRepeat x NRepeat
+        S<4, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 8, 8, true,
+        S<4, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 8, 8, true, 
+        1, 1, S<1, 32, 1, 8>, 8>,
     ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
         NDimSpatial, 
         InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
@@ -100,9 +89,9 @@ using DeviceConvFwdInstances = std::tuple<
         128, 256, 4, 8, // MPerBlock x NPerBlock x K0PerBlock x K1
         16, 16,         // MPerWMMA x NPerWMMA
         4, 4,           // MRepeat x NRepeat
-        S<2, 128, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 8, 8, true,
-        S<4, 64, 1>,  S<1, 0, 2>, S<1, 0, 2>, 2, 8, 8, true, 
-        4, 2, S<1, 128, 1, 2>, 8>,
+        S<4, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 8, 8, true,
+        S<4, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 8, 8, true, 
+        1, 1, S<1, 32, 1, 8>, 8>,
     ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
         NDimSpatial, 
         InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
@@ -111,20 +100,20 @@ using DeviceConvFwdInstances = std::tuple<
         128, 256, 8, 8, // MPerBlock x NPerBlock x K0PerBlock x K1
         16, 16,         // MPerWMMA x NPerWMMA
         4, 4,           // MRepeat x NRepeat
-        S<2, 128, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 8, 8, true,
-        S<4, 64, 1>,  S<1, 0, 2>, S<1, 0, 2>, 2, 8, 8, true, 
-        4, 2, S<1, 128, 1, 2>, 8>,
+        S<4, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 8, 8, true,
+        S<4, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 8, 8, true, 
+        1, 1, S<1, 32, 1, 8>, 8>,
     ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
         NDimSpatial, 
         InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
         InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
-        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 192,         // BlockSize
-        192, 48, 6, 8, // MPerBlock x NPerBlock x K0PerBlock x K1
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 256,         // BlockSize
+        128, 128, 8, 8, // MPerBlock x NPerBlock x K0PerBlock x K1
         16, 16,         // MPerWMMA x NPerWMMA
-        6, 1,           // MRepeat x NRepeat
-        S<1, 192, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 8, 8, true,
-        S<2, 48, 2>,  S<1, 0, 2>, S<1, 0, 2>, 2, 8, 4, true, 
-        3, 1, S<1, 96, 1, 2>, 8>,
+        4, 2,           // MRepeat x NRepeat
+        S<4, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 8, 8, true,
+        S<4, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 8, 8, true, 
+        1, 1, S<1, 32, 1, 8>, 8>,
     ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
         NDimSpatial, 
         InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
@@ -132,21 +121,21 @@ using DeviceConvFwdInstances = std::tuple<
         InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 128,         // BlockSize
         128, 64, 8, 8, // MPerBlock x NPerBlock x K0PerBlock x K1
         16, 16,         // MPerWMMA x NPerWMMA
-        2, 4,           // MRepeat x NRepeat
-        S<1, 128, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 8, 8, true,
-        S<2, 64, 1>,  S<1, 0, 2>, S<1, 0, 2>, 2, 8, 8, true, 
-        2, 2, S<1, 128, 1, 1>, 8>,
+        4, 2,           // MRepeat x NRepeat
+        S<4, 32, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 8, 8, true,
+        S<4, 32, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 8, 8, true, 
+        1, 1, S<1, 32, 1, 4>, 8>,
     ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
         NDimSpatial, 
         InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
         InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
-        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 96,         // BlockSize
-        96, 48, 8, 8, // MPerBlock x NPerBlock x K0PerBlock x K1
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 128,         // BlockSize
+        64, 128, 8, 8, // MPerBlock x NPerBlock x K0PerBlock x K1
         16, 16,         // MPerWMMA x NPerWMMA
-        6, 1,           // MRepeat x NRepeat
-        S<1, 96, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 8, 8, true,
-        S<2, 48, 1>,  S<1, 0, 2>, S<1, 0, 2>, 2, 8, 8, true, 
-        3, 1, S<1, 48, 1, 2>, 8>,
+        2, 4,           // MRepeat x NRepeat
+        S<4, 32, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 8, 8, true,
+        S<4, 32, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 8, 8, true, 
+        1, 1, S<1, 32, 1, 4>, 8>,
     ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
         NDimSpatial, 
         InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
@@ -155,11 +144,33 @@ using DeviceConvFwdInstances = std::tuple<
         64, 64, 8, 8, // MPerBlock x NPerBlock x K0PerBlock x K1
         16, 16,         // MPerWMMA x NPerWMMA
         4, 2,           // MRepeat x NRepeat
-        S<1, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 8, 8, true,
-        S<1, 64, 1>,  S<1, 0, 2>, S<1, 0, 2>, 2, 8, 8, true, 
-        4, 1, S<1, 64, 1, 1>, 8>
+        S<4, 16, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 8, 8, true,
+        S<4, 16, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 8, 8, true, 
+        1, 1, S<1, 16, 1, 4>, 8>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 64,         // BlockSize
+        128, 32, 8, 8, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        8, 1,           // MRepeat x NRepeat
+        S<4, 16, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 8, 8, true,
+        S<4, 16, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 8, 8, true, 
+        1, 1, S<1, 16, 1, 4>, 8>,
+    ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
+        NDimSpatial, 
+        InputLayout<NDimSpatial>, WeightLayout<NDimSpatial>, ck::Tuple<BiasLayout<NDimSpatial>, ResidualLayout<NDimSpatial>>, OutputLayout<NDimSpatial>, 
+        InKernelDataType, WeiKernelDataType, ck::Tuple<BiasKernelDataType, ResidualKernelDataType>, OutKernelDataType, AccDataType, CShuffleDataType,
+        InElementOp, WeiElementOp, OutElementOp, ConvSpec, GemmSpec, 64,         // BlockSize
+        32, 128, 8, 8, // MPerBlock x NPerBlock x K0PerBlock x K1
+        16, 16,         // MPerWMMA x NPerWMMA
+        2, 4,           // MRepeat x NRepeat
+        S<4, 16, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 8, 8, true,
+        S<4, 16, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 8, 8, true, 
+        1, 1, S<1, 16, 1, 4>, 8>
 #endif
-#if 1
+#if 0
     // GEMM_N = 16
     // K0 = 8
     ck::tensor_operation::device::DeviceGroupedConvFwdMultipleD_Wmma_CShuffle<
