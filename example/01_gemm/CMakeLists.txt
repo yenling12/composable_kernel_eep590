@@ -40,6 +40,7 @@ add_dependencies(example_gemm_xdl example_gemm_xdl_fp64)
 
 add_custom_target(example_gemm_wmma)
 add_example_executable(example_gemm_wmma_fp16 gemm_wmma_fp16.cpp)
+add_example_executable(example_gemm_wmma_fp16_rrr gemm_wmma_fp16_rrr.cpp)
 add_example_executable(example_gemm_wmma_int8 gemm_wmma_int8.cpp)
 add_dependencies(example_gemm_wmma example_gemm_wmma_fp16)
 
