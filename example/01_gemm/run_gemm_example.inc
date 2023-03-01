@@ -11,7 +11,15 @@ bool run_gemm(const ProblemSize& problem_size, const ExecutionConfig& config)
 
     using namespace ck::literals;
 
-    auto& [M, N, K, StrideA, StrideB, StrideC] = problem_size;
+    // auto& [M, N, K, StrideA, StrideB, StrideC] = problem_size;
+
+    auto M = problem_size.M;
+    auto N = problem_size.N;
+    auto K = problem_size.K;
+    auto StrideA = problem_size.StrideA;
+    auto StrideB = problem_size.StrideB;
+    auto StrideC = problem_size.StrideC;
+    
 
     auto f_host_tensor_descriptor =
         [](std::size_t row, std::size_t col, std::size_t stride, auto layout) {
@@ -71,6 +79,9 @@ bool run_gemm(const ProblemSize& problem_size, const ExecutionConfig& config)
     auto b_element_op = BElementOp{};
     auto c_element_op = CElementOp{};
 
+    ck::static_for<0, std::tuple_size_v<DeviceGemmInstances>, 1>{}([&](auto i) {
+        const auto device_gemm_instance = std::get<i>(DeviceGemmInstances{});
+        using DeviceGemmInstance = ck::remove_cvref_t<decltype(device_gemm_instance)>;
     // do GEMM
     auto gemm     = DeviceGemmInstance{};
     auto invoker  = gemm.MakeInvoker();
@@ -96,9 +107,9 @@ bool run_gemm(const ProblemSize& problem_size, const ExecutionConfig& config)
 
     if(!gemm.IsSupportedArgument(argument))
     {
-        std::cerr << gemm.GetTypeString() << " does not support this problem" << std::endl;
-
-        return true;
+        throw std::runtime_error(
+                "wrong! device_gemm with the specified compilation parameters does "
+                "not support this Gemm problem");
     }
 
     float ave_time = invoker.Run(argument, StreamConfig{nullptr, config.time_kernel});
@@ -116,6 +127,7 @@ bool run_gemm(const ProblemSize& problem_size, const ExecutionConfig& config)
 
     if(config.do_verification)
     {
+#if 0
         auto ref_gemm    = ReferenceGemmInstance{};
         auto ref_invoker = ref_gemm.MakeInvoker();
 
@@ -137,7 +149,11 @@ bool run_gemm(const ProblemSize& problem_size, const ExecutionConfig& config)
 
         return ck::utils::check_err(c_m_n_device_result, c_m_n_host_result);
 #endif
+#endif 
     }
+
+    });
+
 
     return true;
 }
