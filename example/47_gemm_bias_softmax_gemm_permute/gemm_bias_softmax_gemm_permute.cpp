@@ -30,13 +30,11 @@ using CElementOp    = ck::tensor_operation::element_wise::PassThrough;
 template <ck::index_t... Is>
 using S = ck::Sequence<Is...>;
 
-static constexpr auto GemmSpec = ck::tensor_operation::device::GemmSpecialization::MNKOPadding;
+static constexpr auto GemmDefault = ck::tensor_operation::device::GemmSpecialization::Default;
 constexpr static auto MaskingSpec =
     ck::tensor_operation::device::MaskingSpecialization::MaskDisabled;
-static constexpr auto TensorSpecA  = ck::tensor_operation::device::TensorSpecialization::Default;
-static constexpr auto TensorSpecB0 = ck::tensor_operation::device::TensorSpecialization::Default;
-static constexpr auto TensorSpecB1 = ck::tensor_operation::device::TensorSpecialization::Default;
-static constexpr auto TensorSpecC  = ck::tensor_operation::device::TensorSpecialization::Default;
+static constexpr auto TensorDefault = ck::tensor_operation::device::TensorSpecialization::Default;
+
 
 using F16              = ck::half_t;
 using F32              = float;
@@ -56,72 +54,14 @@ static constexpr ck::index_t NumDimN = 1;
 static constexpr ck::index_t NumDimK = 1;
 static constexpr ck::index_t NumDimO = 1;
 
-using DeviceOpInstance =
-    ck::tensor_operation::device::DeviceBatchedGemmSoftmaxGemmPermute_Xdl_CShuffle<
-        NumDimG,
-        NumDimM,
-        NumDimN,
-        NumDimK,
-        NumDimO,
-        ADataType,
-        B0DataType,
-        B1DataType,
-        CDataType,
-        Acc0BiasDataType,
-        Acc1BiasDataType,
-        AccDataType,
-        CShuffleDataType,
-        AElementOp,
-        B0ElementOp,
-        C0DEElementOp,
-        B1ElementOp,
-        CElementOp,
-        GemmSpec,
-        TensorSpecA,
-        TensorSpecB0,
-        TensorSpecB1,
-        TensorSpecC,
-        1,
-        256,
-        128,         // MPerBlock
-        128,         // NPerBlock
-        32,          // KPerBlock
-        64,          // Gemm1NPerBlock
-        32,          // Gemm1KPerBlock
-        8,           // AK1
-        8,           // BK1
-        2,           // B1K1
-        32,          // MPerXDL
-        32,          // NPerXDL
-        1,           // MXdlPerWave
-        4,           // NXdlPerWave
-        2,           // Gemm1NXdlPerWave
-        S<4, 64, 1>, // ABlockTransfer
-        S<1, 0, 2>,
-        S<1, 0, 2>,
-        2,
-        8,
-        8,
-        true,
-        S<4, 64, 1>, // BBlockTransfer
-        S<1, 0, 2>,
-        S<1, 0, 2>,
-        2,
-        8,
-        8,
-        true,
-        S<16, 16, 1>, // B1BlockTransfer
-        S<0, 2, 1>,
-        S<0, 2, 1>,
-        1,
-        4,
-        2,
-        false,
-        1,              // CShuffleMXdlPerWavePerShuffle
-        2,              // CShuffleNXdlPerWavePerShuffle
-        S<1, 32, 1, 8>, // CShuffleBlockTransferClusterLengths_MBlock_MPerBlock_NBlock_NPerBlock
-        8,              // CShuffleBlockTransferScalarPerVector_NPerBlock
-        MaskingSpec>;   // MaskingSpecialization
+using DeviceOpInstance = ck::tensor_operation::device::
+        // clang-format off
+        // #############################################|  NumDimG| NumDimM| NumDimN| NumDimK| NumDimO| AData| B0Data| B1Data| CData|    Acc0BiasData| Acc1BiasData| AccData| CShuffle|           A|          B0|          Acc0|          B1|           C|           GEMM|   ATensorSpec|  B0TensorSpec|  B1TensorSpec|   CTensorSpec| NumGemmK| Block| Gemm01| Gemm0| Gemm0| Gemm1| Gemm1| AK1| BK1| B1K1| MPer| NPer| Gemm0| Gemm0| Gemm1|  ABlockTransfer| ABlockTransfer| ABlockTransfer| ABlockTransfer| ABlockTransfer| ABlockTransfer| ABlockLds|  B0BlockTransfer| B0BlockTransfer| B0BlockTransfer| B0BlockTransfer| B0BlockTransfer| B0BlockTransfer| B0BlockLds|  B1BlockTransfer| B1BlockTransfer| B1BlockTransfer| B1BlockTransfer| B1BlockTransfer| B1BlockTransfer| B1BlockLds|    CShuffle|    CShuffle| CBlockTransferClusterLengths|  CBlockTransfer| MaskingSpec|
+        // #############################################|         |        |        |        |        |  Type|   Type|   Type|  Type|            Type|         Type|    Type| DataType| Elementwise| Elementwise|   Elementwise| Elementwise| Elementwise| Specialization|              |              |              |              | Prefetch|  Size|   MPer|  NPer|  KPer|  NPer|  KPer|    |    |     |  XDL|  XDL|  MXdl|  NXdl|  NXdl|   ThreadCluster|  ThreadCluster| SrcAccessOrder|   SrcVectorDim|      SrcScalar|      DstScalar| AddExtraM|    ThreadCluster|   ThreadCluster|  SrcAccessOrder|    SrcVectorDim|       SrcScalar|       DstScalar|  AddExtraN|    ThreadCluster|   ThreadCluster|  SrcAccessOrder|    SrcVectorDim|       SrcScalar|       DstScalar|  AddExtraN| MXdlPerWave| NXdlPerWave|         _MBlock_MWaveMPerXdl| ScalarPerVector|            |
+        // #############################################|         |        |        |        |        |      |       |       |      |                |             |        |         |   Operation|   Operation|     Operation|   Operation|   Operation|               |              |              |              |              |    Stage|      |  Block| Block| Block| Block| Block|    |    |     |     |     |   Per|   Per|   Per| Lengths_K0_M_K1|   ArrangeOrder|               |               |      PerVector|   PerVector_K1|          |  Lengths_K0_N_K1|    ArrangeOrder|                |                |       PerVector|    PerVector_K1|           |  Lengths_K0_N_K1|    ArrangeOrder|                |                |       PerVector|    PerVector_K1|           |  PerShuffle|  PerShuffle|         _NBlock_NWaveNPerXdl|   _NWaveNPerXdl|            |
+        // #############################################|         |        |        |        |        |      |       |       |      |                |             |        |         |            |            |              |            |            |               |              |              |              |              |         |      |       |      |      |      |      |    |    |     |     |     |  Wave|  Wave|  Wave|                |               |               |               |               |               |          |                 |                |                |                |                |                |           |                 |                |                |                |                |                |           |            |            |                             |                |            |
+        DeviceBatchedGemmSoftmaxGemmPermute_Xdl_CShuffle<  NumDimG, NumDimM, NumDimN, NumDimK, NumDimO,   F16,    F16,    F16,   F16,  ck::Tuple<F16>,  ck::Tuple<>,     F32,      F16, PassThrough, PassThrough, C0DEElementOp, PassThrough, PassThrough,    GemmDefault, TensorDefault, TensorDefault, TensorDefault, TensorDefault,        1,   256,    128,   256,    32,    64,    32,   8,   8,    2,   32,   32,     1,     8,     2,     S<4, 64, 1>,     S<1, 0, 2>,     S<1, 0, 2>,              2,              8,              8,      true,      S<4, 64, 1>,      S<1, 0, 2>,      S<1, 0, 2>,               2,               8,               8,       true,     S<16, 16, 1>,      S<0, 2, 1>,      S<0, 2, 1>,               1,               4,               2,      false,           1,           2,               S<1, 32, 1, 8>,               8, MaskingSpec>;
+        // clang-format on;
 
 // Ref Gemm0: fp16 in, fp32 out
 using ReferenceGemm0Instance = ck::tensor_operation::host::ReferenceBatchedGemm<ADataType,
@@ -150,13 +90,13 @@ int main(int argc, char* argv[])
     int init_method      = 1;
     bool time_kernel     = false;
 
-    int G0      = 3;
-    int G1      = 2;
-    int M       = 1024;
-    int N       = 1024;
+    int G0      = 1;
+    int G1      = 1;
+    int M       = 512;
+    int N       = 512;
     int K       = 64;
     int O       = 64;
-    float alpha = 1;
+    float alpha = 0.125;
 
     if(argc == 1)
     {
