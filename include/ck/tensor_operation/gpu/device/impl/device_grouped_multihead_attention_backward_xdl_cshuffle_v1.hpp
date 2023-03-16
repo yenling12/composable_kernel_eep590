@@ -95,14 +95,15 @@ __global__ void
 
     const index_t global_thread_id = get_thread_global_1d_id();
     ck::philox ph(seed, global_thread_id, offset);
-    unsigned short* z_matrix_ptr =
-        (arg_ptr[group_id].p_z_grid_ == nullptr ? nullptr
-                                                : arg_ptr[group_id].p_z_grid_ + z_batch_offset);
+    //unsigned short* z_matrix_ptr =
+    //    (arg_ptr[group_id].p_z_grid_ == nullptr ? nullptr
+    //                                            : arg_ptr[group_id].p_z_grid_ + z_batch_offset);
 
     GridwiseGemm::template Run<HasMainKBlockLoop>(
         arg_ptr[group_id].p_a_grid_ + a_batch_offset,
         arg_ptr[group_id].p_b_grid_ + b_batch_offset,
-        z_matrix_ptr,
+	arg_ptr[group_id].p_z_grid_ == nullptr ? nullptr
+	                                       : arg_ptr[group_id].p_z_grid_ + z_batch_offset,
         arg_ptr[group_id].p_b1_grid_ + b1_batch_offset,
         arg_ptr[group_id].p_c_grid_ + c_batch_offset,
         arg_ptr[group_id].p_lse_grid_ + lse_batch_offset,
