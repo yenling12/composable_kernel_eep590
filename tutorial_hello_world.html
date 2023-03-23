@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>2. CK Hello world &mdash; Composable Kernel (CK)  documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/sphinx_highlight.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="3. CK docker hub" href="dockerhub.html" />
+    <link rel="prev" title="1. Getting Started Guide" href="Linux_Install_Guide.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html">
+            
+              <img src="_static/rocm_logo.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="Linux_Install_Guide.html">1. Getting Started Guide</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">2. CK Hello world</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#motivation">2.1. Motivation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#description">2.2. Description</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#hardware-targets">2.3. Hardware targets</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#build-the-library">2.4. Build the library</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#run-examples-and-tests">2.5. Run examples and tests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#summary">2.6. Summary</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="dockerhub.html">3. CK docker hub</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Supported_Primitives_Guide.html">4. Supported Primitives Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="API_Reference_Guide.html">5. API Reference Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Contributors_Guide.html">6. Contributor’s Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Disclaimer.html">7. Disclaimer</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Composable Kernel (CK)</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active"><span class="section-number">2. </span>CK Hello world</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/tutorial_hello_world.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="ck-hello-world">
+<h1><span class="section-number">2. </span>CK Hello world<a class="headerlink" href="#ck-hello-world" title="Permalink to this heading">¶</a></h1>
+<section id="motivation">
+<h2><span class="section-number">2.1. </span>Motivation<a class="headerlink" href="#motivation" title="Permalink to this heading">¶</a></h2>
+<p>This tutorial is aimed at engineers dealing with artificial intelligence and machine learning who would like to optimize their pipelines and squeeze every performance drop by adding Composable Kernel (CK) library to their projects. We would like to make the CK library approachable so the tutorial is not based on the latest release and doesn’t have all the bleeding edge features, but it will be reproducible now and forever.</p>
+<p>During this tutorial we will have an introduction to the CK library, we will build it and run some examples and tests, so to say we will run a “Hello world” example. In future tutorials we will go in depth and breadth and get familiar with other tools and ways to integrate CK into your project.</p>
+</section>
+<section id="description">
+<h2><span class="section-number">2.2. </span>Description<a class="headerlink" href="#description" title="Permalink to this heading">¶</a></h2>
+<p>Modern AI technology solves more and more problems in all imaginable fields, but crafting fast and efficient workflows is still challenging. CK is one of the tools to make AI heavy lifting as fast and efficient as possible. CK is a collection of optimized AI operator kernels and tools to create new ones. The library has components required for majority of modern neural networks architectures including matrix multiplication, convolution, contraction, reduction, attention modules, variety of activation functions, fused operators and many more.</p>
+<p>So how do we (almost) reach the speed of light? CK acceleration abilities are based on:</p>
+<ul class="simple">
+<li><p>Layered structure.</p></li>
+<li><p>Tile-based computation model.</p></li>
+<li><p>Tensor coordinate transformation.</p></li>
+<li><p>Hardware acceleration use.</p></li>
+<li><p>Support of low precision data types including fp16, bf16, int8 and int4.</p></li>
+</ul>
+<p>If you are excited and need more technical details and benchmarking results - read this awesome <a class="reference external" href="https://community.amd.com/t5/instinct-accelerators/amd-composable-kernel-library-efficient-fused-kernels-for-ai/ba-p/553224">blog post</a>.</p>
+<p>For more details visit our <a class="reference external" href="https://github.com/ROCmSoftwarePlatform/composable_kernel">github repo</a>.</p>
+</section>
+<section id="hardware-targets">
+<h2><span class="section-number">2.3. </span>Hardware targets<a class="headerlink" href="#hardware-targets" title="Permalink to this heading">¶</a></h2>
+<p>CK library fully supports “gfx908” and “gfx90a” GPU architectures and only some operators are supported for “gfx1030”. Let’s check the hardware you have at hand and decide on the target GPU architecture</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>GPU Target</p></th>
+<th class="head"><p>AMD GPU</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>gfx908</p></td>
+<td><p>Radeon Instinct MI100</p></td>
+</tr>
+<tr class="row-odd"><td><p>gfx90a</p></td>
+<td><p>Radeon Instinct MI210, MI250, MI250X</p></td>
+</tr>
+<tr class="row-even"><td><p>gfx1030</p></td>
+<td><p>Radeon PRO V620, W6800, W6800X, W6800X Duo, W6900X, RX 6800, RX 6800 XT, RX 6900 XT, RX 6900 XTX, RX 6950 XT</p></td>
+</tr>
+</tbody>
+</table>
+<p>There are also <a class="reference external" href="https://aws.amazon.com/ec2/instance-types/g4/">cloud options</a> you can find if you don’t have an AMD GPU at hand.</p>
+</section>
+<section id="build-the-library">
+<h2><span class="section-number">2.4. </span>Build the library<a class="headerlink" href="#build-the-library" title="Permalink to this heading">¶</a></h2>
+<p>First let’s clone the library and rebase to the tested version:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">git</span> <span class="n">clone</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">ROCmSoftwarePlatform</span><span class="o">/</span><span class="n">composable_kernel</span><span class="o">.</span><span class="n">git</span>
+<span class="n">cd</span> <span class="n">composable_kernel</span><span class="o">/</span>
+<span class="n">git</span> <span class="n">checkout</span> <span class="n">tutorial_hello_world</span>
+</pre></div>
+</div>
+<p>To make our lives easier we prepared <a class="reference external" href="https://hub.docker.com/r/rocm/composable_kernel">docker images</a> with all the necessary dependencies. Pick the right image and create a container. In this tutorial we use “rocm/composable_kernel:ck_ub20.04_rocm5.3_release” image, it is based on Ubuntu 20.04, ROCm v5.3, compiler release version.</p>
+<p>If your current folder is ${HOME}, start the docker container with:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>docker run  \
+-it  \
+--privileged  \
+--group-add sudo  \
+-w /root/workspace  \
+-v ${HOME}:/root/workspace  \
+rocm/composable_kernel:ck_ub20.04_rocm5.3_release  \
+/bin/bash
+</pre></div>
+</div>
+<p>If your current folder is different from ${HOME}, adjust the line <cite>-v ${HOME}:/root/workspace</cite> to fit your folder structure.</p>
+<p>Inside the docker container current folder is “~/workspace”, library path is “~/workspace/composable_kernel”, navigate to the library:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cd</span> <span class="n">composable_kernel</span><span class="o">/</span>
+</pre></div>
+</div>
+<p>Create and go to the “build” directory:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">mkdir</span> <span class="n">build</span> <span class="o">&amp;&amp;</span> <span class="n">cd</span> <span class="n">build</span>
+</pre></div>
+</div>
+<p>In the previous section we talked about target GPU architecture. Once you decide which one is right for you, run cmake using the right GPU_TARGETS flag:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cmake</span>  \
+<span class="o">-</span><span class="n">D</span> <span class="n">CMAKE_PREFIX_PATH</span><span class="o">=/</span><span class="n">opt</span><span class="o">/</span><span class="n">rocm</span>  \
+<span class="o">-</span><span class="n">D</span> <span class="n">CMAKE_CXX_COMPILER</span><span class="o">=/</span><span class="n">opt</span><span class="o">/</span><span class="n">rocm</span><span class="o">/</span><span class="nb">bin</span><span class="o">/</span><span class="n">hipcc</span>  \
+<span class="o">-</span><span class="n">D</span> <span class="n">CMAKE_CXX_FLAGS</span><span class="o">=</span><span class="s2">&quot;-O3&quot;</span>  \
+<span class="o">-</span><span class="n">D</span> <span class="n">CMAKE_BUILD_TYPE</span><span class="o">=</span><span class="n">Release</span>  \
+<span class="o">-</span><span class="n">D</span> <span class="n">BUILD_DEV</span><span class="o">=</span><span class="n">OFF</span>  \
+<span class="o">-</span><span class="n">D</span> <span class="n">GPU_TARGETS</span><span class="o">=</span><span class="s2">&quot;gfx908;gfx90a;gfx1030&quot;</span> <span class="o">..</span>
+</pre></div>
+</div>
+<p>If everything went well the cmake run will end up with:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">--</span> <span class="n">Configuring</span> <span class="n">done</span>
+<span class="o">--</span> <span class="n">Generating</span> <span class="n">done</span>
+<span class="o">--</span> <span class="n">Build</span> <span class="n">files</span> <span class="n">have</span> <span class="n">been</span> <span class="n">written</span> <span class="n">to</span><span class="p">:</span> <span class="s2">&quot;/root/workspace/composable_kernel/build&quot;</span>
+</pre></div>
+</div>
+<p>Finally, we can build examples and tests:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">make</span> <span class="o">-</span><span class="n">j</span> <span class="n">examples</span> <span class="n">tests</span>
+</pre></div>
+</div>
+<p>If everything is smooth, you’ll see:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Scanning</span> <span class="n">dependencies</span> <span class="n">of</span> <span class="n">target</span> <span class="n">tests</span>
+<span class="p">[</span><span class="mi">100</span><span class="o">%</span><span class="p">]</span> <span class="n">Built</span> <span class="n">target</span> <span class="n">tests</span>
+</pre></div>
+</div>
+</section>
+<section id="run-examples-and-tests">
+<h2><span class="section-number">2.5. </span>Run examples and tests<a class="headerlink" href="#run-examples-and-tests" title="Permalink to this heading">¶</a></h2>
+<p>Examples are listed as test cases as well, so we can run all examples and tests with:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">ctest</span>
+</pre></div>
+</div>
+<p>You can check the list of all tests by running:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">ctest</span> <span class="o">-</span><span class="n">N</span>
+</pre></div>
+</div>
+<p>We can also run them separately, here is a separate example execution:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">./</span><span class="nb">bin</span><span class="o">/</span><span class="n">example_gemm_xdl_fp16</span> <span class="mi">1</span> <span class="mi">1</span> <span class="mi">1</span>
+</pre></div>
+</div>
+<p>The arguments “1 1 1” mean that we want to run this example in the mode: verify results with CPU, initialize matrices with integers and benchmark the kernel execution. You can play around with these parameters and see how output and execution results change.</p>
+<p>If everything goes well and you have a device based on gfx908 or gfx90a architecture you should see something like:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">a_m_k</span><span class="p">:</span> <span class="n">dim</span> <span class="mi">2</span><span class="p">,</span> <span class="n">lengths</span> <span class="p">{</span><span class="mi">3840</span><span class="p">,</span> <span class="mi">4096</span><span class="p">},</span> <span class="n">strides</span> <span class="p">{</span><span class="mi">4096</span><span class="p">,</span> <span class="mi">1</span><span class="p">}</span>
+<span class="n">b_k_n</span><span class="p">:</span> <span class="n">dim</span> <span class="mi">2</span><span class="p">,</span> <span class="n">lengths</span> <span class="p">{</span><span class="mi">4096</span><span class="p">,</span> <span class="mi">4096</span><span class="p">},</span> <span class="n">strides</span> <span class="p">{</span><span class="mi">1</span><span class="p">,</span> <span class="mi">4096</span><span class="p">}</span>
+<span class="n">c_m_n</span><span class="p">:</span> <span class="n">dim</span> <span class="mi">2</span><span class="p">,</span> <span class="n">lengths</span> <span class="p">{</span><span class="mi">3840</span><span class="p">,</span> <span class="mi">4096</span><span class="p">},</span> <span class="n">strides</span> <span class="p">{</span><span class="mi">4096</span><span class="p">,</span> <span class="mi">1</span><span class="p">}</span>
+<span class="n">launch_and_time_kernel</span><span class="p">:</span> <span class="n">grid_dim</span> <span class="p">{</span><span class="mi">480</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">},</span> <span class="n">block_dim</span> <span class="p">{</span><span class="mi">256</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">}</span>
+<span class="n">Warm</span> <span class="n">up</span> <span class="mi">1</span> <span class="n">time</span>
+<span class="n">Start</span> <span class="n">running</span> <span class="mi">10</span> <span class="n">times</span><span class="o">...</span>
+<span class="n">Perf</span><span class="p">:</span> <span class="mf">1.10017</span> <span class="n">ms</span><span class="p">,</span> <span class="mf">117.117</span> <span class="n">TFlops</span><span class="p">,</span> <span class="mf">87.6854</span> <span class="n">GB</span><span class="o">/</span><span class="n">s</span><span class="p">,</span> <span class="n">DeviceGemmXdl</span><span class="o">&lt;</span><span class="mi">256</span><span class="p">,</span> <span class="mi">256</span><span class="p">,</span> <span class="mi">128</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">2</span><span class="o">&gt;</span> <span class="n">NumPrefetch</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="n">LoopScheduler</span><span class="p">:</span> <span class="n">Default</span><span class="p">,</span> <span class="n">PipelineVersion</span><span class="p">:</span> <span class="n">v1</span>
+</pre></div>
+</div>
+<p>Meanwhile, running it on a gfx1030 device should result in:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">a_m_k</span><span class="p">:</span> <span class="n">dim</span> <span class="mi">2</span><span class="p">,</span> <span class="n">lengths</span> <span class="p">{</span><span class="mi">3840</span><span class="p">,</span> <span class="mi">4096</span><span class="p">},</span> <span class="n">strides</span> <span class="p">{</span><span class="mi">4096</span><span class="p">,</span> <span class="mi">1</span><span class="p">}</span>
+<span class="n">b_k_n</span><span class="p">:</span> <span class="n">dim</span> <span class="mi">2</span><span class="p">,</span> <span class="n">lengths</span> <span class="p">{</span><span class="mi">4096</span><span class="p">,</span> <span class="mi">4096</span><span class="p">},</span> <span class="n">strides</span> <span class="p">{</span><span class="mi">1</span><span class="p">,</span> <span class="mi">4096</span><span class="p">}</span>
+<span class="n">c_m_n</span><span class="p">:</span> <span class="n">dim</span> <span class="mi">2</span><span class="p">,</span> <span class="n">lengths</span> <span class="p">{</span><span class="mi">3840</span><span class="p">,</span> <span class="mi">4096</span><span class="p">},</span> <span class="n">strides</span> <span class="p">{</span><span class="mi">4096</span><span class="p">,</span> <span class="mi">1</span><span class="p">}</span>
+<span class="n">DeviceGemmXdl</span><span class="o">&lt;</span><span class="mi">256</span><span class="p">,</span> <span class="mi">256</span><span class="p">,</span> <span class="mi">128</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">2</span><span class="o">&gt;</span> <span class="n">NumPrefetch</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="n">LoopScheduler</span><span class="p">:</span> <span class="n">Default</span><span class="p">,</span> <span class="n">PipelineVersion</span><span class="p">:</span> <span class="n">v1</span> <span class="n">does</span> <span class="ow">not</span> <span class="n">support</span> <span class="n">this</span> <span class="n">problem</span>
+</pre></div>
+</div>
+<p>But don’t panic, some of the operators are supported on gfx1030 architecture, so you can run a separate example like:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">./</span><span class="nb">bin</span><span class="o">/</span><span class="n">example_gemm_dl_fp16</span> <span class="mi">1</span> <span class="mi">1</span> <span class="mi">1</span>
+</pre></div>
+</div>
+<p>and it should result in something nice similar to:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">a_m_k</span><span class="p">:</span> <span class="n">dim</span> <span class="mi">2</span><span class="p">,</span> <span class="n">lengths</span> <span class="p">{</span><span class="mi">3840</span><span class="p">,</span> <span class="mi">4096</span><span class="p">},</span> <span class="n">strides</span> <span class="p">{</span><span class="mi">1</span><span class="p">,</span> <span class="mi">4096</span><span class="p">}</span>
+<span class="n">b_k_n</span><span class="p">:</span> <span class="n">dim</span> <span class="mi">2</span><span class="p">,</span> <span class="n">lengths</span> <span class="p">{</span><span class="mi">4096</span><span class="p">,</span> <span class="mi">4096</span><span class="p">},</span> <span class="n">strides</span> <span class="p">{</span><span class="mi">4096</span><span class="p">,</span> <span class="mi">1</span><span class="p">}</span>
+<span class="n">c_m_n</span><span class="p">:</span> <span class="n">dim</span> <span class="mi">2</span><span class="p">,</span> <span class="n">lengths</span> <span class="p">{</span><span class="mi">3840</span><span class="p">,</span> <span class="mi">4096</span><span class="p">},</span> <span class="n">strides</span> <span class="p">{</span><span class="mi">4096</span><span class="p">,</span> <span class="mi">1</span><span class="p">}</span>
+<span class="n">arg</span><span class="o">.</span><span class="n">a_grid_desc_k0_m0_m1_k1_</span><span class="p">{</span><span class="mi">2048</span><span class="p">,</span> <span class="mi">3840</span><span class="p">,</span> <span class="mi">2</span><span class="p">}</span>
+<span class="n">arg</span><span class="o">.</span><span class="n">b_grid_desc_k0_n0_n1_k1_</span><span class="p">{</span><span class="mi">2048</span><span class="p">,</span> <span class="mi">4096</span><span class="p">,</span> <span class="mi">2</span><span class="p">}</span>
+<span class="n">arg</span><span class="o">.</span><span class="n">c_grid_desc_m_n_</span><span class="p">{</span> <span class="mi">3840</span><span class="p">,</span> <span class="mi">4096</span><span class="p">}</span>
+<span class="n">launch_and_time_kernel</span><span class="p">:</span> <span class="n">grid_dim</span> <span class="p">{</span><span class="mi">960</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">},</span> <span class="n">block_dim</span> <span class="p">{</span><span class="mi">256</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">}</span>
+<span class="n">Warm</span> <span class="n">up</span> <span class="mi">1</span> <span class="n">time</span>
+<span class="n">Start</span> <span class="n">running</span> <span class="mi">10</span> <span class="n">times</span><span class="o">...</span>
+<span class="n">Perf</span><span class="p">:</span> <span class="mf">3.65695</span> <span class="n">ms</span><span class="p">,</span> <span class="mf">35.234</span> <span class="n">TFlops</span><span class="p">,</span> <span class="mf">26.3797</span> <span class="n">GB</span><span class="o">/</span><span class="n">s</span><span class="p">,</span> <span class="n">DeviceGemmDl</span><span class="o">&lt;</span><span class="mi">256</span><span class="p">,</span> <span class="mi">128</span><span class="p">,</span> <span class="mi">128</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+<p>Or we can run a separate test:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">ctest</span> <span class="o">-</span><span class="n">R</span> <span class="n">test_gemm_fp16</span>
+</pre></div>
+</div>
+<p>If everything goes well you should see something like:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Start</span> <span class="mi">121</span><span class="p">:</span> <span class="n">test_gemm_fp16</span>
+<span class="mi">1</span><span class="o">/</span><span class="mi">1</span> <span class="n">Test</span> <span class="c1">#121: test_gemm_fp16 ...................   Passed   51.81 sec</span>
+
+<span class="mi">100</span><span class="o">%</span> <span class="n">tests</span> <span class="n">passed</span><span class="p">,</span> <span class="mi">0</span> <span class="n">tests</span> <span class="n">failed</span> <span class="n">out</span> <span class="n">of</span> <span class="mi">1</span>
+</pre></div>
+</div>
+</section>
+<section id="summary">
+<h2><span class="section-number">2.6. </span>Summary<a class="headerlink" href="#summary" title="Permalink to this heading">¶</a></h2>
+<p>In this tutorial we took the first look at the Composable Kernel library, built it on your system and ran some examples and tests. Stay tuned, in the next tutorial we will run kernels with different configs to find out the best one for your hardware and task.</p>
+<p>P.S.: Don’t forget to switch out the cloud instance if you have launched one, you can find better ways to spend your money for sure!</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="Linux_Install_Guide.html" class="btn btn-neutral float-left" title="1. Getting Started Guide" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="dockerhub.html" class="btn btn-neutral float-right" title="3. CK docker hub" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2018-2023, Advanced Micro Devices.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

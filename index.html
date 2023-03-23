@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Composable Kernel User Guide &mdash; Composable Kernel (CK)  documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/sphinx_highlight.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="1. Getting Started Guide" href="Linux_Install_Guide.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="#">
+            
+              <img src="_static/rocm_logo.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="Linux_Install_Guide.html">1. Getting Started Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial_hello_world.html">2. CK Hello world</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dockerhub.html">3. CK docker hub</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Supported_Primitives_Guide.html">4. Supported Primitives Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="API_Reference_Guide.html">5. API Reference Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Contributors_Guide.html">6. Contributor’s Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Disclaimer.html">7. Disclaimer</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="#">Composable Kernel (CK)</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="#" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Composable Kernel User Guide</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/index.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="composable-kernel-user-guide">
+<h1>Composable Kernel User Guide<a class="headerlink" href="#composable-kernel-user-guide" title="Permalink to this heading">¶</a></h1>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="Linux_Install_Guide.html">1. Getting Started Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="Linux_Install_Guide.html#introduction">1.1. Introduction</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="Linux_Install_Guide.html#documentation-roadmap">1.1.1. Documentation Roadmap</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial_hello_world.html">2. CK Hello world</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="tutorial_hello_world.html#motivation">2.1. Motivation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial_hello_world.html#description">2.2. Description</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial_hello_world.html#hardware-targets">2.3. Hardware targets</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial_hello_world.html#build-the-library">2.4. Build the library</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial_hello_world.html#run-examples-and-tests">2.5. Run examples and tests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial_hello_world.html#summary">2.6. Summary</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="dockerhub.html">3. CK docker hub</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="dockerhub.html#why-do-i-need-this">3.1. Why do I need this?</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dockerhub.html#so-what-is-composable-kernel">3.2. So what is Composable Kernel?</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dockerhub.html#and-what-is-inside">3.3. And what is inside?</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dockerhub.html#which-image-is-right-for-me">3.4. Which image is right for me?</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dockerhub.html#diy-starts-here">3.5. DIY starts here</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dockerhub.html#license">3.6. License</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="Supported_Primitives_Guide.html">4. Supported Primitives Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="Supported_Primitives_Guide.html#softmax">4.1. Softmax</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="API_Reference_Guide.html">5. API Reference Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="API_Reference_Guide.html#introduction">5.1. Introduction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="API_Reference_Guide.html#using-ck-api">5.2. Using CK API</a></li>
+<li class="toctree-l2"><a class="reference internal" href="API_Reference_Guide.html#ck-datatypes">5.3. CK Datatypes</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="API_Reference_Guide.html#devicemem">5.3.1. DeviceMem</a></li>
+<li class="toctree-l3"><a class="reference internal" href="API_Reference_Guide.html#kernels-for-flashattention">5.3.2. Kernels For Flashattention</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="Contributors_Guide.html">6. Contributor’s Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="Contributors_Guide.html#pull-request-guidelines">6.1. Pull-request guidelines</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="Disclaimer.html">7. Disclaimer</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="Disclaimer.html#amd-s-standard-legal-disclaimer">7.1. AMD’s standard legal Disclaimer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="Disclaimer.html#third-party-disclaimer">7.2. Third Party Disclaimer</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="Linux_Install_Guide.html" class="btn btn-neutral float-right" title="1. Getting Started Guide" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2018-2023, Advanced Micro Devices.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

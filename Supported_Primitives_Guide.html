@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>4. Supported Primitives Guide &mdash; Composable Kernel (CK)  documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/sphinx_highlight.js"></script>
+        <script>window.MathJax = {"tex": {"macros": {"diag": "\\operatorname{diag}"}}}</script>
+        <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="5. API Reference Guide" href="API_Reference_Guide.html" />
+    <link rel="prev" title="3. CK docker hub" href="dockerhub.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html">
+            
+              <img src="_static/rocm_logo.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="Linux_Install_Guide.html">1. Getting Started Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial_hello_world.html">2. CK Hello world</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dockerhub.html">3. CK docker hub</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">4. Supported Primitives Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#softmax">4.1. Softmax</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="API_Reference_Guide.html">5. API Reference Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Contributors_Guide.html">6. Contributor’s Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Disclaimer.html">7. Disclaimer</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Composable Kernel (CK)</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active"><span class="section-number">4. </span>Supported Primitives Guide</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/Supported_Primitives_Guide.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="supported-primitives-guide">
+<h1><span class="section-number">4. </span>Supported Primitives Guide<a class="headerlink" href="#supported-primitives-guide" title="Permalink to this heading">¶</a></h1>
+<p>This document contains details of supported primitives in Composable Kernel (CK). In contrast to the API Reference
+Guide, the Supported Primitives Guide is an introduction to the math which underpins the algorithms implemented in CK.</p>
+<section id="softmax">
+<h2><span class="section-number">4.1. </span>Softmax<a class="headerlink" href="#softmax" title="Permalink to this heading">¶</a></h2>
+<p>For vectors <span class="math notranslate nohighlight">\(x^{(1)}, x^{(2)}, \ldots, x^{(T)}\)</span> of size <span class="math notranslate nohighlight">\(B\)</span> we can decompose the softmax of concatenated
+<span class="math notranslate nohighlight">\(x = [ x^{(1)}\ | \ \ldots \ | \ x^{(T)} ]\)</span> as,</p>
+<div class="math notranslate nohighlight">
+\begin{align}
+   m(x) &amp; = m( [ x^{(1)}\ | \ \ldots \ | \ x^{(T)} ] ) = \max( m(x^{(1)}),\ldots, m(x^{(T)}) )  \\
+   f(x) &amp; = [\exp( m(x^{(1)}) - m(x) ) f( x^{(1)} )\ | \ \ldots \ | \ \exp( m(x^{(T)}) - m(x) ) f( x^{(T)} )] \\
+   z(x) &amp; = \exp( m(x^{(1)}) - m(x) )\ z(x^{(1)}) + \ldots + \exp( m(x^{(T)}) - m(x) )\ z(x^{(1)}) \\
+   \operatorname{softmax}(x) &amp;= f(x)\ / \ z(x)
+\end{align}</div><p>where <span class="math notranslate nohighlight">\(f(x^{(j)}) = \exp( x^{(j)} - m(x^{(j)}) )\)</span> is of size <span class="math notranslate nohighlight">\(B\)</span> and
+<span class="math notranslate nohighlight">\(z(x^{(j)}) = f(x_1^{(j)})+ \ldots+ f(x_B^{(j)})\)</span> is a scalar.</p>
+<p>For a matrix <span class="math notranslate nohighlight">\(X\)</span> composed of <span class="math notranslate nohighlight">\(T_r \times T_c\)</span> tiles, <span class="math notranslate nohighlight">\(X_{ij}\)</span>, of size <span class="math notranslate nohighlight">\(B_r \times B_c\)</span> we can
+compute the row-wise softmax as follows.</p>
+<p>For <span class="math notranslate nohighlight">\(j\)</span> from <span class="math notranslate nohighlight">\(1\)</span> to <span class="math notranslate nohighlight">\(T_c\)</span>, and <span class="math notranslate nohighlight">\(i\)</span> from <span class="math notranslate nohighlight">\(1\)</span> to <span class="math notranslate nohighlight">\(T_r\)</span> calculate,</p>
+<div class="math notranslate nohighlight">
+\begin{align}
+   \tilde{m}_{ij}   &amp;= \operatorname{rowmax}( X_{ij} ) \\
+   \tilde{P}_{ij}   &amp;= \exp(X_{ij} - \tilde{m}_{ij} ) \\
+   \tilde{z}_{ij}   &amp;= \operatorname{rowsum}( P_{ij} ) \\
+\end{align}</div><p>If <span class="math notranslate nohighlight">\(j=1\)</span>, initialize running max, running sum, and the first column block of the output,</p>
+<div class="math notranslate nohighlight">
+\begin{align}
+   m_i            &amp;= \tilde{m}_{i1} \\
+   z_i            &amp;= \tilde{z}_{i1} \\
+   \tilde{Y}_{i1} &amp;= \diag(\tilde{z}_{ij})^{-1} \tilde{P}_{i1}
+\end{align}</div><p>Else if <span class="math notranslate nohighlight">\(j&gt;1\)</span>,</p>
+<ol class="arabic simple">
+<li><p>Update running max, running sum and column blocks <span class="math notranslate nohighlight">\(k=1\)</span> to <span class="math notranslate nohighlight">\(k=j-1\)</span></p></li>
+</ol>
+<div class="math notranslate nohighlight">
+\begin{align}
+   m^{new}_i &amp;= \max(m_i, \tilde{m}_{ij} ) \\
+   z^{new}_i &amp;= \exp(m_i - m^{new}_i)\ z_i + \exp( \tilde{m}_{ij} - m^{new}_i )\ \tilde{z}_{ij}  \\
+   Y_{ik}    &amp;= \diag(z^{new}_{i})^{-1} \diag(z_{i}) \exp(m_i - m^{new}_i)\ Y_{ik}
+\end{align}</div><ol class="arabic simple" start="2">
+<li><p>Initialize column block <span class="math notranslate nohighlight">\(j\)</span> of output and reset running max and running sum variables:</p></li>
+</ol>
+<div class="math notranslate nohighlight">
+\begin{align}
+   \tilde{Y}_{ij} &amp;= \diag(z^{new}_{i})^{-1} \exp(\tilde{m}_{ij} - m^{new}_i ) \tilde{P}_{ij} \\
+   z_i            &amp;= z^{new}_i \\
+   m_i            &amp;= m^{new}_i \\
+\end{align}</div></section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="dockerhub.html" class="btn btn-neutral float-left" title="3. CK docker hub" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="API_Reference_Guide.html" class="btn btn-neutral float-right" title="5. API Reference Guide" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2018-2023, Advanced Micro Devices.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3. CK docker hub &mdash; Composable Kernel (CK)  documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/sphinx_highlight.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="4. Supported Primitives Guide" href="Supported_Primitives_Guide.html" />
+    <link rel="prev" title="2. CK Hello world" href="tutorial_hello_world.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html">
+            
+              <img src="_static/rocm_logo.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="Linux_Install_Guide.html">1. Getting Started Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial_hello_world.html">2. CK Hello world</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">3. CK docker hub</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#why-do-i-need-this">3.1. Why do I need this?</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#so-what-is-composable-kernel">3.2. So what is Composable Kernel?</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#and-what-is-inside">3.3. And what is inside?</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#which-image-is-right-for-me">3.4. Which image is right for me?</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#diy-starts-here">3.5. DIY starts here</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#license">3.6. License</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="Supported_Primitives_Guide.html">4. Supported Primitives Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="API_Reference_Guide.html">5. API Reference Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Contributors_Guide.html">6. Contributor’s Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Disclaimer.html">7. Disclaimer</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Composable Kernel (CK)</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active"><span class="section-number">3. </span>CK docker hub</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/dockerhub.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="ck-docker-hub">
+<h1><span class="section-number">3. </span>CK docker hub<a class="headerlink" href="#ck-docker-hub" title="Permalink to this heading">¶</a></h1>
+<p><a class="reference external" href="https://hub.docker.com/r/rocm/composable_kernel">Docker hub</a></p>
+<section id="why-do-i-need-this">
+<h2><span class="section-number">3.1. </span>Why do I need this?<a class="headerlink" href="#why-do-i-need-this" title="Permalink to this heading">¶</a></h2>
+<p>To make our lives easier and bring Composable Kernel dependencies together, we recommend using docker images.</p>
+</section>
+<section id="so-what-is-composable-kernel">
+<h2><span class="section-number">3.2. </span>So what is Composable Kernel?<a class="headerlink" href="#so-what-is-composable-kernel" title="Permalink to this heading">¶</a></h2>
+<p>Composable Kernel (CK) library aims to provide a programming model for writing performance critical kernels for machine learning workloads across multiple architectures including GPUs, CPUs, etc, through general purpose kernel languages, like HIP C++.</p>
+<p>To get the CK library:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">git</span> <span class="n">clone</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">ROCmSoftwarePlatform</span><span class="o">/</span><span class="n">composable_kernel</span><span class="o">.</span><span class="n">git</span>
+</pre></div>
+</div>
+<p>run a docker container:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>docker run                                                            \
+-it                                                                   \
+--privileged                                                          \
+--group-add sudo                                                      \
+-w /root/workspace                                                    \
+-v ${PATH_TO_LOCAL_WORKSPACE}:/root/workspace                         \
+rocm/composable_kernel:ck_ub20.04_rocm5.3_release                     \
+/bin/bash
+</pre></div>
+</div>
+<p>and build the CK:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">mkdir</span> <span class="n">build</span> <span class="o">&amp;&amp;</span> <span class="n">cd</span> <span class="n">build</span>
+<span class="c1"># Need to specify target ID, example below is for gfx908 and gfx90a</span>
+<span class="n">cmake</span>                                                                                             \
+<span class="o">-</span><span class="n">D</span> <span class="n">CMAKE_PREFIX_PATH</span><span class="o">=/</span><span class="n">opt</span><span class="o">/</span><span class="n">rocm</span>                                                                    \
+<span class="o">-</span><span class="n">D</span> <span class="n">CMAKE_CXX_COMPILER</span><span class="o">=/</span><span class="n">opt</span><span class="o">/</span><span class="n">rocm</span><span class="o">/</span><span class="nb">bin</span><span class="o">/</span><span class="n">hipcc</span>                                                         \
+<span class="o">-</span><span class="n">D</span> <span class="n">CMAKE_CXX_FLAGS</span><span class="o">=</span><span class="s2">&quot;-O3&quot;</span>                                                                          \
+<span class="o">-</span><span class="n">D</span> <span class="n">CMAKE_BUILD_TYPE</span><span class="o">=</span><span class="n">Release</span>                                                                       \
+<span class="o">-</span><span class="n">D</span> <span class="n">GPU_TARGETS</span><span class="o">=</span><span class="s2">&quot;gfx908;gfx90a&quot;</span>                                                                    \
+<span class="o">..</span>
+</pre></div>
+</div>
+<p>and:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">make</span> <span class="o">-</span><span class="n">j</span> <span class="n">examples</span> <span class="n">tests</span>
+</pre></div>
+</div>
+<p>To run all the test cases including tests and examples run:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">make</span> <span class="n">test</span>
+</pre></div>
+</div>
+<p>We can also run specific examples or tests like:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">./</span><span class="nb">bin</span><span class="o">/</span><span class="n">example_gemm_xdl_fp16</span>
+<span class="o">./</span><span class="nb">bin</span><span class="o">/</span><span class="n">test_gemm_fp16</span>
+</pre></div>
+</div>
+<p>For more details visit <a class="reference external" href="https://github.com/ROCmSoftwarePlatform/composable_kernel">CK github repo</a>, <a class="reference external" href="https://github.com/ROCmSoftwarePlatform/composable_kernel/tree/develop/example)">CK examples</a>, <a class="reference external" href="https://github.com/ROCmSoftwarePlatform/composable_kernel/tree/develop/client_example">even more CK examples</a>.</p>
+</section>
+<section id="and-what-is-inside">
+<h2><span class="section-number">3.3. </span>And what is inside?<a class="headerlink" href="#and-what-is-inside" title="Permalink to this heading">¶</a></h2>
+<p>The docker images have everything you need for running CK including:</p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://www.amd.com/en/graphics/servers-solutions-rocm">ROCm</a></p></li>
+<li><p><a class="reference external" href="https://cmake.org/">CMake</a></p></li>
+<li><p><a class="reference external" href="https://github.com/RadeonOpenCompute/llvm-project">Compiler</a></p></li>
+</ul>
+</section>
+<section id="which-image-is-right-for-me">
+<h2><span class="section-number">3.4. </span>Which image is right for me?<a class="headerlink" href="#which-image-is-right-for-me" title="Permalink to this heading">¶</a></h2>
+<p>Let’s take a look at the image naming, for example “ck_ub20.04_rocm5.4_release”. The image specs are:</p>
+<ul class="simple">
+<li><p>“ck” - made for running Composable Kernel</p></li>
+<li><p>“ub20.04” - based on Ubuntu 20.04</p></li>
+<li><p>“rocm5.4” - ROCm platform version 5.4</p></li>
+<li><p>“release” - compiler version is release</p></li>
+</ul>
+<p>So just pick the right image for your project dependencies and you’re all set.</p>
+</section>
+<section id="diy-starts-here">
+<h2><span class="section-number">3.5. </span>DIY starts here<a class="headerlink" href="#diy-starts-here" title="Permalink to this heading">¶</a></h2>
+<p>If you need to customize a docker image or just can’t stop tinkering, feel free to adjust the <a class="reference external" href="https://github.com/ROCmSoftwarePlatform/composable_kernel/blob/develop/Dockerfile">Dockerfile</a> for your needs.</p>
+</section>
+<section id="license">
+<h2><span class="section-number">3.6. </span>License<a class="headerlink" href="#license" title="Permalink to this heading">¶</a></h2>
+<p>CK is released under the MIT <a class="reference external" href="https://github.com/ROCmSoftwarePlatform/composable_kernel/blob/develop/LICENSE">license</a>.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="tutorial_hello_world.html" class="btn btn-neutral float-left" title="2. CK Hello world" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="Supported_Primitives_Guide.html" class="btn btn-neutral float-right" title="4. Supported Primitives Guide" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2018-2023, Advanced Micro Devices.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
