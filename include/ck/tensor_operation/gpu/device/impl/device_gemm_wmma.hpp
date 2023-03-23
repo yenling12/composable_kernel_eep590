@@ -12,6 +12,7 @@
 #include "ck/tensor_operation/gpu/device/tensor_layout.hpp"
 #include "ck/tensor_operation/gpu/device/device_gemm.hpp"
 #include "ck/tensor_operation/gpu/device/gemm_specialization.hpp"
+#include "ck/tensor_operation/gpu/device/matrix_padder.hpp"
 #include "ck/tensor_operation/gpu/grid/gridwise_gemm_wmma.hpp"
 #include "ck/host_utility/device_prop.hpp"
 #include "ck/host_utility/kernel_launch.hpp"
@@ -102,12 +103,11 @@ struct DeviceGemmWmma_CShuffle : public DeviceGemm<ALayout,
 
                 return matrix_padder.PadADescriptor_M_K(a_grid_desc_mraw_kraw);
             }
-#ifdef ENABLE_COLMAJOR
-            else if constexpr(is_same<tensor_layout::gemm::ColumnMajor, ALayout>::value)
+            else if constexpr(is_same_v<tensor_layout::gemm::ColumnMajor, ALayout>)
             {
-                return make_naive_tensor_descriptor(make_tuple(M, K), make_tuple(I1, StrideA));
+                return make_naive_tensor_descriptor(make_tuple(MRaw, KRaw),
+                                                    make_tuple(I1, StrideA));
             }
-#endif
         }();
 
         const auto M = a_grid_desc_m_k.GetLength(I0);
@@ -150,7 +150,7 @@ struct DeviceGemmWmma_CShuffle : public DeviceGemm<ALayout,
                 return make_naive_tensor_descriptor(make_tuple(NRaw, KRaw),
                                                     make_tuple(I1, StrideB));
             }
-            else if constexpr(is_same<tensor_layout::gemm::ColumnMajor, BLayout>::value)
+            else if constexpr(is_same_v<tensor_layout::gemm::ColumnMajor, BLayout>)
             {
                 return make_naive_tensor_descriptor(make_tuple(NRaw, KRaw),
                                                     make_tuple(StrideB, I1));
@@ -445,7 +445,8 @@ struct DeviceGemmWmma_CShuffle : public DeviceGemm<ALayout,
 
     static bool IsSupportedArgument(const Argument& arg)
     {
-        if(ck::get_device_name() == "gfx1100")
+        if(ck::get_device_name() == "gfx1100" || ck::get_device_name() == "gfx1101" ||
+           ck::get_device_name() == "gfx1102")
         {
             if constexpr(!(is_same_v<AccDataType, float> || is_same_v<AccDataType, int32_t>))
             {
