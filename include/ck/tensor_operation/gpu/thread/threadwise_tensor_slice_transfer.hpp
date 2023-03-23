@@ -1400,9 +1400,8 @@ struct ThreadwiseTensorSliceTransfer_StaticToStatic_InterRow
 
                 // apply element-wise operation
                 element_op_(v_this_row, src_buf[Number<src_offset>{}]);
-                // if (get_thread_local_1d_id() < 16)
-                // printf("tid: %03d, RawData: %04x\n", get_thread_local_1d_id(),
-                // *(reinterpret_cast<uint16_t*>(&v_this_row)) ); apply intra-row swizzle permute
+
+                // apply intra-row swizzle permute
                 if constexpr(IntraRowSwizzlePerm)
                 {
                     temp       = __builtin_amdgcn_permlane16( // 0x76543210, 0xfedcba98
@@ -1413,9 +1412,6 @@ struct ThreadwiseTensorSliceTransfer_StaticToStatic_InterRow
                         1,
                         0);
                     v_this_row = type_convert<SrcData>(temp);
-                    // if (get_thread_local_1d_id() < 16)
-                    // printf("tid: %03d, SwiData: %04x\n", get_thread_local_1d_id(),
-                    // *(reinterpret_cast<uint16_t*>(&v_this_row)) );
                 }
 
                 // apply inter-row permute.
@@ -1426,8 +1422,7 @@ struct ThreadwiseTensorSliceTransfer_StaticToStatic_InterRow
                                                     1,
                                                     0);
                 v_theother_row = type_convert<SrcData>(temp);
-                // printf("tid: %03d, PermData: %04x\n", get_thread_local_1d_id(),
-                // *(reinterpret_cast<uint16_t*>(&v_theother_row)) );
+                
                 if(get_thread_local_1d_id() % 32 < 16)
                 {
                     // apply type convert
