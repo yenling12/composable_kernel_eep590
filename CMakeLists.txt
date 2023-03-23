@@ -7,6 +7,8 @@ list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 
 enable_testing()
 
+add_definitions(-w)
+
 set(ROCM_SYMLINK_LIBS OFF)
 find_package(ROCM REQUIRED PATHS /opt/rocm)
 

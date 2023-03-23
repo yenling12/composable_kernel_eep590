@@ -27,7 +27,7 @@ int run(int argc, char* argv[])
 
     float p_drop                    = 0.1;
     float p_dropout                 = 1 - p_drop;
-    uint16_t p_dropout_in_16bits    = uint16_t(std::floor(p_dropout * 65535.0));
+    uint16_t p_dropout_in_float    = p_dropout;//uint16_t(std::floor(p_dropout * 65535.0));
     float rp_dropout                = 1.0 / p_dropout;
     const unsigned long long seed   = 1;
     const unsigned long long offset = 0;
@@ -322,7 +322,7 @@ int run(int argc, char* argv[])
         auto ref_dropout         = ReferenceDropoutInstance{};
         auto ref_dropout_invoker = ref_dropout.MakeInvoker();
         auto ref_dropout_argment = ref_dropout.MakeArgument(
-            z_g_m_n, a1_g_m_n, a1_g_m_n_drop, p_dropout_in_16bits, rp_dropout);
+            z_g_m_n, a1_g_m_n, a1_g_m_n_drop, p_dropout_in_float, rp_dropout);
         ref_dropout_invoker.Run(ref_dropout_argment);
 
         // gemm1

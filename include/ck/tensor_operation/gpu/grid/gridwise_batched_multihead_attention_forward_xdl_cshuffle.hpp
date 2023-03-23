@@ -3,8 +3,11 @@
 
 #pragma once
 
+#include "hiprand.h"
+#include "hiprand_kernel.h"
+
 #include "ck/utility/common_header.hpp"
-#include "ck/utility/philox_rand.hpp"
+//#include "ck/utility/philox_rand.hpp"
 #include "ck/tensor_description/multi_index_transform_helper.hpp"
 #include "ck/tensor_description/tensor_descriptor.hpp"
 #include "ck/tensor_description/tensor_descriptor_helper.hpp"
@@ -443,9 +446,9 @@ struct GridwiseBatchedMultiheadAttentionForward_Xdl_CShuffle
                                const LSEGridDesc_M& lse_grid_desc_m,
                                const Block2CTileMap& block_2_ctile_map,
                                const C0MatrixMask& c0_matrix_mask,
-                               const ushort p_dropout_in_16bits,
+                               const float p_dropout_in_float,
                                FloatGemmAcc p_dropout_rescale,
-                               ck::philox ph)
+                               hiprandState_t state)
     {
         const auto a_grid_buf = make_dynamic_buffer<AddressSpaceEnum::Global>(
             p_a_grid, a_grid_desc_ak0_m_ak1.GetElementSpaceSize());
@@ -792,7 +795,7 @@ struct GridwiseBatchedMultiheadAttentionForward_Xdl_CShuffle
                                                   decltype(thread_slice_desc_m_n)>{};
 
         auto blockwise_dropout = BlockwiseDropout<FloatGemmAcc, decltype(thread_slice_desc_m_n)>{
-            p_dropout_in_16bits, p_dropout_rescale};
+            0, p_dropout_in_float, p_dropout_rescale};
 
         const index_t num_gemm1_k_block_outer_loop =
             b_grid_desc_bk0_n_bk1.GetLength(I1) / NPerBlock;
@@ -1013,7 +1016,7 @@ struct GridwiseBatchedMultiheadAttentionForward_Xdl_CShuffle
                                                                 false,
                                                                 decltype(n0),
                                                                 decltype(i)>(
-                            acc_thread_buf, ph, z_tenor_buffer);
+                            acc_thread_buf, state, z_tenor_buffer);
 
                         z_thread_copy_vgpr_to_global.Run(
                             z_thread_desc_m0_n0_m1_n1_m2_n2_m3_n3_n4_n5,
@@ -1037,7 +1040,7 @@ struct GridwiseBatchedMultiheadAttentionForward_Xdl_CShuffle
                     // ignore = z_grid_buf;
                     // P_dropped
                     blockwise_dropout.template ApplyDropout<decltype(acc_thread_buf), false>(
-                        acc_thread_buf, ph);
+                        acc_thread_buf, state);
                 }
             }
 

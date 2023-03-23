@@ -6,8 +6,11 @@
 #include <iostream>
 #include <sstream>
 
+#include "hiprand.h"
+#include "hiprand_kernel.h"
+
 #include "ck/utility/common_header.hpp"
-#include "ck/utility/philox_rand.hpp"
+//#include "ck/utility/philox_rand.hpp"
 #include "ck/tensor_description/tensor_descriptor.hpp"
 #include "ck/tensor_description/tensor_descriptor_helper.hpp"
 #include "ck/tensor_operation/gpu/device/device_batched_gemm_softmax_gemm_permute.hpp"
@@ -74,7 +77,7 @@ __global__ void
             const index_t batch_count,
             const ComputeBasePtrOfStridedBatch compute_base_ptr_of_batch,
             const C0MatrixMask c0_matrix_mask,
-            const ushort p_dropout_in_16bits,
+            const float p_dropout_in_float,
             const GemmAccDataType p_dropout_rescale,
             const unsigned long long seed,
             const unsigned long long offset)
@@ -99,7 +102,9 @@ __global__ void
         static_cast<long_index_t>(compute_base_ptr_of_batch.GetLSEBasePtr(g_idx)));
 
     const index_t global_thread_id = get_thread_global_1d_id();
-    ck::philox ph(seed, global_thread_id, offset);
+    hiprandState_t state;
+    hiprand_init(seed, global_thread_id, offset, &state);
+    //ck::philox ph(seed, global_thread_id, offset);
 
     GridwiseGemm::template Run<HasMainKBlockLoop, IsDropout, IsLseStoring>(
         p_a_grid + a_batch_offset,
@@ -122,9 +127,9 @@ __global__ void
         lse_grid_desc_m,
         block_2_ctile_map,
         c0_matrix_mask,
-        p_dropout_in_16bits,
+        p_dropout_in_float,
         p_dropout_rescale,
-        ph);
+        state);
 #else
     ignore = p_a_grid;
     ignore = p_b_grid;
@@ -591,7 +596,7 @@ struct DeviceBatchedMultiheadAttentionForward_Xdl_CShuffle
 
             is_dropout_          = p_dropout > 0.0; //
             p_dropout_           = 1.f - p_dropout;
-            p_dropout_in_16bits_ = uint16_t(std::floor(p_dropout_ * 65535.0));
+            p_dropout_in_float_  = p_dropout_ ;     //uint16_t(std::floor(p_dropout_ * 65535.0));
             p_dropout_           = 1.f / p_dropout_;
             p_dropout_rescale_   = type_convert<GemmAccDataType>(p_dropout_);
 
@@ -673,7 +678,7 @@ struct DeviceBatchedMultiheadAttentionForward_Xdl_CShuffle
         ComputeBasePtrOfStridedBatch compute_base_ptr_of_batch_;
 
         float p_dropout_;
-        ushort p_dropout_in_16bits_;
+        ushort p_dropout_in_float_;
         GemmAccDataType p_dropout_rescale_;
         unsigned long long seed_;
         unsigned long long offset_;
@@ -757,7 +762,7 @@ struct DeviceBatchedMultiheadAttentionForward_Xdl_CShuffle
                                               arg.batch_count_,
                                               arg.compute_base_ptr_of_batch_,
                                               arg.c0_matrix_mask_,
-                                              arg.p_dropout_in_16bits_,
+                                              arg.p_dropout_in_float_,
                                               arg.p_dropout_rescale_,
                                               arg.seed_,
                                               arg.offset_);
