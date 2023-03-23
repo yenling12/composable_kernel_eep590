@@ -396,7 +396,8 @@ struct BlockwiseGemmWMMA
             A_K1,
             0x76543210,
             0xfedcba98,
-            true>;
+            // true
+            false>;
     };
 
     template <bool EnableLds>
