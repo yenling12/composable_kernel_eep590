@@ -83,20 +83,12 @@ struct BlockwiseDropout
 
         constexpr int tmp_size = MRepeat * KRepeat;
 
-        int hiprand_calls = tmp_size / 8;
+        int hiprand_calls = tmp_size;
 
         float tmp[tmp_size];
         for(int i = 0; i < hiprand_calls; i++)
         {
-            float tmp_rand = hiprand_uniform(&state);
-            tmp[i] = tmp_rand;
-            tmp[i+1] = tmp_rand;
-            tmp[i+2] = tmp_rand;
-            tmp[i+3] = tmp_rand;
-            tmp[i+4] = tmp_rand;
-            tmp[i+5] = tmp_rand;
-            tmp[i+6] = tmp_rand;
-            tmp[i+7] = tmp_rand;
+            tmp[i] = hiprand_uniform(&state);
         }
 
         block_sync_lds();
