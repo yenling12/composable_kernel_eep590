@@ -4,5 +4,5 @@ CFLAGS=-I ~/rocm/composable_kernel/include -I /opt/rocm-5.1.1/hip/include -I ~/r
 
 CXXFLAGS = -std=c++17
 
-xx.o:
-	hipcc -c $(CFLAGS) $(CXXFLAGS) xx.cpp
+xx.o: 
+	hipcc -fPIC -fvisibility=hidden $(CXXFLAGS) -w /opt/rocm/amdgcn/bitcode/oclc_abi_version_400.bc $(CFLAGS) -L/opt/rocm/rocrand -lrocrand -x hip -c -o xx.cpp
