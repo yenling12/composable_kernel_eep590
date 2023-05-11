@@ -6,6 +6,9 @@ import operator
 import collections
 import subprocess
 import re
+import gemm_op
+from gemm_op import *
+import user
 
 def SubstituteTemplate(template, values):
     text = template
@@ -23,22 +26,6 @@ def SubstituteTemplate(template, values):
 
 class EmitGemmInstance:
     def __init__(self):
-        self.make_template =     """
-CFLAGS=-I ~/workspace/composable_kernel/include -I /opt/workspace/rocm-5.1.1/hip/include -I ~/workspace/composable_kernel/include/ -I ~/workspace/composable_kernel/include/ck/ -I ~/workspace/composable_kernel/example/01_gemm/ -I ~/workspace/composable_kernel/library/include/  -I ~/workspace/composable_kernel/library/src/utility/ -I ~/workspace/composable_kernel/include/ck/problem_transform/ -I ~/workspace/composable_kernel/include/ck/tensor/ -I ~/workspace/composable_kernel/include/ck/tensor_description/ -I ~/workspace/composable_kernel/include/ck/tensor_operation/ -I ~/workspace/composable_kernel/include/ck/tensor_operation/gpu/block/ -I ~/workspace/composable_kernel/include/ck/tensor_operation/gpu/device/ -I ~/workspace/composable_kernel/include/ck/tensor_operation/gpu/device/impl/ -I ~/workspace/composable_kernel/include/ck/tensor_operation/gpu/element/ -I ~/workspace/composable_kernel/include/ck/tensor_operation/gpu/grid/ -I ~/workspace/composable_kernel/include/ck/tensor_operation/gpu/thread/ -I ~/workspace/composable_kernel/include/ck/tensor_operation/gpu/warp/ -I ~/workspace/composable_kernel/include/ck/host_utility -I /external/include/half/ -I ~/workspace/composable_kernel/library/include/ck/library/host/ -I ~/workspace/composable_kernel/library/include/ck/library/host_tensor/ -I ~/workspace/composable_kernel/library/include/ck/library/obselete_driver_offline/ -I ~/workspace/composable_kernel/library/include/ck/library/reference_tensor_operation/cpu/ -I ~/workspace/composable_kernel/library/include/ck/library/reference_tensor_operation/gpu/ -I ~/workspace/composable_kernel/library/include/ck/library/tensor_operation_instance/ -I ~/workspace/composable_kernel/library/include/ck/library/tensor_operation_instance/gpu/" + "reduce/ -I ~/workspace/composable_kernel/library/include/ck/library/tensor_op/ -I ~/workspace/composable_kernel/library/include/ck/library/utility/ -I ~/workspace/composable_kernel/profiler/include/ 
-
-CXXFLAGS = -std=c++17
-gemm: ex.o host_tensor.o device_memory.o
-	hipcc $(CXXFLAGS) $(CFLAGS) ex.o host_tensor.o device_memory.o -o gemm
-
-device_memory.o: ../../../../library/src/utility/device_memory.cpp
-	hipcc $(CXXFLAGS) $(CFLAGS) -c ../../../../library/src/utility/device_memory.cpp
-
-host_tensor.o: ../../../../library/src/utility/host_tensor.cpp
-	hipcc $(CXXFLAGS) $(CFLAGS) -c ../../../../library/src/utility/host_tensor.cpp
-
-ex.o: 
-	hipcc -fPIC -fvisibility=hidden $(CXXFLAGS) -w /opt/rocm-5.3.0/amdgcn/bitcode/oclc_abi_version_400.bc $(CFLAGS) -L/opt/rocm-5.3.0/rocrand -lrocrand -x hip -c  ex.cpp
-    """
         self.gemm_devop_template =     """
 #pragma once
 
@@ -223,71 +210,73 @@ bool run_gemm_example(int argc, char* argv[])
 
 int main(int argc, char* argv[]) { return !run_gemm_example(argc, argv); }
 """
-    def emit(self):
+    def emit(self,operation):
         values = {
-            'type_a' : 'ck::half_t',
-            'type_b' : 'ck::half_t',
-            'type_c' : 'ck::half_t',
+            'type_a' : operation.A.element,
+            'type_b' : operation.B.element,
+            'type_c' : operation.C.element,
             'type_acc' : 'float',
-            'layout_a' : 'ck::tensor_layout::gemm::ColumnMajor',
-            'layout_b' : 'ck::tensor_layout::gemm::RowMajor',
-            'layout_c' : 'ck::tensor_layout::gemm::RowMajor',
-            'elementwise_op_a' : 'ck::tensor_operation::element_wise::PassThrough',
-            'elementwise_op_b' : 'ck::tensor_operation::element_wise::PassThrough',
-            'elementwise_op_c' : 'ck::tensor_operation::element_wise::PassThrough',
-            'Gemm_spec' : 'ck::tensor_operation::device::GemmSpecialization::Default',
-            'block_size' : '256',
-            'mperblock' : '128',
-            'nperblock' : '128',
-            'k0perblock' : '16',
-            'k1' : '2',
-            'm1perthread' : '4',
-            'n1perthread' : '4',
-            'kperthread' : '1',
-            'm1n1_thcluster_m1xs' : 'S<8, 2>',
-            'm1n1_thcluster_n1xs' : 'S<8, 2>',
-            'ABT_thread_slice_lengths_K0_M0_M1_K1' : 'S<2, 1, 4, 2>',
-            'ABT_thread_cluster_lengths_K0_M0_M1_K1' : 'S<8, 1,  32, 1>',
-            'ABT_thread_cluster_arrange_order' : 'S<0, 3, 1, 2>',
-            'ABT_src_access_order' : 'S<0, 3, 1, 2>',
-            'ABT_src_vec_tensor_lengths_K0_M0_M1_K1' : 'S<1, 1, 4, 1>',
-            'ABT_src_vec_tensor_cont_dim_order' : 'S<0, 3, 1, 2>',
-            'ABT_dst_vec_tensor_lengths_K0_M0_M1_K1' : 'S<1, 1, 4, 2>',
-            'BBT_thread_slice_lengths_K0_N0_N1_K1' : 'S<2, 1, 4, 2>',
-            'BBT_thread_cluster_lengths_K0_N0_N1_K1' : 'S<8, 1, 32, 1>',
-            'BBT_thread_cluster_arrange_order' : 'S<0, 3, 1, 2>',
-            'BBT_src_access_order' : 'S<0, 3, 1, 2>',
-            'BBT_src_vec_tensor_lengths_K0_N0_N1_K1' : 'S<1, 1, 4, 1>',
-            'BBT_src_vec_tensor_cont_dim_order' : 'S<0, 3, 1, 2>',
-            'BBT_dst_vec_tensor_lengths_K0_N0_N1_K1': 'S<1, 1, 4, 2>',
-            'CTT_src_dst_access_order' : 'S<0, 1, 2, 3, 4, 5>',
-            'CTT_src_dst_vec_dim' : '5',
-            'CTT_dst_scalar_per_vector' : '4'
+            'layout_a' : operation.A.layout,
+            'layout_b' : operation.B.layout,
+            'layout_c' : operation.C.layout,
+            'elementwise_op_a' : operation.a_elem_op,
+            'elementwise_op_b' : operation.b_elem_op,
+            'elementwise_op_c' : operation.epilogue_functor,
+            'Gemm_spec' : operation.gemm_specialization,
+            'block_size' : str(operation.tile_desc.block_size),
+            'mperblock' : str(operation.tile_desc.m_per_block),
+            'nperblock' : str(operation.tile_desc.n_per_block),
+            'k0perblock' : str(operation.tile_desc.k_per_block),
+            'k1' : str(operation.tile_desc.k1),
+            'm1perthread' : str(operation.tile_desc.m_per_thread),
+            'n1perthread' : str(operation.tile_desc.n_per_thread),
+            'kperthread' : str(operation.tile_desc.k_per_thread),
+            'm1n1_thcluster_m1xs' : operation.tile_desc.m1n1_thcluster_m1xs,
+            'm1n1_thcluster_n1xs' : operation.tile_desc.m1n1_thcluster_n1xs,
+            'ABT_thread_slice_lengths_K0_M0_M1_K1' : operation.a_block_transfer.thread_slice_length,
+            'ABT_thread_cluster_lengths_K0_M0_M1_K1' : operation.a_block_transfer.thread_cluster_length,
+            'ABT_thread_cluster_arrange_order' : operation.a_block_transfer.thread_cluster_arrange_order,
+            'ABT_src_access_order' : operation.a_block_transfer.src_access_order,
+            'ABT_src_vec_tensor_lengths_K0_M0_M1_K1' : operation.a_block_transfer.src_vec_tensor_lengths,
+            'ABT_src_vec_tensor_cont_dim_order' : operation.a_block_transfer.src_vec_tensor_cont_dim_order,
+            'ABT_dst_vec_tensor_lengths_K0_M0_M1_K1' : operation.a_block_transfer.dst_vec_tensor_lengths,
+            'BBT_thread_slice_lengths_K0_N0_N1_K1' : operation.b_block_transfer.thread_slice_length,
+            'BBT_thread_cluster_lengths_K0_N0_N1_K1' : operation.b_block_transfer.thread_cluster_length,
+            'BBT_thread_cluster_arrange_order' :  operation.b_block_transfer.thread_cluster_arrange_order,
+            'BBT_src_access_order' : operation.b_block_transfer.src_access_order,
+            'BBT_src_vec_tensor_lengths_K0_N0_N1_K1' : operation.b_block_transfer.src_vec_tensor_lengths,
+            'BBT_src_vec_tensor_cont_dim_order' : operation.b_block_transfer.src_vec_tensor_cont_dim_order,
+            'BBT_dst_vec_tensor_lengths_K0_N0_N1_K1': operation.b_block_transfer.dst_vec_tensor_lengths,
+            'CTT_src_dst_access_order' : operation.c_block_transfer.src_dst_access_order,
+            'CTT_src_dst_vec_dim' : str(operation.c_block_transfer.src_dst_vec_dim),
+            'CTT_dst_scalar_per_vector' : str(operation.c_block_transfer.dst_scalar_per_vector),
         }
         template = self.gemm_devop_template
-        cf = open("ex.cpp", 'w')
+        name = str(operation.tile_desc.block_size)
+        cf = open("%s.cpp" % name,'w')
         print(SubstituteTemplate(template, values))
         cf.write(SubstituteTemplate(template, values))
         cf.close()
-
-        m_template = self.make_template
-        cf = open("Makefile", 'w')
-        print(SubstituteTemplate(m_template, values))
-        cf.write(SubstituteTemplate(m_template, values))
-        cf.close()
-
-        PIPE = -1
-        STDOUT = -2
-
-        proc = subprocess.Popen(
-        ["make"],
-        shell=True,
-        env=os.environ.copy(),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        )
-
-        out, err = proc.communicate()
-
-a = EmitGemmInstance()
-a.emit()
+        
+# A = TensorDesc(DataType.f16, Layout.RowMajor)
+# B = TensorDesc(DataType.f16, Layout.ColumnMajor)
+# C = TensorDesc(DataType.f16, Layout.RowMajor)
+# gemm = gemm_op.GemmOperation(
+#     A=A,
+#     B=B,
+#     C=C,
+#     a_elem_op=TensorOperation.PassThrough,
+#     b_elem_op=TensorOperation.PassThrough,
+#     epilogue_functor=TensorOperation.PassThrough,
+#     gemm_specialization=GemmType.GemmDefault,
+#     tile_desc=TileDesc(256, 256, 128, 32, 8, 2, 32, 32, 1, [8,2], [8,2]),
+#     a_block_transfer=BlockTransferDesc(
+#         [2, 1, 4, 2], [8, 1,  32, 1], [0, 3, 1, 2], [0, 3, 1, 2],[1, 1, 4, 1], [0, 3, 1, 2], [1, 1, 4, 2]
+#     ),
+#     b_block_transfer=BlockTransferDesc(
+#         [2, 1, 4, 2], [8, 1, 32, 1], [0, 3, 1, 2], [0, 3, 1, 2], [1, 1, 4, 1], [0, 3, 1, 2], [1, 1, 4, 2]
+#     ),
+#     c_block_transfer=CBlockTransferDesc([0, 1, 2, 3, 4, 5], 5, 4),
+# )
+# a = EmitGemmInstance()
+# a.emit(gemm)
