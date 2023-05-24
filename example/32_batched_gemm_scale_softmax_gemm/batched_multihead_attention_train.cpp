@@ -105,7 +105,7 @@ static constexpr auto TensorSpecQ   = ck::tensor_operation::device::TensorSpecia
 static constexpr auto TensorSpecK   = ck::tensor_operation::device::TensorSpecialization::Default;
 static constexpr auto TensorSpecV   = ck::tensor_operation::device::TensorSpecialization::Default;
 static constexpr auto TensorSpecY   = ck::tensor_operation::device::TensorSpecialization::Default;
-static constexpr bool Deterministic = true;
+static constexpr bool Deterministic = false;
 
 // DIM should be a multiple of 8.
 // If      DIM <= 32 , ues prototype1 1st template.
@@ -190,7 +190,8 @@ using DeviceGemmInstanceBWD =
         NumDimN,
         NumDimK,
         NumDimO,
-        DataType,
+        InputDataType,
+        OutputDataType,
         GemmDataType,
         ZDataType,
         LSEDataType,
@@ -249,7 +250,8 @@ using DeviceGemmInstanceBWD =
         1,              // CShuffleNXdlPerWavePerShuffle
         S<1, 64, 1, 4>, // CShuffleBlockTransferClusterLengths_MBlock_MPerBlock_NBlock_NPerBlock
         8,              // CShuffleBlockTransferScalarPerVector_NPerBlock
-        MaskingSpec>;   // MaskingSpecialization
+        MaskingSpec,
+        Deterministic>; // MaskingSpecialization
 #elif(DIM <= 64)
 using DeviceGemmInstanceFWD =
     ck::tensor_operation::device::DeviceBatchedMultiheadAttentionForward_Xdl_CShuffle<
@@ -329,7 +331,8 @@ using DeviceGemmInstanceBWD =
         NumDimN,
         NumDimK,
         NumDimO,
-        DataType,
+        InputDataType,
+        OutputDataType,
         GemmDataType,
         ZDataType,
         LSEDataType,
@@ -388,7 +391,8 @@ using DeviceGemmInstanceBWD =
         1,              // CShuffleNXdlPerWavePerShuffle
         S<1, 32, 1, 8>, // CShuffleBlockTransferClusterLengths_MBlock_MPerBlock_NBlock_NPerBlock
         8,              // CShuffleBlockTransferScalarPerVector_NPerBlock
-        MaskingSpec>;   // MaskingSpecialization
+        MaskingSpec,
+        Deterministic>; // MaskingSpecialization
 
 // using DeviceGemmInstanceBWD =
 //     ck::tensor_operation::device::DeviceBatchedMultiheadAttentionBackward_Xdl_CShuffle_V2<

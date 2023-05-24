@@ -146,6 +146,9 @@ __global__ void
                 c0_matrix_mask,
                 p_drop,
                 ph,
+                g_idx,
+                MRaw,
+                NRaw,
                 i);
         }
     }
@@ -178,6 +181,9 @@ __global__ void
                                                       c0_matrix_mask,
                                                       p_drop,
                                                       ph,
+                                                      g_idx,
+                                                      MRaw,
+                                                      NRaw,
                                                       0);
     }
 
@@ -1007,8 +1013,9 @@ struct DeviceBatchedMultiheadAttentionBackward_Xdl_CShuffle_V1
                     arg.c0_matrix_mask_,
                     arg.p_drop_,
                     arg.seed_,
-                    arg.offset_);
-
+                    arg.offset_,
+                    arg.raw_lengths_mz_nz_kz_gemm1nz_[0],
+                    arg.raw_lengths_mz_nz_kz_gemm1nz_[1]);
             };
 
             // Gemm1_K is split into Gemm1_K0/K1 where K1 is known at compile time, so we only need
