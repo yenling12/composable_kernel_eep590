@@ -36,7 +36,7 @@ Kernel outputs:
 #include "ck/ck.hpp"
 #include "ck/tensor_operation/gpu/device/gemm_specialization.hpp"
 #include "ck/tensor_operation/gpu/device/tensor_specialization.hpp"
-#include "ck/tensor_operation/gpu/device/impl/device_batched_multihead_attention_backward_xdl_cshuffle_v3.hpp"
+#include "ck/tensor_operation/gpu/device/impl/device_batched_multihead_attention_backward_xdl_cshuffle_v4.hpp"
 #include "ck/tensor_operation/gpu/device/impl/device_batched_multihead_attention_backward_xdl_cshuffle_v2.hpp"
 #include "ck/tensor_operation/gpu/element/element_wise_operation.hpp"
 
@@ -95,7 +95,7 @@ static constexpr auto TensorSpecQ   = ck::tensor_operation::device::TensorSpecia
 static constexpr auto TensorSpecK   = ck::tensor_operation::device::TensorSpecialization::Default;
 static constexpr auto TensorSpecV   = ck::tensor_operation::device::TensorSpecialization::Default;
 static constexpr auto TensorSpecY   = ck::tensor_operation::device::TensorSpecialization::Default;
-static constexpr bool Deterministic = false;
+static constexpr bool Deterministic = true;
 
 // DIM should be a multiple of 8.
 // If      DIM <= 32 , ues prototype1 1st template.
@@ -140,8 +140,8 @@ using DeviceGemmInstance =
         2,           // B1K1
         32,          // MPerXDL
         32,          // NPerXDL
-        1,           // MXdlPerWave
-        4,           // NXdlPerWave
+        4,           // MXdlPerWave
+        1,           // NXdlPerWave
         1,           // Gemm1NXdlPerWave
         1,           // Gemm2NXdlPerWave
         S<4, 64, 1>, // ABlockTransfer
@@ -158,13 +158,6 @@ using DeviceGemmInstance =
         8,
         8,
         true,
-        S<8, 32, 1>, // B1BlockTransfer
-        S<0, 2, 1>,
-        S<0, 2, 1>,
-        1,
-        4,
-        2,
-        false,
         1,              // CShuffleMXdlPerWavePerShuffle
         1,              // CShuffleNXdlPerWavePerShuffle
         S<1, 64, 1, 4>, // CShuffleBlockTransferClusterLengths_MBlock_MPerBlock_NBlock_NPerBlock
@@ -200,8 +193,8 @@ using DeviceGemmInstance =
         TensorSpecY,
         1,
         256,
-        128,         // MPerBlock
-        64,          // NPerBlock
+        64,          // MPerBlock
+        128,         // NPerBlock
         64,          // KPerBlock
         64,          // Gemm1NPerBlock
         32,          // Gemm1KPerBlock
@@ -210,8 +203,8 @@ using DeviceGemmInstance =
         2,           // B1K1
         32,          // MPerXDL
         32,          // NPerXDL
-        1,           // MXdlPerWave
-        2,           // NXdlPerWave
+        2,           // MXdlPerWave
+        1,           // NXdlPerWave
         2,           // Gemm1NXdlPerWave
         1,           // Gemm2NXdlPerWave
         S<4, 64, 1>, // ABlockTransfer
@@ -228,15 +221,8 @@ using DeviceGemmInstance =
         8,
         8,
         true,
-        S<8, 32, 1>, // B1BlockTransfer
-        S<0, 2, 1>,
-        S<0, 2, 1>,
-        1,
-        4,
-        2,
-        false,
         1,              // CShuffleMXdlPerWavePerShuffle
-        1,              // CShuffleNXdlPerWavePerShuffle
+        2,              // CShuffleNXdlPerWavePerShuffle
         S<1, 32, 1, 8>, // CShuffleBlockTransferClusterLengths_MBlock_MPerBlock_NBlock_NPerBlock
         CShuffleBlockTransferScalarPerVector_NPerBlock, // CShuffleBlockTransferScalarPerVector_NPerBlock
         MaskingSpec,                                    // MaskingSpecialization
