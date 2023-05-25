@@ -39,7 +39,7 @@ template <typename GridwiseGemm,
           typename CElementwiseOperation,
           typename AGridDesc_AK0_M_AK1,
           typename BGridDesc_BK0_N_BK1,
-          typename ZGridDescriptor_M0_N0_M1_N1_M2_N2_M3_N3_N4_N5,
+          typename ZGridDescriptor_M0_N0_M1_N1_M2_N2_M3_M4_M5_N3,
           typename B1GridDesc_BK0_N_BK1,
           typename YGridDescriptor_MBlock_MPerBlock_OBlock_OPerBlock,
           typename LSEGridDescriptor_M,
@@ -71,8 +71,8 @@ __global__ void
             const CElementwiseOperation c_element_op,
             const AGridDesc_AK0_M_AK1 a_grid_desc_ak0_m_ak1,
             const BGridDesc_BK0_N_BK1 b_grid_desc_bk0_n_bk1,
-            const ZGridDescriptor_M0_N0_M1_N1_M2_N2_M3_N3_N4_N5
-                c_grid_desc_m0_n0_m1_n1_m2_n2_m3_n3_n4_n5,
+            const ZGridDescriptor_M0_N0_M1_N1_M2_N2_M3_M4_M5_N3
+                c_grid_desc_m0_n0_m1_n1_m2_n2_m3_m4_m5_n3,
             const B1GridDesc_BK0_N_BK1 b1_grid_desc_bk0_n_bk1,
             const YGridDescriptor_MBlock_MPerBlock_OBlock_OPerBlock
                 c_grid_desc_mblock_mperblock_nblock_nperblock,
@@ -85,7 +85,9 @@ __global__ void
             const C0MatrixMask c0_matrix_mask,
             const float p_drop,
             const unsigned long long seed,
-            const unsigned long long offset)
+            const unsigned long long offset,
+            const index_t MRaw,
+            const index_t NRaw)
 {
 #if(!defined(__HIP_DEVICE_COMPILE__) || defined(__gfx908__) || defined(__gfx90a__))
     __shared__ char p_shared[GridwiseGemm::GetSharedMemoryNumberOfByte()];
@@ -135,7 +137,7 @@ __global__ void
                 c_element_op,
                 a_grid_desc_ak0_m_ak1,
                 b_grid_desc_bk0_n_bk1,
-                c_grid_desc_m0_n0_m1_n1_m2_n2_m3_n3_n4_n5,
+                c_grid_desc_m0_n0_m1_n1_m2_n2_m3_m4_m5_n3,
                 b1_grid_desc_bk0_n_bk1,
                 c_grid_desc_mblock_mperblock_nblock_nperblock,
                 lse_grid_desc_m,
@@ -144,6 +146,9 @@ __global__ void
                 c0_matrix_mask,
                 p_drop,
                 ph,
+                g_idx,
+                MRaw,
+                NRaw,
                 i);
         }
     }
@@ -167,7 +172,7 @@ __global__ void
                                                       c_element_op,
                                                       a_grid_desc_ak0_m_ak1,
                                                       b_grid_desc_bk0_n_bk1,
-                                                      c_grid_desc_m0_n0_m1_n1_m2_n2_m3_n3_n4_n5,
+                                                      c_grid_desc_m0_n0_m1_n1_m2_n2_m3_m4_m5_n3,
                                                       b1_grid_desc_bk0_n_bk1,
                                                       c_grid_desc_mblock_mperblock_nblock_nperblock,
                                                       lse_grid_desc_m,
@@ -176,6 +181,9 @@ __global__ void
                                                       c0_matrix_mask,
                                                       p_drop,
                                                       ph,
+                                                      g_idx,
+                                                      MRaw,
+                                                      NRaw,
                                                       0);
     }
 #else
@@ -818,8 +826,8 @@ struct DeviceBatchedMultiheadAttentionBackward_Xdl_CShuffle_V1
             seed_   = std::get<0>(seeds);
             offset_ = std::get<1>(seeds);
 
-            c_grid_desc_m0_n0_m1_n1_m2_n2_m3_n3_n4_n5_ =
-                GridwiseGemm::MakeCGridDescriptor_M0_N0_M1_N1_M2_N2_M3_N3_N4_N5(z_grid_desc_m_n_);
+            c_grid_desc_m0_n0_m1_n1_m2_n2_m3_m4_m5_n3_ =
+                GridwiseGemm::MakeCGridDescriptor_M0_N0_M1_N1_M2_N2_M3_M4_M5_N3(z_grid_desc_m_n_);
             // Print();
         }
 
@@ -879,8 +887,8 @@ struct DeviceBatchedMultiheadAttentionBackward_Xdl_CShuffle_V1
         typename GridwiseGemm::YGridDescriptor_MBlock_MPerBlock_OBlock_OPerBlock
             y_grid_desc_mblock_mperblock_oblock_operblock_;
 
-        typename GridwiseGemm::ZGridDescriptor_M0_N0_M1_N1_M2_N2_M3_N3_N4_N5
-            c_grid_desc_m0_n0_m1_n1_m2_n2_m3_n3_n4_n5_;
+        typename GridwiseGemm::ZGridDescriptor_M0_N0_M1_N1_M2_N2_M3_M4_M5_N3
+            c_grid_desc_m0_n0_m1_n1_m2_n2_m3_m4_m5_n3_;
 
         // block-to-c-tile map
         typename GridwiseGemm::DefaultBlock2CTileMap block_2_ctile_map_;
@@ -943,7 +951,7 @@ struct DeviceBatchedMultiheadAttentionBackward_Xdl_CShuffle_V1
                     CElementwiseOperation,
                     DeviceOp::AGridDesc_AK0_M_AK1,
                     DeviceOp::BGridDesc_BK0_N_BK1,
-                    typename GridwiseGemm::ZGridDescriptor_M0_N0_M1_N1_M2_N2_M3_N3_N4_N5,
+                    typename GridwiseGemm::ZGridDescriptor_M0_N0_M1_N1_M2_N2_M3_M4_M5_N3,
                     DeviceOp::B1GridDesc_BK0_N_BK1,
                     typename GridwiseGemm::YGridDescriptor_MBlock_MPerBlock_OBlock_OPerBlock,
                     DeviceOp::LSEGridDesc_M,
@@ -977,7 +985,7 @@ struct DeviceBatchedMultiheadAttentionBackward_Xdl_CShuffle_V1
                     arg.c_element_op_,
                     arg.a_grid_desc_ak0_m_ak1_,
                     arg.b_grid_desc_bk0_n_bk1_,
-                    arg.c_grid_desc_m0_n0_m1_n1_m2_n2_m3_n3_n4_n5_,
+                    arg.c_grid_desc_m0_n0_m1_n1_m2_n2_m3_m4_m5_n3_,
                     arg.b1_grid_desc_bk0_n_bk1_,
                     arg.y_grid_desc_mblock_mperblock_oblock_operblock_,
                     arg.lse_grid_desc_m_,
@@ -989,7 +997,9 @@ struct DeviceBatchedMultiheadAttentionBackward_Xdl_CShuffle_V1
                     arg.c0_matrix_mask_,
                     arg.p_drop_,
                     arg.seed_,
-                    arg.offset_);
+                    arg.offset_,
+                    arg.raw_lengths_mz_nz_kz_gemm1nz_[0],
+                    arg.raw_lengths_mz_nz_kz_gemm1nz_[1]);
             };
 
             // Gemm1_K is split into Gemm1_K0/K1 where K1 is known at compile time, so we only need
