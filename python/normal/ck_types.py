@@ -1,3 +1,4 @@
+# The structure for defining types is taken from Meta's AIT library
 from dataclasses import dataclass
 
 class DataType:
@@ -11,7 +12,7 @@ class TensorOperation:
     PassThrough = "ck::tensor_operation::element_wise::PassThrough"
 
 @dataclass
-class TensorDesc: #set up and import properly
+class TensorDesc:
     element: DataType
     layout: Layout
 

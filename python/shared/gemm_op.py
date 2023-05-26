@@ -1,6 +1,6 @@
-#take in input for gemm from user, send it to example template
+# The structure for constructing this gemm op was taken from Meta's AIT's implementation of creating a gemm op
+# Take in input for gemm from user, send it to examplen input for gemm from user, send it to example template
 import enum
-import ck_types
 from copy import deepcopy
 from dataclasses import dataclass
 from enum import auto
@@ -9,22 +9,6 @@ from ck_types import *
 
 class GemmType():
     GemmDefault = "ck::tensor_operation::device::GemmSpecialization::Default"
-
-# class GemmSpecialization(enum.Enum):
-#     GemmDefault = auto()
-#     MNKPadding = auto()
-#     MNPadding = auto()
-#     MNOPadding = auto()
-#     MNKOPadding = auto()
-
-
-# GemmSpecializationTag = {
-#     GemmSpecialization.GemmDefault: "ck::tensor_operation::device::GemmSpecialization::Default",
-#     GemmSpecialization.MNKPadding: "ck::tensor_operation::device::GemmSpecialization::MNKPadding",
-#     GemmSpecialization.MNPadding: "ck::tensor_operation::device::GemmSpecialization::MNPadding",
-#     GemmSpecialization.MNOPadding: "ck::tensor_operation::device::GemmSpecialization::MNOPadding",
-#     GemmSpecialization.MNKOPadding: "ck::tensor_operation::device::GemmSpecialization::MNKOPadding",
-# }
 
 @dataclass
 class TileDesc:
@@ -70,7 +54,6 @@ class CBlockTransferDesc:
 
     def __str__(self) -> str:
         args = deepcopy(self.__dict__)
-        #args["m_n_block_wave_per_xdl"] = [str(x) for x in self.m_n_block_wave_per_xdl]
 
 
 @dataclass
@@ -91,7 +74,6 @@ class GemmOperation:
 
     def __str__(self) -> str:
         io_name = "{gemm_kind}_{gemm_specialization}_{a_dtype}{b_dtype}{c_dtype}_{a_layout}{b_layout}{c_layout}".format(
-            #gemm_kind=library.GemmKindNames[self.operation_kind],
             gemm_specialization=self.gemm_specialization.value,
             a_dtype=[self.A.element],
             b_dtype=[self.B.element],
@@ -138,7 +120,6 @@ if __name__ == "__main__":
             [8, 32, 1], [0, 2, 1], [0, 2, 1], 1, 4, 1, 0, True
         ),
         c_block_transfer=CBlockTransferDesc(1, 1, [1, 32, 1, 8], 8),
-        #ds_dtype=[DataType.f16],
     )
     print(GemmOp.a_elem_op)
 
