@@ -399,7 +399,7 @@ struct Tensor
         }
         case 6: {
             auto f = [&](auto i0, auto i1, auto i2, auto i3, auto i4, auto i5) {
-                (*this)(i0, i1, i2, i3, i4) = g(i0, i1, i2, i3, i4, i5);
+                (*this)(i0, i1, i2, i3, i4, i5) = g(i0, i1, i2, i3, i4, i5);
             };
             make_ParallelTensorFunctor(f,
                                        mDesc.GetLengths()[0],
@@ -412,6 +412,12 @@ struct Tensor
         }
         default: throw std::runtime_error("unspported dimension");
         }
+    }
+
+    template <typename... Is>
+    std::size_t GetOffsetFromMultiIndex(Is... is) const
+    {
+        return mDesc.GetOffsetFromMultiIndex(is...);
     }
 
     template <typename... Is>

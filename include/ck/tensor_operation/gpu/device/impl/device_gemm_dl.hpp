@@ -327,6 +327,7 @@ struct DeviceGemmDl : public DeviceGemm<ALayout,
 
         float Run(const Argument& arg, const StreamConfig& stream_config = StreamConfig{})
         {
+#if DEBUG_LOG
             {
                 std::cout << "arg.a_grid_desc_k0_m0_m1_k1_{"
                           << arg.a_grid_desc_k0_m_k1_.GetLength(I0) << ", "
@@ -341,6 +342,7 @@ struct DeviceGemmDl : public DeviceGemm<ALayout,
                 std::cout << "arg.c_grid_desc_m_n_{ " << arg.c_grid_desc_m_n_.GetLength(I0) << ", "
                           << arg.c_grid_desc_m_n_.GetLength(I1) << "}" << std::endl;
             }
+#endif
 
             if(!GridwiseGemm::CheckValidity(
                    arg.a_grid_desc_k0_m_k1_, arg.b_grid_desc_k0_n_k1_, arg.c_grid_desc_m_n_))
@@ -483,7 +485,9 @@ struct DeviceGemmDl : public DeviceGemm<ALayout,
 
     static bool IsSupportedArgument(const Argument& arg)
     {
-        if(ck::get_device_name() == "gfx906" || ck::get_device_name() == "gfx1030")
+        if(ck::get_device_name() == "gfx906" || ck::get_device_name() == "gfx1030" ||
+           ck::get_device_name() == "gfx1100" || ck::get_device_name() == "gfx1101" ||
+           ck::get_device_name() == "gfx1102")
         {
             return GridwiseGemm::CheckValidity(
                 arg.a_grid_desc_k0_m_k1_, arg.b_grid_desc_k0_n_k1_, arg.c_grid_desc_m_n_);

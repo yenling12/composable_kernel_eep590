@@ -1272,6 +1272,7 @@ struct DeviceConvNdBwdDataNwcKxcNwk_Dl
             float ave_time = 0;
             for(size_t i = 0; i < arg.a_grid_desc_k0_m_k1_container_.size(); i++)
             {
+#if DEBUG_LOG
                 {
                     std::cout << "arg.a_grid_desc_k0_m_k1_container_{"
                               << arg.a_grid_desc_k0_m_k1_container_[i].GetLength(I0) << ", "
@@ -1304,6 +1305,7 @@ struct DeviceConvNdBwdDataNwcKxcNwk_Dl
                               << arg.c_grid_desc_m0_m10_m11_n0_n10_n11_container_[i].GetLength(I5)
                               << " ) " << std::endl;
                 }
+#endif
 
                 if(!GridwiseGemm::CheckValidity(arg.a_grid_desc_k0_m_k1_container_[i],
                                                 arg.b_grid_desc_k0_n_k1_container_[i],
@@ -1391,7 +1393,9 @@ struct DeviceConvNdBwdDataNwcKxcNwk_Dl
     static bool IsSupportedArgument(const Argument& arg)
     {
         // check device
-        if(!(ck::get_device_name() == "gfx906" || ck::get_device_name() == "gfx1030"))
+        if(!(ck::get_device_name() == "gfx906" || ck::get_device_name() == "gfx1030" ||
+             ck::get_device_name() == "gfx1100" || ck::get_device_name() == "gfx1101" ||
+             ck::get_device_name() == "gfx1102"))
         {
             return false;
         }
@@ -1565,7 +1569,8 @@ struct DeviceConvNdBwdDataNwcKxcNwk_Dl
             << BlockSize << ", "
             << MPerBlock << ", "
             << NPerBlock << ", "
-            << K0PerBlock
+            << K0PerBlock << ", "
+            << K1
             << ">";
         if constexpr(ConvBackwardDataSpecialization ==
                      ConvolutionBackwardDataSpecialization::Filter1x1Stride1Pad0){
