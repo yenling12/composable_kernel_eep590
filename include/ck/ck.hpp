@@ -27,11 +27,6 @@
 #define CK_WAVELET_MIN_BLOCK_PER_CU 2
 #endif
 
-// for wavelet GEMM kernel
-#define CK_WAVELET_MAX_THREAD_PER_BLOCK 512
-#define CK_WAVELET_MIN_BLOCK_PER_CU 2
-#endif
-
 // buffer resource
 #ifndef __HIP_DEVICE_COMPILE__ // for host code
 #define CK_BUFFER_RESOURCE_3RD_DWORD -1
