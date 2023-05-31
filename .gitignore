@@ -47,6 +47,13 @@ build*
 # GDB temporary files
 .gdb_history
 install.dir*
+<<<<<<< HEAD
 library/src/utility/convolution_parameter.cu
 library/src/utility/host_tensor.cu
 library/src/utility/device_memory.cu
+=======
+
+library/src/utility/convolution_parameter.cu
+library/src/utility/host_tensor.cu
+library/src/utility/device_memory.cu
+>>>>>>> 12ac9ebf5f8723dcb9815070c1d86223cfbb0ce9
