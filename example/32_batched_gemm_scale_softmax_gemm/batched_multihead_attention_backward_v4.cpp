@@ -766,7 +766,7 @@ int run(int argc, char* argv[])
     auto argument = gemm.MakeArgument(
         static_cast<InputDataType*>(q_device_buf.GetDeviceBuffer()),
         static_cast<InputDataType*>(k_device_buf.GetDeviceBuffer()),
-        static_cast<ZDataType*>(nullptr), // set to nullptr
+        static_cast<ZDataType*>(z_device_buf.GetDeviceBuffer()), // set to nullptr
         static_cast<InputDataType*>(v_device_buf.GetDeviceBuffer()),
         static_cast<InputDataType*>(y_device_buf.GetDeviceBuffer()),
         static_cast<LSEDataType*>(lse_device_buf.GetDeviceBuffer()),

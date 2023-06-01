@@ -22,6 +22,7 @@
 #include "ck/host_utility/kernel_launch.hpp"
 
 #include "ck/library/utility/host_tensor.hpp"
+#include "ck/library/utility/device_memory.hpp"
 
 namespace ck {
 namespace tensor_operation {
@@ -40,6 +41,7 @@ template <typename GridwiseGemm,
           typename AGridDesc_AK0_M_AK1,
           typename BGridDesc_BK0_N_BK1,
           typename ZGridDescriptor_M0_N0_M1_N1_M2_N2_M3_M4_M5_N3,
+          typename ZGridDescriptor_M0_N0_M1_N1_M2_N2_M3_M4_N3_M5,
           typename B1GridDesc_BK0_N_BK1,
           typename YGridDescriptor_MBlock_MPerBlock_OBlock_OPerBlock,
           typename LSEGridDescriptor_M,
@@ -73,6 +75,8 @@ __global__ void
             const BGridDesc_BK0_N_BK1 b_grid_desc_bk0_n_bk1,
             const ZGridDescriptor_M0_N0_M1_N1_M2_N2_M3_M4_M5_N3
                 c_grid_desc_m0_n0_m1_n1_m2_n2_m3_m4_m5_n3,
+            const ZGridDescriptor_M0_N0_M1_N1_M2_N2_M3_M4_N3_M5
+                c_grid_desc_m0_n0_m1_n1_m2_n2_m3_m4_n3_m5,
             const B1GridDesc_BK0_N_BK1 b1_grid_desc_bk0_n_bk1,
             const YGridDescriptor_MBlock_MPerBlock_OBlock_OPerBlock
                 c_grid_desc_mblock_mperblock_nblock_nperblock,
@@ -138,6 +142,7 @@ __global__ void
                 a_grid_desc_ak0_m_ak1,
                 b_grid_desc_bk0_n_bk1,
                 c_grid_desc_m0_n0_m1_n1_m2_n2_m3_m4_m5_n3,
+                c_grid_desc_m0_n0_m1_n1_m2_n2_m3_m4_n3_m5,
                 b1_grid_desc_bk0_n_bk1,
                 c_grid_desc_mblock_mperblock_nblock_nperblock,
                 lse_grid_desc_m,
@@ -173,6 +178,7 @@ __global__ void
                                                       a_grid_desc_ak0_m_ak1,
                                                       b_grid_desc_bk0_n_bk1,
                                                       c_grid_desc_m0_n0_m1_n1_m2_n2_m3_m4_m5_n3,
+                                                      c_grid_desc_m0_n0_m1_n1_m2_n2_m3_m4_n3_m5,
                                                       b1_grid_desc_bk0_n_bk1,
                                                       c_grid_desc_mblock_mperblock_nblock_nperblock,
                                                       lse_grid_desc_m,
@@ -828,6 +834,18 @@ struct DeviceBatchedMultiheadAttentionBackward_Xdl_CShuffle_V1
 
             c_grid_desc_m0_n0_m1_n1_m2_n2_m3_m4_m5_n3_ =
                 GridwiseGemm::MakeCGridDescriptor_M0_N0_M1_N1_M2_N2_M3_M4_M5_N3(z_grid_desc_m_n_);
+
+            c_grid_desc_m0_n0_m1_n1_m2_n2_m3_m4_n3_m5_ =
+                GridwiseGemm::MakeCGridDescriptor_M0_N0_M1_N1_M2_N2_M3_M4_N3_M5_N4(
+                    z_grid_desc_m_n_);
+
+            // tmp z tensor for shuffle
+            // Tensor<ZDataType> z_tmp_gs_ms_ns(z_gs_ms_ns_lengths, z_gs_ms_ns_strides);
+            // DeviceMem z_tmp_device_buf(sizeof(ZDataType) *
+            // z_tmp_gs_ms_ns.mDesc.GetElementSpaceSize());
+            // z_tmp_device_buf.ToDevice(z_tmp_gs_ms_ns.mData.data());
+            // p_z_tmp_grid_ = reinterpret_cast<ZDataType*>(z_tmp_device_buf.GetDeviceBuffer());
+
             // Print();
         }
 
@@ -859,7 +877,10 @@ struct DeviceBatchedMultiheadAttentionBackward_Xdl_CShuffle_V1
         // pointers
         const InputDataType* p_a_grid_;
         const InputDataType* p_b_grid_;
+
+        // ZDataType* p_z_tmp_grid_;
         ZDataType* p_z_grid_;
+
         const InputDataType* p_b1_grid_;
         const InputDataType* p_c_grid_;
         const LSEDataType* p_lse_grid_;
@@ -889,6 +910,9 @@ struct DeviceBatchedMultiheadAttentionBackward_Xdl_CShuffle_V1
 
         typename GridwiseGemm::ZGridDescriptor_M0_N0_M1_N1_M2_N2_M3_M4_M5_N3
             c_grid_desc_m0_n0_m1_n1_m2_n2_m3_m4_m5_n3_;
+
+        typename GridwiseGemm::ZGridDescriptor_M0_N0_M1_N1_M2_N2_M3_M4_N3_M5
+            c_grid_desc_m0_n0_m1_n1_m2_n2_m3_m4_n3_m5_;
 
         // block-to-c-tile map
         typename GridwiseGemm::DefaultBlock2CTileMap block_2_ctile_map_;
@@ -952,6 +976,7 @@ struct DeviceBatchedMultiheadAttentionBackward_Xdl_CShuffle_V1
                     DeviceOp::AGridDesc_AK0_M_AK1,
                     DeviceOp::BGridDesc_BK0_N_BK1,
                     typename GridwiseGemm::ZGridDescriptor_M0_N0_M1_N1_M2_N2_M3_M4_M5_N3,
+                    typename GridwiseGemm::ZGridDescriptor_M0_N0_M1_N1_M2_N2_M3_M4_N3_M5,
                     DeviceOp::B1GridDesc_BK0_N_BK1,
                     typename GridwiseGemm::YGridDescriptor_MBlock_MPerBlock_OBlock_OPerBlock,
                     DeviceOp::LSEGridDesc_M,
@@ -986,6 +1011,7 @@ struct DeviceBatchedMultiheadAttentionBackward_Xdl_CShuffle_V1
                     arg.a_grid_desc_ak0_m_ak1_,
                     arg.b_grid_desc_bk0_n_bk1_,
                     arg.c_grid_desc_m0_n0_m1_n1_m2_n2_m3_m4_m5_n3_,
+                    arg.c_grid_desc_m0_n0_m1_n1_m2_n2_m3_m4_n3_m5_,
                     arg.b1_grid_desc_bk0_n_bk1_,
                     arg.y_grid_desc_mblock_mperblock_oblock_operblock_,
                     arg.lse_grid_desc_m_,

@@ -32,7 +32,7 @@ Kernel outputs:
 
 #define PRINT_HOST 0
 #define USING_MASK 0
-#define DIM 64 // DIM should be a multiple of 8.
+#define DIM 32 // DIM should be a multiple of 8.
 
 #include <iostream>
 #include <numeric>
@@ -710,17 +710,17 @@ int run(int argc, char* argv[])
     // y_g_m_o = Softmax(alpha * Q_g_m_k * K_g_k_n) * V_g_n_o
     // y_g0_g1_m_o = reshape(y_g_m_o, [G0, G1, M, O])
     // y_g0_m_g1_o = permute(y_g0_g1_m_o, [0, 2, 1, 3])
-    ck::index_t M  = 1000; // 512
-    ck::index_t N  = 1000; // 512
+    ck::index_t M  = 500; // 512
+    ck::index_t N  = 500; // 512
     ck::index_t K  = DIM;
     ck::index_t O  = DIM;
-    ck::index_t G0 = 4; // 54
-    ck::index_t G1 = 6; // 16
+    ck::index_t G0 = 2; // 54
+    ck::index_t G1 = 1; // 16
 
     bool input_permute  = false;
     bool output_permute = false;
 
-    float p_drop                    = 0.0;
+    float p_drop                    = 0.1;
     const unsigned long long seed   = 1;
     const unsigned long long offset = 0;
 
@@ -944,7 +944,7 @@ int run(int argc, char* argv[])
             static_cast<InputDataType*>(k_device_buf.GetDeviceBuffer()),
             static_cast<InputDataType*>(v_device_buf.GetDeviceBuffer()),
             static_cast<InputDataType*>(y_device_buf.GetDeviceBuffer()),
-            static_cast<ZDataType*>(nullptr),
+            static_cast<ZDataType*>(z_fwd_device_buf.GetDeviceBuffer()),
             static_cast<LSEDataType*>(lse_device_buf.GetDeviceBuffer()),
             {}, // std::array<void*, 1> p_acc0_biases;
             {}, // std::array<void*, 1> p_acc1_biases;
@@ -998,7 +998,7 @@ int run(int argc, char* argv[])
         auto argument_bwd = gemm_bwd.MakeArgument(
             static_cast<InputDataType*>(q_device_buf.GetDeviceBuffer()),
             static_cast<InputDataType*>(k_device_buf.GetDeviceBuffer()),
-            static_cast<ZDataType*>(nullptr), // set to nullptr
+            static_cast<ZDataType*>(z_bwd_device_buf.GetDeviceBuffer()), // set to nullptr
             static_cast<InputDataType*>(v_device_buf.GetDeviceBuffer()),
             static_cast<InputDataType*>(y_device_buf.GetDeviceBuffer()),
             static_cast<LSEDataType*>(lse_device_buf.GetDeviceBuffer()),
@@ -1399,20 +1399,20 @@ int run(int argc, char* argv[])
         pass &= ck::utils::check_err(qgrad_gs_ms_ks_device_result.mData,
                                      qgrad_gs_ms_ks_host_result.mData,
                                      "error",
-                                     1e-2,
-                                     1e-2);
+                                     1e-3,
+                                     1e-3);
         std::cout << "Checking kgrad:\n";
         pass &= ck::utils::check_err(kgrad_gs_ns_ks_device_result.mData,
                                      kgrad_gs_ns_ks_host_result.mData,
                                      "error",
-                                     1e-2,
-                                     1e-2);
+                                     1e-3,
+                                     1e-3);
         std::cout << "Checking vgrad:\n";
         pass &= ck::utils::check_err(vgrad_gs_os_ns_device_result.mData,
                                      vgrad_gs_os_ns_host_result.mData,
                                      "error",
-                                     1e-2,
-                                     1e-2);
+                                     1e-3,
+                                     1e-3);
     }
 
     return pass ? ((void)(std::cout << "pass\n"), 0) : ((void)(std::cout << "fail\n"), 1);

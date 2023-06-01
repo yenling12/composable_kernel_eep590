@@ -145,14 +145,14 @@ struct BlockwiseDropout
             ph.get_random_4x16((tmp + i * 4), element_global_1d_id + i * 8);
         }
 
-        ushort tmp_id[tmp_size];
-        for(int i = 0; i < philox_calls; i++)
-        {
-            for(int j = 0; j < 4; j++)
-            {
-                tmp_id[i * 4 + j] = element_global_1d_id + i * 8;
-            }
-        }
+        // ushort tmp_id[tmp_size];
+        // for(int i = 0; i < philox_calls; i++)
+        //{
+        //    for(int j = 0; j < 4; j++)
+        //    {
+        //        tmp_id[i * 4 + j] = element_global_1d_id + i * 8;
+        //    }
+        //}
 
         block_sync_lds();
 
@@ -162,7 +162,7 @@ struct BlockwiseDropout
                 auto offset = Number<ThreadSliceDesc_M_K{}.CalculateOffset(make_tuple(iM, iK))>{};
                 in_thread_buf(offset) =
                     execute_dropout(tmp[tmp_index] <= p_dropout_16bits, in_thread_buf(offset));
-                z_thread_buf(offset) = tmp_id[tmp_index];
+                z_thread_buf(offset) = tmp[tmp_index];
                 tmp_index            = tmp_index + 1;
             });
         });
@@ -208,17 +208,17 @@ struct BlockwiseDropout
         ushort tmp[tmp_size];
         for(int i = 0; i < philox_calls; i++)
         {
-            ph.get_random_4x16((tmp + i * 4), element_global_1d_id + i * 8);
+            ph.get_random_4x16((tmp + i * 4), element_global_1d_id + i * 8 * MRaw);
         }
 
-        ushort tmp_id[tmp_size];
-        for(int i = 0; i < philox_calls; i++)
-        {
-            for(int j = 0; j < 4; j++)
-            {
-                tmp_id[i * 4 + j] = element_global_1d_id + i * 8 * MRaw;
-            }
-        }
+        // ushort tmp_id[tmp_size];
+        // for(int i = 0; i < philox_calls; i++)
+        //{
+        //    for(int j = 0; j < 4; j++)
+        //    {
+        //        tmp_id[i * 4 + j] = element_global_1d_id + i * 8 * MRaw;
+        //    }
+        //}
 
         block_sync_lds();
 
@@ -226,7 +226,7 @@ struct BlockwiseDropout
         static_for<0, MRepeat, 1>{}([&](auto iM) {
             static_for<0, KRepeat, 1>{}([&](auto iK) {
                 auto offset = Number<ThreadSliceDesc_M_K{}.CalculateOffset(make_tuple(iM, iK))>{};
-                z_thread_buf(offset) = tmp_id[tmp_index];
+                z_thread_buf(offset) = tmp[tmp_index];
                 tmp_index            = tmp_index + 1;
             });
         });
