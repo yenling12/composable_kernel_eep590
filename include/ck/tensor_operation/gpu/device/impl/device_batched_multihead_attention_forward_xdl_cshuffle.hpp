@@ -79,7 +79,9 @@ __global__ void
             const ushort p_dropout_in_16bits,
             const GemmAccDataType p_dropout_rescale,
             const unsigned long long seed,
-            const unsigned long long offset)
+            const unsigned long long offset,
+            const index_t MRaw,
+            const index_t NRaw)
 {
 #if(!defined(__HIP_DEVICE_COMPILE__) || defined(__gfx908__) || defined(__gfx90a__))
     __shared__ char p_shared[GridwiseGemm::GetSharedMemoryNumberOfByte()];
@@ -131,6 +133,9 @@ __global__ void
                 p_dropout_in_16bits,
                 p_dropout_rescale,
                 ph,
+                g_idx,
+                MRaw,
+                NRaw,
                 i);
         }
     }
@@ -160,6 +165,9 @@ __global__ void
             p_dropout_in_16bits,
             p_dropout_rescale,
             ph,
+            g_idx,
+            MRaw,
+            NRaw,
             0);
     }
 #else
@@ -803,7 +811,9 @@ struct DeviceBatchedMultiheadAttentionForward_Xdl_CShuffle
                         arg.p_dropout_in_16bits_,
                         arg.p_dropout_rescale_,
                         arg.seed_,
-                        arg.offset_);
+                        arg.offset_,
+                        arg.raw_lengths_mz_nz_kz_gemm1nz_[0],
+                        arg.raw_lengths_mz_nz_kz_gemm1nz_[1]);
                 };
 
             // Gemm1_K is split into Gemm1_K0/K1 where K1 is known at compile time, so we only need

@@ -32,7 +32,7 @@ Kernel outputs:
 
 #define PRINT_HOST 0
 #define USING_MASK 0
-#define DIM 128 // DIM should be a multiple of 8.
+#define DIM 64 // DIM should be a multiple of 8.
 
 #include <iostream>
 #include <numeric>
@@ -715,13 +715,13 @@ int run(int argc, char* argv[])
     ck::index_t M  = 500; // 512
     ck::index_t K  = DIM;
     ck::index_t O  = DIM;
-    ck::index_t G0 = 4; // 54
-    ck::index_t G1 = 6; // 16
+    ck::index_t G0 = 1; // 54
+    ck::index_t G1 = 2; // 16
 
     bool input_permute  = false;
     bool output_permute = false;
 
-    float p_drop                    = 0.0;
+    float p_drop                    = 0.1;
     const unsigned long long seed   = 1;
     const unsigned long long offset = 0;
 

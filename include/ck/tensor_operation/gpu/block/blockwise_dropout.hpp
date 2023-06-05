@@ -122,6 +122,152 @@ struct BlockwiseDropout
         });
     }
 
+    template <typename CThreadBuffer, bool using_sign_bit = false>
+    __host__ __device__ void
+    ApplyDropout_v1r1(CThreadBuffer& in_thread_buf, ck::philox& ph, index_t element_global_1d_id)
+    {
+
+        auto execute_dropout = [&](bool keep, DataType val) {
+            if constexpr(using_sign_bit)
+                return keep ? val : -val;
+            else
+                return keep ? val * p_dropout_rescale : float(0);
+        };
+
+        constexpr int tmp_size = MRepeat * KRepeat;
+
+        int philox_calls = tmp_size / 4;
+
+        ushort tmp[tmp_size];
+        for(int i = 0; i < philox_calls; i++)
+        {
+            ph.get_random_4x16((tmp + i * 4), element_global_1d_id + i * 8);
+        }
+
+        block_sync_lds();
+
+        int tmp_index = 0;
+        static_for<0, MRepeat, 1>{}([&](auto iM) {
+            static_for<0, KRepeat, 1>{}([&](auto iK) {
+                auto offset = Number<ThreadSliceDesc_M_K{}.CalculateOffset(make_tuple(iM, iK))>{};
+                in_thread_buf(offset) =
+                    execute_dropout(tmp[tmp_index] <= p_dropout_16bits, in_thread_buf(offset));
+                tmp_index = tmp_index + 1;
+            });
+        });
+    }
+
+    template <typename CThreadBuffer, typename ZThreadBuffer, bool using_sign_bit = false>
+    __host__ __device__ void ApplyDropout_v1r2(CThreadBuffer& in_thread_buf,
+                                               ck::philox& ph,
+                                               index_t element_global_1d_id,
+                                               ZThreadBuffer& z_thread_buf)
+    {
+
+        auto execute_dropout = [&](bool keep, DataType val) {
+            if constexpr(using_sign_bit)
+                return keep ? val : -val;
+            else
+                return keep ? val * p_dropout_rescale : float(0);
+        };
+
+        constexpr int tmp_size = MRepeat * KRepeat;
+
+        int philox_calls = tmp_size / 4;
+
+        ushort tmp[tmp_size];
+        for(int i = 0; i < philox_calls; i++)
+        {
+            ph.get_random_4x16((tmp + i * 4), element_global_1d_id + i * 8);
+        }
+
+        ushort tmp_id[tmp_size];
+        for(int i = 0; i < philox_calls; i++)
+        {
+            for(int j = 0; j < 4; j++)
+            {
+                tmp_id[i * 4 + j] = element_global_1d_id + i * 8;
+            }
+        }
+
+        block_sync_lds();
+
+        int tmp_index = 0;
+        static_for<0, MRepeat, 1>{}([&](auto iM) {
+            static_for<0, KRepeat, 1>{}([&](auto iK) {
+                auto offset = Number<ThreadSliceDesc_M_K{}.CalculateOffset(make_tuple(iM, iK))>{};
+                in_thread_buf(offset) =
+                    execute_dropout(tmp[tmp_index] <= p_dropout_16bits, in_thread_buf(offset));
+                z_thread_buf(offset) = tmp_id[tmp_index];
+                tmp_index            = tmp_index + 1;
+            });
+        });
+    }
+
+    template <typename CThreadBuffer, typename ZThreadBuffer, bool using_sign_bit = false>
+    __host__ __device__ void ApplyDropout_v2(CThreadBuffer& in_thread_buf,
+                                             ZThreadBuffer& z_thread_buf)
+    {
+
+        auto execute_dropout = [&](bool keep, DataType val) {
+            if constexpr(using_sign_bit)
+                return keep ? val : -val;
+            else
+                return keep ? val * p_dropout_rescale : float(0);
+        };
+
+        static_for<0, MRepeat, 1>{}([&](auto iM) {
+            static_for<0, KRepeat, 1>{}([&](auto iK) {
+                auto offset = Number<ThreadSliceDesc_M_K{}.CalculateOffset(make_tuple(iM, iK))>{};
+                in_thread_buf(offset) = execute_dropout(z_thread_buf(offset) <= p_dropout_16bits,
+                                                        in_thread_buf(offset));
+            });
+        });
+    }
+
+    // get raw z matrix with random number for shuffle
+    template <typename ZThreadBuffer>
+    __host__ __device__ void GenerateZMatrix(ck::philox& ph,
+                                             index_t element_global_1d_id,
+                                             ZThreadBuffer& z_thread_buf,
+                                             index_t MRaw)
+    {
+
+        // if(get_thread_global_1d_id() == 0){
+        //     printf("MRepeat & KRepeat is %d , %d . \n", MRepeat, KRepeat);
+        // }
+
+        constexpr int tmp_size = MRepeat * KRepeat;
+
+        int philox_calls = tmp_size / 4;
+
+        ushort tmp[tmp_size];
+        for(int i = 0; i < philox_calls; i++)
+        {
+            ph.get_random_4x16((tmp + i * 4), element_global_1d_id + i * 8 * MRaw);
+        }
+
+        ushort tmp_id[tmp_size];
+        for(int i = 0; i < philox_calls; i++)
+        {
+            for(int j = 0; j < 4; j++)
+            {
+                tmp_id[i * 4 + j] = element_global_1d_id + i * 8 * MRaw;
+            }
+        }
+
+        block_sync_lds();
+
+        int tmp_index = 0;
+        static_for<0, MRepeat, 1>{}([&](auto iM) {
+            static_for<0, KRepeat, 1>{}([&](auto iK) {
+                auto offset = Number<ThreadSliceDesc_M_K{}.CalculateOffset(make_tuple(iM, iK))>{};
+                z_thread_buf(offset) = tmp_id[tmp_index];
+                tmp_index            = tmp_index + 1;
+            });
+        });
+    }
+
     ushort p_dropout_16bits;
     DataType p_dropout_rescale;
 };
