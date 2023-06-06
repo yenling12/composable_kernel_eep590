@@ -78,7 +78,7 @@ using GemmDataType     = F16;
 using AccDataType      = F32;
 using ShuffleDataType  = F32;
 using LSEDataType      = F32;
-using ZDataType        = INT32; // INT32
+using ZDataType        = U16; // INT32
 using Acc0BiasDataType = ck::Tuple<>;
 using Acc1BiasDataType = ck::Tuple<>;
 
@@ -104,7 +104,7 @@ static constexpr auto TensorSpecQ   = ck::tensor_operation::device::TensorSpecia
 static constexpr auto TensorSpecK   = ck::tensor_operation::device::TensorSpecialization::Default;
 static constexpr auto TensorSpecV   = ck::tensor_operation::device::TensorSpecialization::Default;
 static constexpr auto TensorSpecY   = ck::tensor_operation::device::TensorSpecialization::Default;
-static constexpr bool Deterministic = true;
+static constexpr bool Deterministic = false;
 
 // DIM should be a multiple of 8.
 // If      DIM <= 32 , ues prototype1 1st template.
@@ -716,7 +716,7 @@ int run(int argc, char* argv[])
     ck::index_t K  = DIM;
     ck::index_t O  = DIM;
     ck::index_t G0 = 1; // 54
-    ck::index_t G1 = 2; // 16
+    ck::index_t G1 = 1; // 16
 
     bool input_permute  = false;
     bool output_permute = false;

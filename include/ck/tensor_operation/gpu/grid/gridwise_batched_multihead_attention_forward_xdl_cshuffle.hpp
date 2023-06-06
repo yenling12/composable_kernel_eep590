@@ -122,7 +122,7 @@ struct GridwiseBatchedMultiheadAttentionForward_Xdl_CShuffle
     using GridwiseGemmPipe = remove_cvref_t<decltype(
         GridwiseGemmPipeline_Selector<PipelineVer, NumGemmKPrefetchStage>())>;
 
-    // C desc for source in blockwise copy
+    // C desc for source in gridwise copy
     __host__ __device__ static constexpr auto MakeCGridDescriptor_M0_N0_M1_N1_M2_N2_M3_N3_N4_N5(
         const ZGridDesc_M_N& z_grid_desc_m_n) ////=> for z use
     {
@@ -141,6 +141,41 @@ struct GridwiseBatchedMultiheadAttentionForward_Xdl_CShuffle
                            make_tuple(N / NPerBlock, NXdlPerWave, Gemm0NWaves, N3, N4, N5))),
             make_tuple(Sequence<0>{}, Sequence<1>{}),
             make_tuple(Sequence<0, 2, 4, 6>{}, Sequence<1, 3, 5, 7, 8, 9>{}));
+    }
+
+    // C shuffle desc for source in gridwise copy
+    __host__ __device__ static constexpr auto
+    MakeCShuffleGridDescriptor_M0_N0_M1_N1_M2_N2_M3_N3_M4_N4_N5(
+        const ZGridDesc_M_N& z_grid_desc_m_n) ////=> for z use to shuffle
+    {
+        const auto M = z_grid_desc_m_n.GetLength(I0);
+        const auto N = z_grid_desc_m_n.GetLength(I1);
+
+        constexpr auto mfma = MfmaSelector<FloatGemm, MPerXdl, NPerXdl>::selected_mfma;
+        constexpr auto N3   = mfma.num_groups_per_blk;
+        constexpr auto N4   = mfma.num_input_blks;
+        constexpr auto N5   = mfma.group_size;
+
+        // printf("M / MPerBlock %d, ", M / MPerBlock);
+        // printf("MXdlPerWave %d, " , MXdlPerWave);
+        // printf("Gemm0MWaves %d, " , Gemm0MWaves);
+        // printf("MPerXdl / N5 %d, " , MPerXdl / N5);
+        // printf("N5 %d \n" , N5);
+        // printf("N / NPerBlock %d, " , N / NPerBlock);
+        // printf("NXdlPerWave %d, " , NXdlPerWave);
+        // printf("Gemm0NWaves %d, " , Gemm0NWaves);
+        // printf("N3 %d, " , N3);
+        // printf("N4 %d, " , N4);
+        // printf("N5 %d, " , N5);
+
+        return transform_tensor_descriptor(
+            z_grid_desc_m_n,
+            make_tuple(make_unmerge_transform(
+                           make_tuple(M / MPerBlock, MXdlPerWave, Gemm0MWaves, MPerXdl / N5, N5)),
+                       make_unmerge_transform(
+                           make_tuple(N / NPerBlock, NXdlPerWave, Gemm0NWaves, N3, N4, N5))),
+            make_tuple(Sequence<0>{}, Sequence<1>{}),
+            make_tuple(Sequence<0, 2, 4, 6, 9>{}, Sequence<1, 3, 5, 7, 8, 10>{}));
     }
 
     __device__ static auto GetGemm0WaveIdx()
@@ -381,6 +416,9 @@ struct GridwiseBatchedMultiheadAttentionForward_Xdl_CShuffle
     using ZGridDescriptor_M0_N0_M1_N1_M2_N2_M3_N3_N4_N5 = remove_cvref_t<decltype(
         MakeCGridDescriptor_M0_N0_M1_N1_M2_N2_M3_N3_N4_N5(ZGridDesc_M_N{}))>;
 
+    using ZShuffleGridDescriptor_M0_N0_M1_N1_M2_N2_M3_N3_M4_N4_N5 = remove_cvref_t<decltype(
+        MakeCShuffleGridDescriptor_M0_N0_M1_N1_M2_N2_M3_N3_M4_N4_N5(ZGridDesc_M_N{}))>;
+
     struct SharedMemTrait
     {
         // LDS allocation for A and B: be careful of alignment
@@ -441,6 +479,8 @@ struct GridwiseBatchedMultiheadAttentionForward_Xdl_CShuffle
                                    c_grid_desc_mblock_mperblock_nblock_nperblock,
                                const ZGridDescriptor_M0_N0_M1_N1_M2_N2_M3_N3_N4_N5&
                                    z_grid_desc_m0_n0_m1_n1_m2_n2_m3_n3_n4_n5,
+                               const ZShuffleGridDescriptor_M0_N0_M1_N1_M2_N2_M3_N3_M4_N4_N5&
+                                   z_grid_shuffle_desc_m0_n0_m1_n1_m2_n2_m3_n3_m4_n4_n5,
                                const LSEGridDesc_M& lse_grid_desc_m,
                                const Block2CTileMap& block_2_ctile_map,
                                const C0MatrixMask& c0_matrix_mask,
@@ -856,6 +896,14 @@ struct GridwiseBatchedMultiheadAttentionForward_Xdl_CShuffle
         // z vgpr copy to global
         //
         // z matrix threadwise desc
+
+        // if(get_thread_global_1d_id()==0){
+        //    printf("m2 is %d \n",m2.value);
+        //    printf("n2 is %d \n",n2.value);
+        //    printf("n3 is %d \n",n3.value);
+        //    printf("n4 is %d \n",n4.value);
+        //}
+
         constexpr auto z_thread_desc_m0_n0_m1_n1_m2_n2_m3_n3_n4_n5 =
             make_naive_tensor_descriptor_packed(make_tuple(I1,   // MBlockId
                                                            I1,   // NBlockID
@@ -868,19 +916,137 @@ struct GridwiseBatchedMultiheadAttentionForward_Xdl_CShuffle
                                                            n3,   // NInputNum
                                                            n4)); // registerNum
 
+        constexpr auto z_thread_shuffle_desc_m0_n0_m1_n1_m2_n2_m3_n3_m4_n4_n5 =
+            make_naive_tensor_descriptor_packed(make_tuple(I1,   //
+                                                           I1,   //
+                                                           m0,   //
+                                                           n0,   //
+                                                           m1,   //
+                                                           n1,   //
+                                                           m2,   // m0
+                                                           n2,   // m1
+                                                           n3,   // n0
+                                                           n4,   // n1
+                                                           I1)); // n2
+        // ignore = z_thread_shuffle_desc_m0_n0_m1_n1_m2_n2_m3_n3_m4_n4_n5;
+
         StaticBuffer<AddressSpaceEnum::Vgpr,
                      unsigned short,
                      z_thread_desc_m0_n0_m1_n1_m2_n2_m3_n3_n4_n5.GetElementSpaceSize(),
                      true>
-            z_tenor_buffer;
-        z_tenor_buffer.Clear();
-        // z matrix global desc
+            z_tenor_tmp_buffer;
+        z_tenor_tmp_buffer.Clear();
 
+        StaticBuffer<AddressSpaceEnum::Vgpr,
+                     unsigned short,
+                     z_thread_shuffle_desc_m0_n0_m1_n1_m2_n2_m3_n3_m4_n4_n5.GetElementSpaceSize(),
+                     true>
+            z_tenor_buffer; // z buffer after shuffle
+        z_tenor_buffer.Clear();
+
+        // z matrix global desc
         auto z_grid_buf = make_dynamic_buffer<AddressSpaceEnum::Global>(
             p_z_grid, z_grid_desc_m0_n0_m1_n1_m2_n2_m3_n3_n4_n5.GetElementSpaceSize());
 
+        auto z_grid_tmp_buf = make_dynamic_buffer<AddressSpaceEnum::Global>(
+            p_z_grid, z_grid_desc_m0_n0_m1_n1_m2_n2_m3_n3_n4_n5.GetElementSpaceSize());
+
+        // ignore = z_grid_shuffle_desc_m0_n0_m1_n1_m2_n2_m3_n3_m4_n4_n5;
+
+        // if(get_thread_global_1d_id()==0){
+        //    printf("z_grid_desc_m0_n0_m1_n1_m2_n2_m3_n3_n4_n5.GetElementSpaceSize() is %ld \n",
+        //    z_grid_desc_m0_n0_m1_n1_m2_n2_m3_n3_n4_n5.GetElementSpaceSize());
+        //    printf("z_grid_shuffle_desc_m0_n0_m1_n1_m2_n2_m3_n3_m4_n4_n5.GetElementSpaceSize() is
+        //    %ld \n", z_grid_shuffle_desc_m0_n0_m1_n1_m2_n2_m3_n3_m4_n4_n5.GetElementSpaceSize());
+        //
+        //}
+
         const auto wave_id     = GetGemm0WaveIdx();
         const auto wave_m_n_id = GetGemm0WaveMNIdx(wave_id[I2]); // I2: 0~63
+
+        // if(get_block_1d_id()==0){
+        //    if(get_thread_local_1d_id()==0){
+        //        printf("tid = 0 , wave_m_n_id[I0] & wave_m_n_id[I1] is %d & %d
+        //        \n",wave_m_n_id[I0], wave_m_n_id[I1]);
+        //    }
+        //    if(get_thread_local_1d_id()==1){
+        //        printf("tid = 1 , wave_m_n_id[I0] & wave_m_n_id[I1] is %d & %d
+        //        \n",wave_m_n_id[I0], wave_m_n_id[I1]);
+        //    }
+        //    if(get_thread_local_1d_id()==2){
+        //        printf("tid = 2 , wave_m_n_id[I0] & wave_m_n_id[I1] is %d & %d
+        //        \n",wave_m_n_id[I0], wave_m_n_id[I1]);
+        //    }
+        //    if(get_thread_local_1d_id()==3){
+        //        printf("tid = 3 , wave_m_n_id[I0] & wave_m_n_id[I1] is %d & %d
+        //        \n",wave_m_n_id[I0], wave_m_n_id[I1]);
+        //    }
+        //    if(get_thread_local_1d_id()==32){
+        //        printf("tid = 32 , wave_m_n_id[I0] & wave_m_n_id[I1] is %d & %d
+        //        \n",wave_m_n_id[I0], wave_m_n_id[I1]);
+        //    }
+        //    if(get_thread_local_1d_id()==64){
+        //        printf("tid = 32 , wave_m_n_id[I0] & wave_m_n_id[I1] is %d & %d
+        //        \n",wave_m_n_id[I0], wave_m_n_id[I1]);
+        //    }
+        //}
+
+        auto z_tmp_thread_copy_vgpr_to_global = ThreadwiseTensorSliceTransfer_v1r3<
+            ushort,
+            ZDataType,
+            decltype(z_thread_desc_m0_n0_m1_n1_m2_n2_m3_n3_n4_n5),
+            decltype(z_grid_desc_m0_n0_m1_n1_m2_n2_m3_n3_n4_n5),
+            tensor_operation::element_wise::PassThrough,
+            Sequence<I1, // MBlockId
+                     I1, // NBlockID
+                     m0, // MRepeat
+                     n0, // NRepeat
+                     m1, // MWaveId
+                     n1, // NWaveId
+                     m2, // MPerXdl
+                     n2, // NGroupNum
+                     n3, // NInputNum
+                     n4>,
+            Sequence<0, 1, 2, 3, 4, 5, 6, 7, 8, 9>,
+            9, // DstVectorDim
+            1, // DstScalarPerVector
+            InMemoryDataOperationEnum::Set,
+            1, // DstScalarStrideInVector
+            true>{z_grid_desc_m0_n0_m1_n1_m2_n2_m3_n3_n4_n5,
+                  make_multi_index(block_work_idx_m, // MBlockId
+                                   0,                // NBlockId
+                                   0,                // mrepeat
+                                   0,                // nrepeat
+                                   wave_id[I0],      // MWaveId
+                                   wave_id[I1],      // NWaveId
+                                   wave_m_n_id[I1],  // MPerXdl
+                                   0,                // group
+                                   wave_m_n_id[I0],  // NInputIndex
+                                   0),
+                  tensor_operation::element_wise::PassThrough{}};
+
+        auto z_shuffle_thread_copy_global_to_vgpr = ThreadwiseTensorSliceTransfer_v2<
+            ZDataType,
+            ushort,
+            decltype(z_grid_shuffle_desc_m0_n0_m1_n1_m2_n2_m3_n3_m4_n4_n5),
+            decltype(z_thread_shuffle_desc_m0_n0_m1_n1_m2_n2_m3_n3_m4_n4_n5),
+            Sequence<I1, I1, m0, n0, m1, n1, m2, n2, n3, n4, I1>,
+            Sequence<0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10>,
+            10,
+            1,
+            1,
+            true /* ResetCoordAfterRun */>{z_grid_shuffle_desc_m0_n0_m1_n1_m2_n2_m3_n3_m4_n4_n5,
+                                           make_multi_index(block_work_idx_m,         // MBlockId
+                                                            0,                        // NBlockId
+                                                            0,                        // mrepeat
+                                                            0,                        // nrepeat
+                                                            wave_id[I0],              // MWaveId
+                                                            wave_id[I1],              // NWaveId
+                                                            int(wave_m_n_id[I1] / 4), // MPerXdl
+                                                            0,                        // group
+                                                            wave_m_n_id[I0],          // NInputIndex
+                                                            0,
+                                                            wave_m_n_id[I1] % 4)};
 
         auto z_thread_copy_vgpr_to_global = ThreadwiseTensorSliceTransfer_v1r3<
             ushort,
@@ -1060,10 +1226,29 @@ struct GridwiseBatchedMultiheadAttentionForward_Xdl_CShuffle
                 // save z to global
                 if(p_z_grid)
                 {
-                    blockwise_dropout.template ApplyDropout_v1r2<decltype(acc_thread_buf),
+                    blockwise_dropout.template GenerateZMatrixAttnFwd<decltype(z_tenor_tmp_buffer)>(
+                        ph, global_elem_id, z_tenor_tmp_buffer);
+
+                    z_tmp_thread_copy_vgpr_to_global.Run(
+                        z_thread_desc_m0_n0_m1_n1_m2_n2_m3_n3_n4_n5,
+                        make_tuple(I0, I0, I0, I0, I0, I0, I0, I0, I0, I0),
+                        z_tenor_tmp_buffer,
+                        z_grid_desc_m0_n0_m1_n1_m2_n2_m3_n3_n4_n5,
+                        z_grid_tmp_buf);
+
+                    block_sync_lds();
+
+                    z_shuffle_thread_copy_global_to_vgpr.Run(
+                        z_grid_shuffle_desc_m0_n0_m1_n1_m2_n2_m3_n3_m4_n4_n5,
+                        z_grid_tmp_buf,
+                        z_thread_shuffle_desc_m0_n0_m1_n1_m2_n2_m3_n3_m4_n4_n5,
+                        make_tuple(I0, I0, I0, I0, I0, I0, I0, I0, I0, I0, I0),
+                        z_tenor_buffer);
+
+                    blockwise_dropout.template ApplyDropoutWithZ<decltype(acc_thread_buf),
                                                                  decltype(z_tenor_buffer),
-                                                                 false>(
-                        acc_thread_buf, ph, global_elem_id, z_tenor_buffer);
+                                                                 false>(acc_thread_buf,
+                                                                        z_tenor_buffer);
 
                     z_thread_copy_vgpr_to_global.Run(
                         z_thread_desc_m0_n0_m1_n1_m2_n2_m3_n3_n4_n5,
@@ -1071,28 +1256,17 @@ struct GridwiseBatchedMultiheadAttentionForward_Xdl_CShuffle
                         z_tenor_buffer,
                         z_grid_desc_m0_n0_m1_n1_m2_n2_m3_n3_n4_n5,
                         z_grid_buf);
-                    // static_for<0, n0, 1>{}([&](auto i) {
-                    //    blockwise_dropout.template ApplyDropout<decltype(acc_thread_buf),
-                    //                                            decltype(z_tenor_buffer),
-                    //                                            false,
-                    //                                            decltype(n0),
-                    //                                            decltype(i)>(
-                    //        acc_thread_buf, ph, global_elem_id + id_step * i.value,
-                    //        z_tenor_buffer);
-                    //
-                    //    z_thread_copy_vgpr_to_global.Run(
-                    //        z_thread_desc_m0_n0_m1_n1_m2_n2_m3_n3_n4_n5,
-                    //        make_tuple(I0, I0, I0, I0, I0, I0, I0, I0, I0, I0),
-                    //        z_tenor_buffer,
-                    //        z_grid_desc_m0_n0_m1_n1_m2_n2_m3_n3_n4_n5,
-                    //        z_grid_buf);
-                    //    z_thread_copy_vgpr_to_global.MoveDstSliceWindow(
-                    //        z_grid_desc_m0_n0_m1_n1_m2_n2_m3_n3_n4_n5,
-                    //        make_multi_index(0, 0, 0, 1, 0, 0, 0, 0, 0, 0));
-                    //});
-                    // z_thread_copy_vgpr_to_global.MoveDstSliceWindow(
-                    //    z_grid_desc_m0_n0_m1_n1_m2_n2_m3_n3_n4_n5,
-                    //    make_multi_index(0, 0, 0, -(n0.value), 0, 0, 0, 0, 0, 0));
+
+                    block_sync_lds();
+
+                    z_tmp_thread_copy_vgpr_to_global.MoveDstSliceWindow(
+                        z_grid_desc_m0_n0_m1_n1_m2_n2_m3_n3_n4_n5,
+                        make_multi_index(0, 1, 0, 0, 0, 0, 0, 0, 0, 0));
+
+                    z_shuffle_thread_copy_global_to_vgpr.MoveSrcSliceWindow(
+                        z_grid_shuffle_desc_m0_n0_m1_n1_m2_n2_m3_n3_m4_n4_n5,
+                        make_multi_index(0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0));
+
                     z_thread_copy_vgpr_to_global.MoveDstSliceWindow(
                         z_grid_desc_m0_n0_m1_n1_m2_n2_m3_n3_n4_n5,
                         make_multi_index(0, 1, 0, 0, 0, 0, 0, 0, 0, 0));
@@ -1101,7 +1275,7 @@ struct GridwiseBatchedMultiheadAttentionForward_Xdl_CShuffle
                 {
                     // ignore = z_grid_buf;
                     // P_dropped
-                    blockwise_dropout.template ApplyDropout_v1r1<decltype(acc_thread_buf), false>(
+                    blockwise_dropout.template ApplyDropoutAttnFwd<decltype(acc_thread_buf), false>(
                         acc_thread_buf, ph, global_elem_id);
                 }
             }
