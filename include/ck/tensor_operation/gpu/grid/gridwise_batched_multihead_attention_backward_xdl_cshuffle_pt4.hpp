@@ -1798,6 +1798,11 @@ struct GridwiseBatchedMultiheadAttentionBackward_Xdl_CShuffle_V1
                     lse_grid_desc_mb_m0_m1_m2_m3_m4, make_multi_index(1, 0, 0, 0, 0, 0));
                 y_threadwise_copy.MoveSrcSliceWindow(y_grid_desc_mblock_mperblock_oblock_operblock,
                                                      make_multi_index(1, 0, 0, 0));
+
+                z_thread_copy_vgpr_to_global.MoveDstSliceWindow(
+                    z_grid_desc_m0_n0_m1_n1_m2_n2_m3_m4_m5_n3,
+                    make_multi_index(1, 0, 0, 0, 0, 0, 0, 0, 0, 0));
+
                 continue;
             }
 
