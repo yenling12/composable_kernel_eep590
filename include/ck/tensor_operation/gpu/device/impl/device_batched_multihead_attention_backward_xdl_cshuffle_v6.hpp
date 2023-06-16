@@ -776,7 +776,6 @@ struct DeviceBatchedMultiheadAttentionBackward_Xdl_CShuffle_V1
                                                             ORSDataType,
                                                             YGridDesc_M_O,
                                                             ORSGridDesc_M,
-                                                            NumGemmKPrefetchStage,
                                                             BlockSize,
                                                             MPerBlock,
                                                             NPerBlock,
@@ -790,14 +789,8 @@ struct DeviceBatchedMultiheadAttentionBackward_Xdl_CShuffle_V1
                                                             NPerXDL,
                                                             MXdlPerWave,
                                                             NXdlPerWave,
-                                                            Gemm1NXdlPerWave,
-                                                            Gemm2NXdlPerWave,
                                                             ABlockLdsExtraM,
                                                             BBlockLdsExtraN,
-                                                            BBlockLdsExtraN,
-                                                            CShuffleMXdlPerWavePerShuffle,
-                                                            CShuffleNXdlPerWavePerShuffle,
-                                                            LoopSched,
                                                             Deterministic>;
     // Argument
     struct Argument : public BaseArgument
