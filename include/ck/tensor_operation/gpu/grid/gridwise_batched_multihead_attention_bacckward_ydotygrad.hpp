@@ -34,15 +34,8 @@ struct GridwiseBatchedMultiheadAttentionBackward_YDotYGrad
     static constexpr auto I2 = Number<2>{};
     static constexpr auto I3 = Number<3>{};
     static constexpr auto I4 = Number<4>{};
-    static constexpr auto I5 = Number<5>{};
-    static constexpr auto I6 = Number<6>{};
-    static constexpr auto I7 = Number<7>{};
-    static constexpr auto I8 = Number<8>{};
-    static constexpr auto I9 = Number<9>{};
 
     static constexpr auto WaveSize = 64;
-
-    using ThisThreadBlock = ThisThreadBlock<BlockSize>;
 
     // block_id to matrix tile idx (m0, n0) mapping are controlled by {M01, N01}
     template <typename Block2CTileMap>
@@ -261,7 +254,7 @@ struct GridwiseBatchedMultiheadAttentionBackward_YDotYGrad
             1,
             false>{ors_grid_desc_mblock_mperblock,
                    make_multi_index(block_work_idx_m,          // mblock
-                                    get_thread_local_1d_id()), // mperxdl
+                                    get_thread_local_1d_id()), // mperblock
                    ck::tensor_operation::element_wise::PassThrough{}};
 
         // copy from VGPR to Global
@@ -270,7 +263,6 @@ struct GridwiseBatchedMultiheadAttentionBackward_YDotYGrad
                                            y_dot_ygrad_thread_accum_buf,
                                            ors_grid_desc_mblock_mperblock,
                                            ors_grid_buf);
-
     }
 };
 
