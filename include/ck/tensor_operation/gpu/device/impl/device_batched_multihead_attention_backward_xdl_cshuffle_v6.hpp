@@ -34,8 +34,7 @@ template <typename GridwiseGemm,
           typename YGridDescriptor_MBlock_MPerBlock_OBlock_OPerBlock,
           typename ORSGridDescriptor_M,
           typename Block2CTileMap,
-          typename ComputeBasePtrOfStridedBatch,
-          bool Deterministic>
+          typename ComputeBasePtrOfStridedBatch>
 __global__ void
 #if CK_USE_LAUNCH_BOUNDS
     __launch_bounds__(CK_MAX_THREAD_PER_BLOCK, /*CK_MIN_BLOCK_PER_CU*/ 1)
@@ -49,7 +48,6 @@ __global__ void
             const ORSGridDescriptor_M ors_grid_desc_m,
             const Block2CTileMap block_2_ctile_map,
             const index_t batch_count,
-            const index_t nblock,
             const ComputeBasePtrOfStridedBatch compute_base_ptr_of_batch)
 {
 #if(!defined(__HIP_DEVICE_COMPILE__) || defined(__gfx908__) || defined(__gfx90a__))
@@ -65,32 +63,15 @@ __global__ void
     const long_index_t ors_batch_offset = __builtin_amdgcn_readfirstlane(
         static_cast<long_index_t>(compute_base_ptr_of_batch.GetLSEBasePtr(g_idx)));
 
-    if constexpr(Deterministic)
-    {
-        for(index_t i = 0; i < nblock; i++)
-        {
-            GridwiseGemm::template Run(p_y_grid + c_batch_offset,
-                                       p_ygrad_grid + c_batch_offset,
-                                       p_ors_grid + ors_batch_offset,
-                                       p_shared,
-                                       c_grid_desc_mblock_mperblock_nblock_nperblock,
-                                       ors_grid_desc_m,
-                                       block_2_ctile_map,
-                                       i);
-        }
-    }
-    else
-    {
-        // GridwiseGemm::test();
-        GridwiseGemm::Run(p_y_grid + c_batch_offset,
-                          p_ygrad_grid + c_batch_offset,
-                          p_ors_grid + ors_batch_offset,
-                          p_shared,
-                          c_grid_desc_mblock_mperblock_nblock_nperblock,
-                          ors_grid_desc_m,
-                          block_2_ctile_map,
-                          0);
-    }
+    // GridwiseGemm::test();
+    GridwiseGemm::Run(p_y_grid + c_batch_offset,
+                      p_ygrad_grid + c_batch_offset,
+                      p_ors_grid + ors_batch_offset,
+                      p_shared,
+                      c_grid_desc_mblock_mperblock_nblock_nperblock,
+                      ors_grid_desc_m,
+                      block_2_ctile_map);
+
 #else
     ignore = p_y_grid;
     ignore = c_grid_desc_mblock_mperblock_nblock_nperblock;
@@ -771,27 +752,12 @@ struct DeviceBatchedMultiheadAttentionBackward_Xdl_CShuffle_V1
     using GridwiseYDotYGrad =
         GridwiseBatchedMultiheadAttentionBackward_YDotYGrad<InputDataType, // TODO: distinguish A/B
                                                                            // datatype
-                                                            GemmDataType,
-                                                            GemmAccDataType,
                                                             ORSDataType,
                                                             YGridDesc_M_O,
                                                             ORSGridDesc_M,
                                                             BlockSize,
                                                             128,
-                                                            128,
-                                                            KPerBlock,
-                                                            Gemm1NPerBlock,
-                                                            Gemm1KPerBlock,
-                                                            AK1,
-                                                            BK1,
-                                                            B1K1,
-                                                            32,
-                                                            32,
-                                                            1,
-                                                            4,
-                                                            ABlockLdsExtraM,
-                                                            BBlockLdsExtraN,
-                                                            Deterministic>;
+                                                            32>;
     // Argument
     struct Argument : public BaseArgument
     {
@@ -1061,8 +1027,7 @@ struct DeviceBatchedMultiheadAttentionBackward_Xdl_CShuffle_V1
                             YGridDescriptor_MBlock_MPerBlock_OBlock_OPerBlock,
                         DeviceOp::ORSGridDesc_M,
                         typename GridwiseYDotYGrad::DefaultBlock2CTileMap,
-                        ComputeBasePtrOfStridedBatch,
-                        Deterministic>;
+                        ComputeBasePtrOfStridedBatch>;
 
                     return launch_and_time_kernel(
                         stream_config,
@@ -1077,7 +1042,6 @@ struct DeviceBatchedMultiheadAttentionBackward_Xdl_CShuffle_V1
                         arg.ors_grid_desc_m_,
                         arg.ors_block_2_ctile_map_,
                         arg.batch_count_,
-                        arg.ors_block_2_ctile_map_.CalculateGridSize(arg.y_grid_desc_m_o_),
                         arg.compute_base_ptr_of_batch_);
                 };
 
