@@ -25,7 +25,7 @@ Kernel outputs:
 
 #define PRINT_HOST 0
 #define USING_MASK 0
-#define DIM 64 // DIM should be a multiple of 8.
+#define DIM 128 // DIM should be a multiple of 8.
 
 #include <iostream>
 #include <numeric>
@@ -63,9 +63,9 @@ using Scale       = ck::tensor_operation::element_wise::Scale;
 using QKVElementOp = PassThrough;
 using YElementOp   = PassThrough;
 
-using InputDataType    = BF16;
-using OutputDataType   = F32;
-using GemmDataType     = BF16;
+using InputDataType    = F16;
+using OutputDataType   = F16;
+using GemmDataType     = F16;
 using AccDataType      = F32;
 using ShuffleDataType  = F32;
 using LSEDataType      = F32;
@@ -80,7 +80,7 @@ static constexpr ck::index_t NumDimK = 1;
 static constexpr ck::index_t NumDimO = 1;
 // When OutputDataType == F32,      CShuffleBlockTransferScalarPerVector_NPerBlock = 4
 // When OutputDataType == F16/BF16, CShuffleBlockTransferScalarPerVector_NPerBlock = 8
-static constexpr ck::index_t CShuffleBlockTransferScalarPerVector_NPerBlock = 4;
+static constexpr ck::index_t CShuffleBlockTransferScalarPerVector_NPerBlock = 8;
 
 static constexpr auto GemmSpec = ck::tensor_operation::device::GemmSpecialization::MNKOPadding;
 #if USING_MASK
@@ -95,7 +95,7 @@ static constexpr auto TensorSpecQ   = ck::tensor_operation::device::TensorSpecia
 static constexpr auto TensorSpecK   = ck::tensor_operation::device::TensorSpecialization::Default;
 static constexpr auto TensorSpecV   = ck::tensor_operation::device::TensorSpecialization::Default;
 static constexpr auto TensorSpecY   = ck::tensor_operation::device::TensorSpecialization::Default;
-static constexpr bool Deterministic = true;
+static constexpr bool Deterministic = false;
 
 // DIM should be a multiple of 8.
 // If      DIM <= 32 , ues prototype1 1st template.
