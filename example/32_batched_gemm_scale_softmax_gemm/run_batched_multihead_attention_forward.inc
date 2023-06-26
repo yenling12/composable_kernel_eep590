@@ -23,7 +23,7 @@ int run(int argc, char* argv[])
     bool input_permute  = false;
     bool output_permute = true;
 
-    float p_drop                    = 0.1;
+    float p_drop                    = 0.0;
     const unsigned long long seed   = 1;
     const unsigned long long offset = 0;
 
@@ -176,7 +176,7 @@ int run(int argc, char* argv[])
         static_cast<B1DataType*>(b1_device_buf.GetDeviceBuffer()),
         static_cast<CDataType*>(c_device_buf.GetDeviceBuffer()),
         static_cast<ZDataType*>(nullptr),
-        static_cast<LSEDataType*>(lse_device_buf.GetDeviceBuffer()),
+        static_cast<LSEDataType*>(nullptr),
         {}, // std::array<void*, 1> p_acc0_biases;
         {}, // std::array<void*, 1> p_acc1_biases;
         a_gs_ms_ks_lengths,
