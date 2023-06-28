@@ -1020,6 +1020,7 @@ inline __host__ __device__ constexpr bhalf_t type_convert<bhalf_t, float>(float 
 
     return uint16_t(u.int32 >> 16);
 }
+#endif
 
 // convert fp16 to bf16
 template <>
