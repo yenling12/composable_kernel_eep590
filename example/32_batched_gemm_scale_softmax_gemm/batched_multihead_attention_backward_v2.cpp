@@ -24,7 +24,7 @@ Kernel outputs:
 */
 
 #define PRINT_HOST 0
-#define USING_MASK 0
+#define USING_MASK 1
 #define DIM 128 // DIM should be a multiple of 8.
 
 #include <iostream>
