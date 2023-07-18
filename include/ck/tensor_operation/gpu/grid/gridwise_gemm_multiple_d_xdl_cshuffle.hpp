@@ -273,7 +273,7 @@ struct GridwiseGemmMultipleD_xdl_cshuffle
         // check consistency of desc
         if(!(M == e_grid_desc_m_n.GetLength(I0) && N == e_grid_desc_m_n.GetLength(I1)))
         {
-            printf("e_grid_desc invalid\n");
+            static_assert(false, "e_grid_desc invalid\n");
             return false;
         }
 
@@ -286,14 +286,14 @@ struct GridwiseGemmMultipleD_xdl_cshuffle
 
         if(!valid)
         {
-            printf("ds_grid_desc invalid\n");
+            static_assert(false, "ds_grid_desc invalid\n");
             return false;
         }
 
         // check tile size
         if(!(M % MPerBlock == 0 && N % NPerBlock == 0 && K % KPerBlock == 0))
         {
-            printf("tile size invalid\n");
+            static_assert(false, "tile size invalid\n");
             return false;
         }
 
@@ -302,14 +302,14 @@ struct GridwiseGemmMultipleD_xdl_cshuffle
 
         if(!GridwiseGemmPipe::IsSupported(num_k_loop))
         {
-            printf("num_k_loop invalid\n");
+            static_assert(false, "num_k_loop invalid\n");
             return false;
         }
 
         // check block-to-E-tile
         if(!block_2_etile_map.CheckValidity(e_grid_desc_m_n))
         {
-            printf("block_2_etile_map invalid\n");
+            static_assert(false, "block_2_etile_map invalid\n");
             return false;
         }
 
@@ -321,7 +321,7 @@ struct GridwiseGemmMultipleD_xdl_cshuffle
              b_grid_desc_n_k.GetElementSpaceSize() * sizeof(ABDataType) <= TwoGB &&
              e_grid_desc_m_n.GetElementSpaceSize() * sizeof(EDataType) <= TwoGB))
         {
-            printf("invalid tensor (> 2GB)\n");
+            static_assert(false, "invalid tensor (> 2GB)\n");
             return false;
         }
 
