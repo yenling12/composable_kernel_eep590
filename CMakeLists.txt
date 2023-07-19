@@ -264,11 +264,6 @@ FOREACH(subdir_path ${dir_list})
 ENDFOREACH()
 add_custom_target(instances DEPENDS utility;${CK_DEVICE_INSTANCES}  SOURCES ${INSTANCE_FILES})
 
-rocm_package_setup_component(tests
-        LIBRARY_NAME composablekernel
-        PACKAGE_NAME tests # Prevent -static suffix on package name
-)
-
 rocm_package_setup_component(examples
         LIBRARY_NAME composablekernel
         PACKAGE_NAME examples
@@ -281,7 +276,6 @@ rocm_package_setup_component(profiler
 
 add_subdirectory(library)
 add_subdirectory(example)
-add_subdirectory(test)
 add_subdirectory(profiler)
 
 #Create an interface target for the include only files and call it "composablekernels"
