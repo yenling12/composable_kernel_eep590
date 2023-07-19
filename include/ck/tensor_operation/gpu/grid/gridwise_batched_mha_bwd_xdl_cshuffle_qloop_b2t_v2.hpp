@@ -1721,11 +1721,11 @@ struct GridwiseBatchedMultiheadAttentionBackward_Qloop_Xdl_CShuffle_V2
         {
             auto m_block_data_idx_on_grid =
                 __builtin_amdgcn_readfirstlane(gemm0_m_block_outer_index * MPerBlock);
-            // if(c0_matrix_mask.IsTileSkippable(
-            //        m_block_data_idx_on_grid, n_block_data_idx_on_grid, MPerBlock, NPerBlock))
-            // {
-            //     continue;
-            // }
+            if(c0_matrix_mask.IsTileSkippable(
+                   m_block_data_idx_on_grid, n_block_data_idx_on_grid, MPerBlock, NPerBlock))
+            {
+                continue;
+            }
 
             //
             // calculate Y dot dY

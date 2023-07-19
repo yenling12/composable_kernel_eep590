@@ -1798,11 +1798,11 @@ struct GridwiseBatchedMultiheadAttentionBackward_Qloop_Xdl_CShuffle_V1
         {
             auto m_block_data_idx_on_grid =
                 __builtin_amdgcn_readfirstlane(gemm0_m_block_outer_index * MPerBlock);
-            // if(c0_matrix_mask.IsTileSkippable(
-            //        m_block_data_idx_on_grid, n_block_data_idx_on_grid, MPerBlock, NPerBlock))
-            // {
-            //     continue;
-            // }
+            if(c0_matrix_mask.IsTileSkippable(
+                   m_block_data_idx_on_grid, n_block_data_idx_on_grid, MPerBlock, NPerBlock))
+            {
+                continue;
+            }
 
             // load ygrad
             gemm_tile_ygrad_blockwise_copy.Run(ygrad_grid_desc_o0_m_o1,
