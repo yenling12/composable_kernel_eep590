@@ -273,7 +273,7 @@ struct GridwiseGemmMultipleD_xdl_cshuffle
         // check consistency of desc
         if(!(M == e_grid_desc_m_n.GetLength(I0) && N == e_grid_desc_m_n.GetLength(I1)))
         {
-            static_assert(false, "e_grid_desc invalid\n");
+            static_assert((M == e_grid_desc_m_n.GetLength(I0) && N == e_grid_desc_m_n.GetLength(I1)), "e_grid_desc invalid\n");
             return false;
         }
 
@@ -286,14 +286,14 @@ struct GridwiseGemmMultipleD_xdl_cshuffle
 
         if(!valid)
         {
-            static_assert(false, "ds_grid_desc invalid\n");
+            static_assert(valid, "ds_grid_desc invalid\n");
             return false;
         }
 
         // check tile size
         if(!(M % MPerBlock == 0 && N % NPerBlock == 0 && K % KPerBlock == 0))
         {
-            static_assert(false, "tile size invalid\n");
+            static_assert((M % MPerBlock == 0 && N % NPerBlock == 0 && K % KPerBlock == 0), "tile size invalid\n");
             return false;
         }
 
@@ -302,14 +302,14 @@ struct GridwiseGemmMultipleD_xdl_cshuffle
 
         if(!GridwiseGemmPipe::IsSupported(num_k_loop))
         {
-            static_assert(false, "num_k_loop invalid\n");
+            static_assert(GridwiseGemmPipe::IsSupported(num_k_loop), "num_k_loop invalid\n");
             return false;
         }
 
         // check block-to-E-tile
         if(!block_2_etile_map.CheckValidity(e_grid_desc_m_n))
         {
-            static_assert(false, "block_2_etile_map invalid\n");
+            static_assert(block_2_etile_map.CheckValidity(e_grid_desc_m_n), "block_2_etile_map invalid\n");
             return false;
         }
 
@@ -321,7 +321,9 @@ struct GridwiseGemmMultipleD_xdl_cshuffle
              b_grid_desc_n_k.GetElementSpaceSize() * sizeof(ABDataType) <= TwoGB &&
              e_grid_desc_m_n.GetElementSpaceSize() * sizeof(EDataType) <= TwoGB))
         {
-            static_assert(false, "invalid tensor (> 2GB)\n");
+            static_assert((a_grid_desc_m_k.GetElementSpaceSize() * sizeof(ABDataType) <= TwoGB &&
+             b_grid_desc_n_k.GetElementSpaceSize() * sizeof(ABDataType) <= TwoGB &&
+             e_grid_desc_m_n.GetElementSpaceSize() * sizeof(EDataType) <= TwoGB), "invalid tensor (> 2GB)\n");
             return false;
         }
 
