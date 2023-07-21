@@ -72,9 +72,9 @@ using Scale       = ck::tensor_operation::element_wise::Scale;
 using QKVElementOp = PassThrough;
 using YElementOp   = PassThrough;
 
-using InputDataType    = F16;
-using OutputDataType   = F16;
-using GemmDataType     = F16;
+using InputDataType    = BF16;
+using OutputDataType   = BF16;
+using GemmDataType     = BF16;
 using AccDataType      = F32;
 using ShuffleDataType  = F32;
 using LSEDataType      = F32;
