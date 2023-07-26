@@ -73,3 +73,67 @@ float launch_and_time_kernel(const StreamConfig& stream_config,
     return 0;
 #endif
 }
+
+template <typename... Args, typename F>
+float launch_and_time_kernel_multi_stream(const StreamConfig& stream_config,
+                                          F kernel,
+                                          dim3 grid_dim,
+                                          dim3 block_dim,
+                                          std::size_t lds_byte,
+                                          Args... args)
+{
+#if CK_TIME_KERNEL
+    if(stream_config.time_kernel_)
+    {
+        const int nrepeat = 10;
+        std::vector<hipEvent_t> starts, stops;
+        std::vector<hipStream_t> stream_ids;
+
+        starts.resize(nrepeat);
+        stops.resize(nrepeat);
+        stream_ids.resize(nrepeat);
+
+        for(int i = 0; i < nrepeat; ++i)
+        {
+            hip_check_error(hipStreamCreate(&stream_ids[i]));
+            hip_check_error(hipEventCreate(&starts[i]));
+            hip_check_error(hipEventCreate(&stops[i]));
+            // warm up
+            kernel<<<grid_dim, block_dim, lds_byte, stream_ids[i]>>>(args...);
+        }
+
+        hip_check_error(hipDeviceSynchronize());
+
+        float total_time = 0;
+
+        for(int i = 0; i < nrepeat; ++i)
+        {
+            hip_check_error(hipEventRecord(starts[i], stream_config.stream_id_));
+
+            kernel<<<grid_dim, block_dim, lds_byte, stream_ids[i]>>>(args...);
+
+            hip_check_error(hipEventRecord(stops[i], stream_ids[i]));
+            hip_check_error(hipEventSynchronize(stops[i]));
+        }
+
+        for(int i = 0; i < nrepeat; ++i)
+        {
+            float tmp = 0;
+            hip_check_error(hipEventElapsedTime(&tmp, starts[i], stops[i]));
+            total_time += tmp;
+        }
+
+        return total_time / nrepeat;
+    }
+    else
+    {
+        kernel<<<grid_dim, block_dim, lds_byte, stream_config.stream_id_>>>(args...);
+
+        return 0;
+    }
+#else
+    kernel<<<grid_dim, block_dim, lds_byte, stream_config.stream_id_>>>(args...);
+
+    return 0;
+#endif
+}
