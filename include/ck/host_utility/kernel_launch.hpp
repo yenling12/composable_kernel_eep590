@@ -108,19 +108,21 @@ float launch_and_time_kernel_multi_stream(const StreamConfig& stream_config,
 
         for(int i = 0; i < nrepeat; ++i)
         {
-            hip_check_error(hipEventRecord(starts[i], stream_config.stream_id_));
+            hip_check_error(hipEventRecord(starts[i], stream_ids[i]));
 
             kernel<<<grid_dim, block_dim, lds_byte, stream_ids[i]>>>(args...);
 
             hip_check_error(hipEventRecord(stops[i], stream_ids[i]));
-            hip_check_error(hipEventSynchronize(stops[i]));
         }
+
+        for(int i = 0; i < nrepeat; ++i)
+            hip_check_error(hipEventSynchronize(stops[i]));
 
         for(int i = 0; i < nrepeat; ++i)
         {
             float tmp = 0;
-            hip_check_error(hipEventElapsedTime(&tmp, starts[i], stops[i]));
-            total_time += tmp;
+            hip_check_error(hipEventElapsedTime(&tmp, starts[0], stops[i]));
+            total_time = std::max(total_time, tmp);
         }
 
         return total_time / nrepeat;
