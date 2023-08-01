@@ -692,8 +692,16 @@ struct GridwiseGemmMultipleD_k0mk1_k0nk1_mn_wmma_cshuffle
         constexpr auto WmmaK = 16;
         constexpr auto KPack = math::integer_least_multiple(K1, WmmaK);
 
+        // In inline asm mode, you can choose either
+        // 1. BlockwiseGemmWMMA_k0mk1_k0nk1_m0m1m2n0n1n2m3_CShuffle_FIFO
+        //    This one generate clear assembly code, but performance is low.
+        // Or
+        // 2. BlockwiseGemmWMMA_k0mk1_k0nk1_m0m1m2n0n1n2m3_CShuffle
+        //    This one have redundant "ds_load" instruction because compiler have limitation in
+        //    optimize code with inline assembly. Though the generated code has more line of code, 
+        //    performance is high.
         auto blockwise_gemm =
-            BlockwiseGemmWMMA_k0mk1_k0nk1_m0m1m2n0n1n2m3_CShuffle<BlockSize,
+            BlockwiseGemmWMMA_k0mk1_k0nk1_m0m1m2n0n1n2m3_CShuffle_FIFO<BlockSize,
                                                          ADataType,
                                                          BDataType,
                                                          AccDataType,
