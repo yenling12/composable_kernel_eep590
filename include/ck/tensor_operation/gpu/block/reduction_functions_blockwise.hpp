@@ -152,6 +152,44 @@ struct PartitionedBlockwiseReduction_v2
 
         in_out_value = work_buffer[offset];
     };
+
+    template <typename BufferType>
+    __device__ static void WaveReduce(BufferType& work_buffer, AccDataType& in_out_value)
+    {
+        static_assert(is_same<typename BufferType::type, AccDataType>{},
+                      "Buffer data type should be consistent as AccDataType!");
+
+        constexpr auto cluster_len_shift = get_shift<BufferLength_K>();
+
+        const auto thread_cluster_idx =
+            thread_cluster_desc.CalculateBottomIndex(make_multi_index(get_thread_local_1d_id()));
+
+        const auto thread_m_cluster_id = thread_cluster_idx[Number<0>{}];
+        const auto thread_k_cluster_id = thread_cluster_idx[Number<1>{}];
+
+        work_buffer(block_buf_desc_m_k.CalculateOffset(thread_cluster_idx)) = in_out_value;
+
+	lds_waitcnt(0);
+        static_for<0, cluster_len_shift, 1>{}([&](auto I) {
+            constexpr index_t indOffset = 1 << (cluster_len_shift - 1 - I());
+
+            if(thread_k_cluster_id < indOffset)
+            {
+                index_t offset1 = block_buf_desc_m_k.CalculateOffset(thread_cluster_idx);
+                index_t offset2 = block_buf_desc_m_k.CalculateOffset(thread_cluster_idx +
+                                                                     make_tuple(0, indOffset));
+
+                AccDataType opData1 = work_buffer[offset1];
+                AccDataType opData2 = work_buffer[offset2];
+                Accumulation::Calculate(opData1, opData2);
+                work_buffer(offset1) = opData1;
+            }
+            lds_waitcnt(0);
+
+        });
+        index_t offset = block_buf_desc_m_k.CalculateOffset(make_tuple(thread_m_cluster_id, 0));
+        in_out_value = work_buffer[offset];
+    };
 };
 
 // clang-format off

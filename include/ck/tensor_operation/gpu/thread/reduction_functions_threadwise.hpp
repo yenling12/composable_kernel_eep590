@@ -52,6 +52,46 @@ struct ThreadwiseReduction
 //  2) DstDesc is known at compile-time
 //  3) SrcBuffer is static buffer
 //  4) DstBuffer is static buffer
+template <typename AccDataType,
+          typename SrcThreadDesc_M_K,
+          typename DstThreadDesc_M,
+          typename OpReduce,
+          bool PropagateNan,
+          typename Accumulation =
+              detail::AccumulateWithNanCheck<PropagateNan, OpReduce, AccDataType>>
+struct ThreadwiseReductionDouble
+{
+    static constexpr auto src_thread_desc_m_k = SrcThreadDesc_M_K{};
+    static constexpr auto dst_thread_desc_m   = DstThreadDesc_M{};
+
+    static constexpr auto src_length_m = src_thread_desc_m_k.GetLength(Number<0>{});
+    static constexpr auto src_length_k = src_thread_desc_m_k.GetLength(Number<1>{});
+    static constexpr auto dst_length_m = dst_thread_desc_m.GetLength(Number<0>{});
+
+    static_assert(src_length_m == dst_length_m, "lengths of source and dst buffer must match!");
+
+    using Op = OpReduce;
+
+    template <typename SrcBufferType, typename DstBufferType>
+    __device__ static void Reduce(const SrcBufferType& src_buf, DstBufferType& dst_buf)
+    {
+        static_for<0, src_length_m, 1>{}([&](auto iM) {
+            constexpr index_t out_offset = dst_thread_desc_m.CalculateOffset(make_tuple(iM));
+
+            static_for<0, src_length_k, 2>{}([&](auto iK) {
+                constexpr auto offset = src_thread_desc_m_k.CalculateOffset(make_tuple(iM, iK));
+                constexpr auto offset1 = src_thread_desc_m_k.CalculateOffset(make_tuple(iM, iK+1));
+                Accumulation::Calculate(dst_buf(Number<out_offset>{}), src_buf[Number<offset>{}],src_buf[Number<offset1>{}]);
+            });
+        });
+    };
+};
+
+// Assume
+//  1) SrcDesc is known at compile-time
+//  2) DstDesc is known at compile-time
+//  3) SrcBuffer is static buffer
+//  4) DstBuffer is static buffer
 template <
     typename AccDataType,
     typename IndexDataType,

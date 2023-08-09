@@ -239,6 +239,519 @@ struct AMax
     }
 };
 
+struct fast_Add
+{
+    template <typename T>
+    __host__ __device__ static constexpr T GetIdentityValue()
+    {
+        return type_convert<T>(0.0f);
+    };
+
+    __host__ __device__ static constexpr bool
+    IsCompatibleInMemoryDataOperation(InMemoryDataOperationEnum operation)
+    {
+        return operation == InMemoryDataOperationEnum::AtomicAdd ||
+               operation == InMemoryDataOperationEnum::Set;
+    };
+
+    template <typename T>
+    __host__ __device__ inline void operator()(T& a, T b) const
+    {
+        static_assert(is_same<T, float>::value || is_same<T, double>::value ||
+                          is_same<T,half_t>::value,
+                      "The data type is not supported by the Add accumulator!");
+
+	T c{1.0f};
+	if(is_same<T,float>::value)
+        {
+	    asm volatile("\n \
+		         v_fma_f32 %0, %0, %1, %2\n \
+	                 "
+	                   : "=v"(a)
+	                   : "v"(c), "v"(b), "0"(a));
+        }
+	else if(is_same<T,half_t>::value)
+	{
+	    asm volatile("\n \
+		         v_fma_f16 %0, %0, %1, %2\n \
+	                 "
+	                   : "=v"(a)
+	                   : "v"(c), "v"(b),"0"(a));
+        }
+	else if(is_same<T,double>::value)
+	{
+            asm volatile("\n \
+		         v_fma_f64 %0, %0, %1, %2\n \
+	                 "
+	                   : "=v"(a)
+	                   : "v"(c), "v"(b),"0"(a));
+	}
+	else
+	{
+	   a = a + b;
+	}
+    }
+};
+
+struct fast_Sub
+{
+    template <typename T>
+    __host__ __device__ static constexpr T GetIdentityValue()
+    {
+        return type_convert<T>(0.0f);
+    };
+
+    __host__ __device__ static constexpr bool
+    IsCompatibleInMemoryDataOperation(InMemoryDataOperationEnum operation)
+    {
+        return operation == InMemoryDataOperationEnum::AtomicAdd ||
+               operation == InMemoryDataOperationEnum::Set;
+    };
+
+    template <typename T>
+    __host__ __device__ inline void operator()(T& a, T b) const
+    {
+        static_assert(is_same<T, float>::value || is_same<T, double>::value ||
+                          is_same<T,half_t>::value,
+                      "The data type is not supported by the Add accumulator!");
+
+        T c{-1.0f};
+	if(is_same<T,float>::value)
+        {
+	    asm volatile("\n \
+		         v_fma_f32 %0, %2, %1, %0\n \
+	                 "
+	                   : "=v"(a)
+	                   : "v"(c), "v"(b), "0"(a));
+        }
+	else if(is_same<T,half_t>::value)
+	{
+	    asm volatile("\n \
+		         v_fma_f16 %0, %2, %1, %0\n \
+	                 "
+	                   : "=v"(a)
+	                   : "v"(c), "v"(b),"0"(a));
+        }
+	else if(is_same<T,double>::value)
+	{
+	    asm volatile("\n \
+		         v_fma_f64 %0, %2, %1, %0\n \
+	                 "
+	                   : "=v"(a)
+	                   : "v"(c), "v"(b),"0"(a));
+	}
+	else
+	{
+	   a = a - b;
+	}
+    }
+};
+
+struct Add2
+{
+    template <typename T>
+    __host__ __device__ static T GetIdentityValue()
+    {
+        return type_convert<T>(0.0f);
+    };
+
+    __host__ __device__ static constexpr bool
+    IsCompatibleInMemoryDataOperation(InMemoryDataOperationEnum operation)
+    {
+        return operation == InMemoryDataOperationEnum::AtomicAdd ||
+               operation == InMemoryDataOperationEnum::Set;
+    };
+
+    template <typename T>
+    __host__ __device__ inline void operator()(T& a, T b) const
+    {
+        static_assert(is_same<T, float2_t>::value || is_same<T, half2_t>::value,
+                      "The data type is not supported by the Add accumulator!");
+        T c{1.0f};
+	if(is_same<T,float2_t>::value)
+        {
+	    asm volatile("\n \
+		         v_pk_fma_f32 %0, %0, %1, %2\n \
+	                 "
+	                   : "=v"(a)
+	                   : "v"(c), "v"(b),
+			     "0"(a));
+        }
+	else if(is_same<T,half2_t>::value)
+	{
+	    asm volatile("\n \
+		         v_pk_fma_f16 %0, %0, %1, %2\n \
+	                 "
+	                   : "=v"(a)
+	                   : "v"(c), "v"(b),
+			     "0"(a));
+        }
+    }
+};
+
+struct Sub2
+{
+    template <typename T>
+    __host__ __device__ static T GetIdentityValue()
+    {
+        return type_convert<T>(0.0f);
+    };
+
+    __host__ __device__ static constexpr bool
+    IsCompatibleInMemoryDataOperation(InMemoryDataOperationEnum operation)
+    {
+        return operation == InMemoryDataOperationEnum::AtomicAdd ||
+               operation == InMemoryDataOperationEnum::Set;
+    };
+
+    template <typename T>
+    __host__ __device__ inline void operator()(T& a, T b) const
+    {
+        static_assert(is_same<T, float2_t>::value || is_same<T, half2_t>::value,
+                      "The data type is not supported by the Add accumulator!");
+        T c{-1.0f};
+	if(is_same<T,float2_t>::value)
+        {
+	    asm volatile("\n \
+		         v_pk_fma_f32 %0, %2, %1, %0\n \
+	                 "
+	                   : "=v"(a)
+	                   : "v"(c), "v"(b),
+			     "0"(a));
+        }
+	else if(is_same<T,half2_t>::value)
+	{
+	    asm volatile("\n \
+		         v_pk_fma_f16 %0, %2, %1, %0\n \
+	                 "
+	                   : "=v"(a)
+	                   : "v"(c), "v"(b),
+			     "0"(a));
+        }
+    }
+};
+
+struct Mul2
+{
+    template <typename T>
+    __host__ __device__ static T GetIdentityValue()
+    {
+        return type_convert<T>(1.0f);
+    };
+
+    __host__ __device__ static constexpr bool
+    IsCompatibleInMemoryDataOperation(InMemoryDataOperationEnum operation)
+    {
+        return operation == InMemoryDataOperationEnum::Set;
+    };
+
+    template <typename T>
+    __host__ __device__ inline void operator()(T& a, T b) const
+    {
+        static_assert(is_same<T, float2_t>::value || is_same<T, half2_t>::value,
+                      "The data type is not supported by the Mul accumulator!");
+	if(is_same<T,float2_t>::value)
+        {
+	    asm volatile("\n \
+		         v_pk_mul_f32 %0, %0, %1\n \
+	                 "
+	                   : "=v"(a)
+	                   : "v"(b),
+	                     "0"(a));
+	}
+	else if(is_same<T,half_t>::value)
+        {
+	   asm volatile("\n \
+		        v_pk_mul_f16 %0, %0, %1\n \
+	                "
+	                  : "=v"(a)
+	                  : "v"(b),
+	                    "0"(a));
+	}
+    }
+};
+
+struct fast_Max
+{
+    template <typename T>
+    __host__ __device__ static T GetIdentityValue()
+    {
+        return NumericLimits<T>::Lowest();
+    };
+
+    __host__ __device__ static constexpr bool
+    IsCompatibleInMemoryDataOperation(InMemoryDataOperationEnum operation)
+    {
+        // ToChange: atomic_max to be added
+        return operation == InMemoryDataOperationEnum::Set;
+    };
+
+    template <typename T>
+    __host__ __device__ inline void operator()(T& a, T b) const
+    {
+        static_assert(is_same<T, float>::value || is_same<T, double>::value ||
+                          is_same<T, half_t>::value || is_same<T, int32_t>::value ||
+                          is_same<T, int8_t>::value,
+                      "The data type is not supported by the Max accumulator!");
+
+	if(is_same<T,float>::value)
+        {
+	    asm volatile("\n \
+		         v_max_f32 %0, %0, %1\n \
+	                 "
+	                   : "=v"(a)
+	                   : "v"(b),
+	                     "0"(a));
+	}
+	else if(is_same<T,half_t>::value)
+        {
+	    asm volatile("\n \
+		         v_max_f16 %0, %0, %1\n \
+	                 "
+	                   : "=v"(a)
+	                   : "v"(b),
+	                     "0"(a));
+	}
+	else
+	{
+        if(a < b)
+            a = b;
+	}
+    }
+
+    template <typename T>
+    __host__ __device__ inline constexpr void operator()(T& a, T b, bool& changed) const
+    {
+        static_assert(is_same<T, float>::value || is_same<T, double>::value ||
+                          is_same<T, half_t>::value || is_same<T, int32_t>::value ||
+                          is_same<T, int8_t>::value,
+                      "The data type is not supported by the Max accumulator!");
+
+        if(a < b)
+        {
+            a       = b;
+            changed = true;
+        }
+    }
+};
+
+struct Max3
+{
+    template <typename T>
+    __host__ __device__ static T GetIdentityValue()
+    {
+        return NumericLimits<T>::Lowest();
+    };
+
+    __host__ __device__ static constexpr bool
+    IsCompatibleInMemoryDataOperation(InMemoryDataOperationEnum operation)
+    {
+        // ToChange: atomic_max to be added
+        return operation == InMemoryDataOperationEnum::Set;
+    };
+
+    template <typename T>
+    __host__ __device__ inline void operator()(T& a, T b, T c) const
+    {
+        static_assert(is_same<T, float>::value || is_same<T, half_t>::value ||
+                          is_same<T, int32_t>::value,
+                      "The data type is not supported by the Max accumulator!");
+
+	if(is_same<T,float>::value)
+        {
+	    asm volatile("\n \
+		         v_max3_f32 %0, %0, %1, %2\n \
+	                 "
+	                   : "=v"(a)
+	                   : "v"(b), "v"(c),
+	                     "0"(a));
+	}
+	else if(is_same<T,half_t>::value)
+        {
+	    asm volatile("\n \
+		         v_max3_f16 %0, %0, %1, %2\n \
+	                 "
+	                   : "=v"(a)
+	                   : "v"(b), "v"(c),
+	                     "0"(a));
+	}
+	else
+	{
+	    asm volatile("\n \
+		         v_max3_i32 %0, %0, %1, %2\n \
+	                 "
+	                   : "=v"(a)
+	                   : "v"(b), "v"(c),
+	                     "0"(a));
+	}
+    }
+
+    template <typename T>
+    __host__ __device__ inline constexpr void operator()(T& a, T b, bool& changed) const
+    {
+        static_assert(is_same<T, float>::value || is_same<T, double>::value ||
+                          is_same<T, half_t>::value || is_same<T, int32_t>::value ||
+                          is_same<T, int8_t>::value,
+                      "The data type is not supported by the Max accumulator!");
+
+        if(a < b)
+        {
+            a       = b;
+            changed = true;
+        }
+    }
+};
+
+
+struct fast_Min
+{
+    template <typename T>
+    __host__ __device__ static T GetIdentityValue()
+    {
+        return NumericLimits<T>::Max();
+    };
+
+    __host__ __device__ static constexpr bool
+    IsCompatibleInMemoryDataOperation(InMemoryDataOperationEnum operation)
+    {
+        // ToChange: atomic_max to be added
+        return operation == InMemoryDataOperationEnum::Set;
+    };
+
+    template <typename T>
+    __host__ __device__ inline void operator()(T& a, T b) const
+    {
+        static_assert(is_same<T, float>::value || is_same<T, double>::value ||
+                          is_same<T, half_t>::value || is_same<T, int32_t>::value ||
+                          is_same<T, int8_t>::value,
+                      "The data type is not supported by the Max accumulator!");
+
+	if(is_same<T,float>::value)
+        {
+	    asm volatile("\n \
+		         v_min_f32 %0, %0, %1\n \
+	                 "
+	                   : "=v"(a)
+	                   : "v"(b),
+	                     "0"(a));
+	}
+	else if(is_same<T,half_t>::value)
+        {
+	    asm volatile("\n \
+		         v_min_f16 %0, %0, %1\n \
+	                 "
+	                   : "=v"(a)
+	                   : "v"(b),
+	                     "0"(a));
+	}
+	else if(is_same<T,double>::value)
+        {
+	    asm volatile("\n \
+		        v_min_f64 %0, %0, %1\n \
+	                "
+	                  : "=v"(a)
+	                  : "v"(b),
+	                    "0"(a));
+	}
+	else if(is_same<T,int32_t>::value)
+        {
+	    asm volatile("\n \
+		        v_min_i32 %0, %0, %1\n \
+	                "
+	                  : "=v"(a)
+	                  : "v"(b),
+	                    "0"(a));
+	}
+	else
+	{
+        if(a < b)
+            a = b;
+	}
+    }
+
+    template <typename T>
+    __host__ __device__ inline constexpr void operator()(T& a, T b, bool& changed) const
+    {
+        static_assert(is_same<T, float>::value || is_same<T, double>::value ||
+                          is_same<T, half_t>::value || is_same<T, int32_t>::value ||
+                          is_same<T, int8_t>::value,
+                      "The data type is not supported by the Max accumulator!");
+
+        if(a < b)
+        {
+            a       = b;
+            changed = true;
+        }
+    }
+};
+
+struct Min3
+{
+    template <typename T>
+    __host__ __device__ static T GetIdentityValue()
+    {
+        return NumericLimits<T>::Max();
+    };
+
+    __host__ __device__ static constexpr bool
+    IsCompatibleInMemoryDataOperation(InMemoryDataOperationEnum operation)
+    {
+        // ToChange: atomic_max to be added
+        return operation == InMemoryDataOperationEnum::Set;
+    };
+
+    template <typename T>
+    __host__ __device__ inline void operator()(T& a, T b, T c) const
+    {
+        static_assert(is_same<T, float>::value || is_same<T, half_t>::value ||
+                          is_same<T, int32_t>::value,
+                      "The data type is not supported by the Max accumulator!");
+
+	if(is_same<T,float>::value)
+        {
+	    asm volatile("\n \
+		         v_min3_f32 %0, %0, %1, %2\n \
+	                 "
+	                   : "=v"(a)
+	                   : "v"(b), "v"(c),
+	                     "0"(a));
+	}
+	else if(is_same<T,half_t>::value)
+        {
+	    asm volatile("\n \
+		         v_min3_f16 %0, %0, %1, %2\n \
+	                 "
+	                   : "=v"(a)
+	                   : "v"(b), "v"(c),
+	                     "0"(a));
+	}
+	else
+	{
+	    asm volatile("\n \
+		         v_min3_i32 %0, %0, %1, %2\n \
+	                 "
+	                   : "=v"(a)
+	                   : "v"(b), "v"(c),
+	                     "0"(a));
+	}
+    }
+
+    template <typename T>
+    __host__ __device__ inline constexpr void operator()(T& a, T b, bool& changed) const
+    {
+        static_assert(is_same<T, float>::value || is_same<T, double>::value ||
+                          is_same<T, half_t>::value || is_same<T, int32_t>::value ||
+                          is_same<T, int8_t>::value,
+                      "The data type is not supported by the Max accumulator!");
+
+        if(a < b)
+        {
+            a       = b;
+            changed = true;
+        }
+    }
+};
+
 template <typename T>
 constexpr T GetIdentityValueForInMemoryDataOperation(InMemoryDataOperationEnum operation)
 {
@@ -287,6 +800,7 @@ struct InMemoryDataOperatonSupportedOnDataType<InMemoryDataOperationEnum::Add, D
         is_same<DataType, half_t>::value || is_same<DataType, int8_t>::value ||
         is_same<DataType, int32_t>::value;
 };
+
 
 } // namespace reduce
 } // namespace ck

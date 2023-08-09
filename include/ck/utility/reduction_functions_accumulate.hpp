@@ -22,6 +22,13 @@ struct AccumulateWithNanIgnore
             ReduceOperation{}(accuVal, currVal);
         }
     };
+    __device__ static inline void Calculate(AccDataType& accuVal, AccDataType currVal, AccDataType currVal1)
+    {
+        if(!ck::math::isnan(currVal) && !ck::math::isnan(currVal1))
+        {
+            ReduceOperation{}(accuVal, currVal, currVal1);
+        }
+    };
 };
 
 template <bool PropagateNan, typename ReduceOperation, typename AccDataType>
@@ -40,6 +47,10 @@ struct AccumulateWithNanCheck<false, ReduceOperation, AccDataType>
     {
         ReduceOperation{}(accuVal, currVal);
     };
+    __host__ __device__ static inline void Calculate(AccDataType& accuVal, AccDataType currVal, AccDataType currVal1)
+    {
+        ReduceOperation{}(accuVal, currVal,currVal1);
+    };
 };
 
 // Check for NaN; guarantees NaNs be propagated to result
@@ -57,6 +68,23 @@ struct AccumulateWithNanCheck<true, ReduceOperation, AccDataType>
         else
         {
             ReduceOperation{}(accuVal, currVal);
+        };
+    };
+    __host__ __device__ static inline void Calculate(AccDataType& accuVal, AccDataType currVal, AccDataType currVal1)
+    {
+        using ck::math::isnan;
+
+        if(isnan(currVal))
+        {
+            accuVal = currVal;
+        }
+	else if(isnan(currVal1))
+        {
+            accuVal = currVal1;
+        }
+        else
+        {
+            ReduceOperation{}(accuVal, currVal, currVal1);
         };
     };
 };
