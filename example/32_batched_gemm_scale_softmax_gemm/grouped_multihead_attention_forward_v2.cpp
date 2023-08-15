@@ -52,8 +52,8 @@ using CShuffleDataType = F32;
 using CDataType        = DataType;
 using ZDataType        = U16; // INT32
 using LSEDataType      = F32;
-using Acc0BiasDataType = ck::Tuple<>;
-using Acc1BiasDataType = ck::Tuple<>;
+using Acc0BiasDataType = void;
+using Acc1BiasDataType = void;
 
 static constexpr ck::index_t NumDimG = 2;
 static constexpr ck::index_t NumDimM = 1;
@@ -121,6 +121,7 @@ using DeviceGemmInstance =
         1,           // MXdlPerWave
         4,           // NXdlPerWave
         1,           // Gemm1NXdlPerWave
+        1,           // DropoutStep
         S<4, 64, 1>, // ABlockTransfer
         S<1, 0, 2>,
         S<1, 0, 2>,
@@ -135,6 +136,7 @@ using DeviceGemmInstance =
         8,
         8,
         true,
+        1,
         S<16, 16, 1>, // B1BlockTransfer
         S<0, 2, 1>,
         S<0, 2, 1>,
@@ -146,7 +148,8 @@ using DeviceGemmInstance =
         1,              // CShuffleNXdlPerWavePerShuffle
         S<1, 64, 1, 4>, // CShuffleBlockTransferClusterLengths_MBlock_MPerBlock_NBlock_NPerBlock
         8,              // CShuffleBlockTransferScalarPerVector_NPerBlock
-        MaskingSpec,    // MaskingSpecialization
+        1,
+        MaskingSpec, // MaskingSpecialization
         Deterministic>;
 #elif(DIM <= 64)
 using DeviceGemmInstance =
@@ -192,6 +195,7 @@ using DeviceGemmInstance =
         1,           // MXdlPerWave
         4,           // NXdlPerWave
         2,           // Gemm1NXdlPerWave
+        1,           // DropoutStep
         S<4, 64, 1>, // ABlockTransfer
         S<1, 0, 2>,
         S<1, 0, 2>,
@@ -206,6 +210,7 @@ using DeviceGemmInstance =
         8,
         8,
         true,
+        1,
         S<16, 16, 1>, // B1BlockTransfer
         S<0, 2, 1>,
         S<0, 2, 1>,
@@ -217,7 +222,8 @@ using DeviceGemmInstance =
         2,              // CShuffleNXdlPerWavePerShuffle
         S<1, 32, 1, 8>, // CShuffleBlockTransferClusterLengths_MBlock_MPerBlock_NBlock_NPerBlock
         8,              // CShuffleBlockTransferScalarPerVector_NPerBlock
-        MaskingSpec,    // MaskingSpecialization
+        1,
+        MaskingSpec, // MaskingSpecialization
         Deterministic>;
 #elif(DIM <= 128)
 using DeviceGemmInstance =
@@ -253,7 +259,7 @@ using DeviceGemmInstance =
         128,         // MPerBlock
         128,         // NPerBlock
         32,          // KPerBlock
-        128,         // Gemm1NPerBlock
+        64,          // Gemm1NPerBlock
         32,          // Gemm1KPerBlock
         8,           // AK1
         8,           // BK1
@@ -262,7 +268,8 @@ using DeviceGemmInstance =
         32,          // NPerXDL
         1,           // MXdlPerWave
         4,           // NXdlPerWave
-        4,           // Gemm1NXdlPerWave
+        2,           // Gemm1NXdlPerWave
+        1,           // DropoutStep
         S<4, 64, 1>, // ABlockTransfer
         S<1, 0, 2>,
         S<1, 0, 2>,
@@ -277,7 +284,8 @@ using DeviceGemmInstance =
         8,
         8,
         true,
-        S<8, 32, 1>, // B1BlockTransfer
+        1,
+        S<16, 16, 1>, // B1BlockTransfer
         S<0, 2, 1>,
         S<0, 2, 1>,
         1,
@@ -288,7 +296,8 @@ using DeviceGemmInstance =
         2,              // CShuffleNXdlPerWavePerShuffle
         S<1, 32, 1, 8>, // CShuffleBlockTransferClusterLengths_MBlock_MPerBlock_NBlock_NPerBlock
         8,              // CShuffleBlockTransferScalarPerVector_NPerBlock
-        MaskingSpec,    // MaskingSpecialization
+        1,
+        MaskingSpec, // MaskingSpecialization
         Deterministic>;
 #endif
 

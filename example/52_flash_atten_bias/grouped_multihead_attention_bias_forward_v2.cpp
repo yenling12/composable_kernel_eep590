@@ -19,7 +19,7 @@ Gemm + Softmax + Gemm fused operation. Computes C_g_m_o = Softmax(A_g_m_k * B0_g
 #include "ck/ck.hpp"
 #include "ck/tensor_operation/gpu/device/gemm_specialization.hpp"
 #include "ck/tensor_operation/gpu/device/tensor_specialization.hpp"
-#include "ck/tensor_operation/gpu/device/impl/device_batched_mha_fwd_xdl_cshuffle_v2.hpp"
+#include "ck/tensor_operation/gpu/device/impl/device_grouped_mha_fwd_xdl_cshuffle_v2.hpp"
 #include "ck/tensor_operation/gpu/element/element_wise_operation.hpp"
 
 #include "ck/library/utility/check_err.hpp"
@@ -48,11 +48,12 @@ using ADataType        = DataType;
 using B0DataType       = DataType;
 using B1DataType       = DataType;
 using AccDataType      = F32;
+using DDataType        = F16;
 using CShuffleDataType = F32;
 using CDataType        = DataType;
 using ZDataType        = U16; // INT32
 using LSEDataType      = F32;
-using Acc0BiasDataType = void;
+using Acc0BiasDataType = DDataType;
 using Acc1BiasDataType = void;
 
 static constexpr ck::index_t NumDimG = 2;
@@ -79,7 +80,7 @@ static constexpr bool Deterministic = false;
 
 #if(DIM <= 32)
 using DeviceGemmInstance =
-    ck::tensor_operation::device::DeviceBatchedMultiheadAttentionForward_Xdl_CShuffle_V2<
+    ck::tensor_operation::device::DeviceGroupedMultiheadAttentionForward_Xdl_CShuffle_V2<
         NumDimG,
         NumDimM,
         NumDimN,
@@ -136,7 +137,7 @@ using DeviceGemmInstance =
         8,
         8,
         true,
-        4,
+        1,
         S<16, 16, 1>, // B1BlockTransfer
         S<0, 2, 1>,
         S<0, 2, 1>,
@@ -148,12 +149,12 @@ using DeviceGemmInstance =
         1,              // CShuffleNXdlPerWavePerShuffle
         S<1, 64, 1, 4>, // CShuffleBlockTransferClusterLengths_MBlock_MPerBlock_NBlock_NPerBlock
         8,              // CShuffleBlockTransferScalarPerVector_NPerBlock
-        4,
+        1,
         MaskingSpec, // MaskingSpecialization
         Deterministic>;
 #elif(DIM <= 64)
 using DeviceGemmInstance =
-    ck::tensor_operation::device::DeviceBatchedMultiheadAttentionForward_Xdl_CShuffle_V2<
+    ck::tensor_operation::device::DeviceGroupedMultiheadAttentionForward_Xdl_CShuffle_V2<
         NumDimG,
         NumDimM,
         NumDimN,
@@ -210,7 +211,7 @@ using DeviceGemmInstance =
         8,
         8,
         true,
-        4,
+        1,
         S<16, 16, 1>, // B1BlockTransfer
         S<0, 2, 1>,
         S<0, 2, 1>,
@@ -222,12 +223,12 @@ using DeviceGemmInstance =
         2,              // CShuffleNXdlPerWavePerShuffle
         S<1, 32, 1, 8>, // CShuffleBlockTransferClusterLengths_MBlock_MPerBlock_NBlock_NPerBlock
         8,              // CShuffleBlockTransferScalarPerVector_NPerBlock
-        4,
+        1,
         MaskingSpec, // MaskingSpecialization
         Deterministic>;
 #elif(DIM <= 128)
 using DeviceGemmInstance =
-    ck::tensor_operation::device::DeviceBatchedMultiheadAttentionForward_Xdl_CShuffle_V2<
+    ck::tensor_operation::device::DeviceGroupedMultiheadAttentionForward_Xdl_CShuffle_V2<
         NumDimG,
         NumDimM,
         NumDimN,
@@ -259,7 +260,7 @@ using DeviceGemmInstance =
         128,         // MPerBlock
         128,         // NPerBlock
         32,          // KPerBlock
-        64,          // Gemm1NPerBlock
+        128,         // Gemm1NPerBlock
         32,          // Gemm1KPerBlock
         8,           // AK1
         8,           // BK1
@@ -268,7 +269,7 @@ using DeviceGemmInstance =
         32,          // NPerXDL
         1,           // MXdlPerWave
         4,           // NXdlPerWave
-        2,           // Gemm1NXdlPerWave
+        4,           // Gemm1NXdlPerWave
         1,           // DropoutStep
         S<4, 64, 1>, // ABlockTransfer
         S<1, 0, 2>,
@@ -284,8 +285,8 @@ using DeviceGemmInstance =
         8,
         8,
         true,
-        4,
-        S<16, 16, 1>, // B1BlockTransfer
+        1,
+        S<8, 32, 1>, // B1BlockTransfer
         S<0, 2, 1>,
         S<0, 2, 1>,
         1,
@@ -296,7 +297,7 @@ using DeviceGemmInstance =
         2,              // CShuffleNXdlPerWavePerShuffle
         S<1, 32, 1, 8>, // CShuffleBlockTransferClusterLengths_MBlock_MPerBlock_NBlock_NPerBlock
         8,              // CShuffleBlockTransferScalarPerVector_NPerBlock
-        4,
+        1,
         MaskingSpec, // MaskingSpecialization
         Deterministic>;
 #endif
@@ -327,6 +328,6 @@ using ReferenceGemm1Instance = ck::tensor_operation::host::ReferenceBatchedGemm<
 using ReferenceDropoutInstance =
     ck::tensor_operation::host::ReferenceDropout<ZDataType, ADataType, ADataType>;
 
-#include "run_batched_multihead_attention_forward.inc"
+#include "run_grouped_multihead_attention_bias_forward.inc"
 
 int main(int argc, char* argv[]) { return run(argc, argv); }

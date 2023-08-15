@@ -9,7 +9,7 @@ Gemm + Softmax + Gemm fused operation. Computes C_g_m_o = Softmax(A_g_m_k * B0_g
                                                                           Gemm1
 */
 
-#define DIM 64 // DIM should be a multiple of 8.
+#define DIM 128 // DIM should be a multiple of 8.
 
 #include <iostream>
 #include <numeric>
@@ -50,9 +50,10 @@ using B1DataType       = DataType;
 using AccDataType      = F32;
 using CShuffleDataType = F32;
 using CDataType        = DataType;
+using DDataType        = F16;
 using ZDataType        = U16; // INT32
 using LSEDataType      = F32;
-using Acc0BiasDataType = void;
+using Acc0BiasDataType = DDataType;
 using Acc1BiasDataType = void;
 
 static constexpr ck::index_t NumDimG = 2;
@@ -259,7 +260,7 @@ using DeviceGemmInstance =
         128,         // MPerBlock
         128,         // NPerBlock
         32,          // KPerBlock
-        64,          // Gemm1NPerBlock
+        128,         // Gemm1NPerBlock
         32,          // Gemm1KPerBlock
         8,           // AK1
         8,           // BK1
@@ -268,7 +269,7 @@ using DeviceGemmInstance =
         32,          // NPerXDL
         1,           // MXdlPerWave
         4,           // NXdlPerWave
-        2,           // Gemm1NXdlPerWave
+        4,           // Gemm1NXdlPerWave
         1,           // DropoutStep
         S<4, 64, 1>, // ABlockTransfer
         S<1, 0, 2>,
@@ -285,7 +286,7 @@ using DeviceGemmInstance =
         8,
         true,
         4,
-        S<16, 16, 1>, // B1BlockTransfer
+        S<8, 32, 1>, // B1BlockTransfer
         S<0, 2, 1>,
         S<0, 2, 1>,
         1,
@@ -327,6 +328,6 @@ using ReferenceGemm1Instance = ck::tensor_operation::host::ReferenceBatchedGemm<
 using ReferenceDropoutInstance =
     ck::tensor_operation::host::ReferenceDropout<ZDataType, ADataType, ADataType>;
 
-#include "run_batched_multihead_attention_forward.inc"
+#include "run_batched_multihead_attention_bias_forward.inc"
 
 int main(int argc, char* argv[]) { return run(argc, argv); }
