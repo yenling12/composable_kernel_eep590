@@ -362,18 +362,18 @@ struct BlockwiseGemmWMMA
         }
         else
         {
-            static_for<0, NRepeat, 1>{}([&](auto n0) {
-                static_for<0, MRepeat, 1>{}([&](auto m0) {
-                    static_for<0, KPerBlock / WmmaK, 1>{}([&](auto k) { // k=0,1,2 instead of
-                                                                        // k=0,kpack*1, ..
-                        // read B
-                        b_thread_copy_.Run(
-                            b_block_desc_k0_n0_n1_n2_k1,
-                            make_tuple(Number<k * WmmaK / B_K1 / B_KRow>{}, n0, I0, I0, I0, I0),
-                            b_block_buf,
-                            b_thread_desc_,
-                            make_tuple(I0, n0, I0, I0, I0, I0),
-                            b_thread_buf);
+            static_for<0, KPerBlock / WmmaK, 1>{}([&](auto k) { // k=0,1,2 instead of
+                                                    // k=0,kpack*1, ..
+                static_for<0, NRepeat, 1>{}([&](auto n0) {               
+                    // read B
+                    b_thread_copy_.Run(
+                        b_block_desc_k0_n0_n1_n2_k1,
+                        make_tuple(Number<k * WmmaK / B_K1 / B_KRow>{}, n0, I0, I0, I0, I0),
+                        b_block_buf,
+                        b_thread_desc_,
+                        make_tuple(I0, n0, I0, I0, I0, I0),
+                        b_thread_buf);
+                    static_for<0, MRepeat, 1>{}([&](auto m0) {
                         // read A
                         a_thread_copy_.Run(
                             a_block_desc_k0_m0_m1_m2_k1,
