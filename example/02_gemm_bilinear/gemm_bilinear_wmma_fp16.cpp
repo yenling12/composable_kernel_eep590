@@ -12,6 +12,7 @@
 #include "ck/tensor_operation/gpu/element/element_wise_operation.hpp"
 
 #include "ck/library/utility/device_memory.hpp"
+#include "ck/library/utility/fill.hpp"
 #include "ck/library/utility/host_tensor.hpp"
 #include "ck/library/utility/host_tensor_generator.hpp"
 #include "ck/library/utility/literals.hpp"
@@ -83,30 +84,30 @@ using DeviceOpInstance =
                                                                     1,
                                                                     128,
                                                                     64,
+                                                                    128,
                                                                     64,
-                                                                    64,
-                                                                    4,
+                                                                    8,
                                                                     16,
                                                                     16,
-                                                                    1,
+                                                                    2,
                                                                     4,
                                                                     S<4, 32, 1>,
                                                                     S<1, 0, 2>,
                                                                     S<1, 0, 2>,
                                                                     2,
-                                                                    4,
-                                                                    4,
-                                                                    true,
+                                                                    8,
+                                                                    8,
+                                                                    false,
                                                                     S<4, 32, 1>,
                                                                     S<1, 0, 2>,
                                                                     S<1, 0, 2>,
                                                                     2,
-                                                                    4,
-                                                                    4,
-                                                                    true,
+                                                                    8,
+                                                                    8,
+                                                                    false,
                                                                     1,
                                                                     1,
-                                                                    S<1, 64, 1, 2>,
+                                                                    S<1, 32, 1, 4>,
                                                                     8>;
 
 int main(int argc, char* argv[])
@@ -208,12 +209,29 @@ int main(int argc, char* argv[])
         b_k_n.GenerateTensorValue(GeneratorTensor_2<BDataType>{-5, 5});
         d_m_n.GenerateTensorValue(GeneratorTensor_2<DDataType>{-5, 5});
         break;
+    case 2:
+        ck::utils::FillUniformDistributionIntegerValue<ADataType>{1.f, 1.f}(a_m_k);
+        ck::utils::FillUniformDistributionIntegerValue<BDataType>{1.f, 1.f}(b_k_n);
+        ck::utils::FillUniformDistributionIntegerValue<DDataType>{1.f, 1.f}(d_m_n);
+        break;
     default:
         a_m_k.GenerateTensorValue(GeneratorTensor_3<ADataType>{0.0, 1.0});
         b_k_n.GenerateTensorValue(GeneratorTensor_3<BDataType>{-0.5, 0.5});
         d_m_n.GenerateTensorValue(GeneratorTensor_3<DDataType>{-0.5, 0.5});
     }
 
+#if 0
+    for(int im = 0; im<M; im++)
+    {
+        for(int ik = 0; ik<K; ik++)
+        {
+            if(ik%8==0) printf("|");
+
+            printf("%4x ", *(reinterpret_cast<uint16_t*>(&(a_m_k(im,ik)))));
+        }
+        printf("\n");
+    }
+#endif
     DeviceMem a_device_buf(sizeof(ADataType) * a_m_k.mDesc.GetElementSpaceSize());
     DeviceMem b_device_buf(sizeof(BDataType) * b_k_n.mDesc.GetElementSpaceSize());
     DeviceMem d_device_buf(sizeof(DDataType) * d_m_n.mDesc.GetElementSpaceSize());

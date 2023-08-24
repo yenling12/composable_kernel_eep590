@@ -448,6 +448,68 @@ struct FastNumericArrayConverter<uint8_t, ck::half_t, N>
     __device__ OutputArray operator()(InputArray const& Input) { return convert(Input); }
 };
 
+template <typename InputDataType, index_t RegPackNumber>
+struct InterRowPermuter
+{
+};
+
+template <>
+struct InterRowPermuter<ck::half_t, 2>
+{
+    using InputArray  = vector_type<ck::half_t, 2>;
+    using OutputArray = vector_type<ck::half_t, 2>;
+
+    __device__ static OutputArray convert(InputArray const& Input)
+    {
+        OutputArray Output;
+
+        uint32_t* output_half_2     = reinterpret_cast<uint32_t*>(&Output);
+        uint32_t const input_half_2 = reinterpret_cast<uint32_t const&>(Input);
+
+        output_half_2[0] = __builtin_amdgcn_permlanex16(
+            output_half_2[0], input_half_2, 0x76543210, 0xfedcba98, 1, 0);
+#if 0
+        if(get_thread_local_1d_id() == 0)
+        {
+            printf("After permlanex, input: %04x, output: %04x\n", input_half_2, output_half_2);
+        }
+#endif
+        return Output;
+    }
+
+    __device__ OutputArray operator()(InputArray const& Input) { return convert(Input); }
+};
+
+template <index_t N>
+struct InterRowPermuter<ck::half_t, N>
+{
+    static constexpr int VEC_WIDTH = 2;
+    static_assert(!(N % VEC_WIDTH), "N must be multiple of 2.");
+
+    using InputArray  = vector_type<ck::half_t, N>;
+    using OutputArray = vector_type<ck::half_t, N>;
+
+    __device__ static OutputArray convert(InputArray const& Input)
+    {
+        InterRowPermuter<ck::half_t, 2> converter;
+
+        OutputArray Output;
+
+        using Vec_InputArray  = vector_type<ck::half_t, 2>;
+        using Vec_OutputArray = vector_type<ck::half_t, 2>;
+
+        Vec_OutputArray* output_half_2_ptr     = reinterpret_cast<Vec_OutputArray*>(&Output);
+        Vec_InputArray const* input_half_2_ptr = reinterpret_cast<Vec_InputArray const*>(&Input);
+
+        static_for<0, N / VEC_WIDTH, 1>{}(
+            [&](auto i) { output_half_2_ptr[i] = converter(input_half_2_ptr[i]); });
+
+        return Output;
+    }
+
+    __device__ OutputArray operator()(InputArray const& Input) { return convert(Input); }
+};
+
 } // namespace element_wise
 } // namespace tensor_operation
 } // namespace ck

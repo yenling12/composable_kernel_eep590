@@ -1136,7 +1136,17 @@ struct ThreadwiseTensorSliceTransfer_v4
             auto src_data_coord = src_ref_coord_;
 
             move_tensor_coordinate(src_desc, src_data_coord, src_ref_to_data_disp_coord_step);
-
+#if 0
+            printf("Tid: %03d, Inele_Offset: %d, Coord: (%d, %d, %d, %d, %d, %d)\n",
+                get_thread_local_1d_id(),
+                src_data_coord.GetOffset(),
+                src_data_coord.GetIndex().At(Number<0>{}), 
+                src_data_coord.GetIndex().At(Number<1>{}), 
+                src_data_coord.GetIndex().At(Number<2>{}), 
+                src_data_coord.GetIndex().At(Number<3>{}), 
+                src_data_coord.GetIndex().At(Number<4>{}), 
+                src_data_coord.GetIndex().At(Number<5>{}));
+#endif
             vector_type_maker_t<SrcData, SrcScalarPerVector> src_tmp_vector;
 
             using src_vector_t = typename decltype(src_tmp_vector)::type;
@@ -1178,6 +1188,12 @@ struct ThreadwiseTensorSliceTransfer_v4
 
                 dst_buf(Number<dst_offset>{}) = dst_tmp_vector.template AsType<DstData>()[i];
             });
+#if 0
+            printf("Tid: %03d, Inele_Offset: %d\n",
+                get_thread_local_1d_id(),
+                dst_desc.CalculateOffset(
+                    dst_origin_idx + data_to_origin_disp_idx));
+#endif
         });
     }
 
