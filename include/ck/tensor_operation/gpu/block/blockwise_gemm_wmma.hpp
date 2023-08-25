@@ -67,8 +67,8 @@ struct BlockwiseGemmWMMA
     // When use LDS, each Row(16 consecutive lanes) read whole data from source buffer
     // When not use LDS, each Row read half of whole data from source buffer, exchange the data via
     // permutation
-    static constexpr index_t A_KRow = AEnableLds ? 2 : 2;
-    static constexpr index_t B_KRow = BEnableLds ? 2 : 2;
+    static constexpr index_t A_KRow = 2;
+    static constexpr index_t B_KRow = 2;
     static constexpr index_t A_K1   = ABlockDesc{}.GetLength(I5);
     static constexpr index_t B_K1   = BBlockDesc{}.GetLength(I5);
 

@@ -498,16 +498,10 @@ struct GridwiseGemmMultipleD_Wmma
             if constexpr(AEnableLds)
             {
                 // AK0_M_AK1 -> AK0_MRepeat_Mwaves_AKRow_MPerWmma_AK1
-                // Debug this part
                 constexpr auto A_KRow     = 2;
                 constexpr auto A_K0PerRow = ABlockDesc_{}.GetLength(I0) / A_KRow;
                 constexpr auto A_K1       = ABlockDesc_{}.GetLength(I2);
-                // return make_naive_tensor_descriptor_packed(make_tuple(Number<A_K0PerRow>{},
-                //   Number<MRepeat>{},
-                //   Number<MWaves>{},
-                //   Number<A_KRow>{},
-                //   Number<MPerWmma>{},
-                //   Number<A_K1>{}));
+
                 return transform_tensor_descriptor(
                     ABlockDesc_{},
                     make_tuple(
@@ -545,7 +539,6 @@ struct GridwiseGemmMultipleD_Wmma
             if constexpr(BEnableLds)
             {
                 // BK0_N_BK1 -> BK0_NRepeat_Nwaves_NPerWmma_BK1
-#if 1
                 constexpr auto B_KRow     = 2;
                 constexpr auto B_K0PerRow = BBlockDesc_{}.GetLength(I0) / B_KRow;
                 constexpr auto B_K1       = BBlockDesc_{}.GetLength(I2);
@@ -558,18 +551,6 @@ struct GridwiseGemmMultipleD_Wmma
                         make_pass_through_transform(Number<B_K1>{})),
                     make_tuple(Sequence<0>{}, Sequence<1>{}, Sequence<2>{}),
                     make_tuple(Sequence<0, 3>{}, Sequence<1, 2, 4>{}, Sequence<5>{}));
-#endif
-#if 0 
-                constexpr auto B_KRow = 2;
-                constexpr auto B_K0PerRow   = BBlockDesc_{}.GetLength(I0) / B_KRow;
-                constexpr auto B_K1   = BBlockDesc_{}.GetLength(I2);
-                return make_naive_tensor_descriptor_packed(make_tuple(Number<B_K0PerRow>{},
-                                                                      Number<NRepeat>{},
-                                                                      Number<NWaves>{},
-                                                                      Number<B_KRow>{},
-                                                                      Number<NPerWmma>{},
-                                                                      Number<B_K1>{}));
-#endif
             }
             else
             {

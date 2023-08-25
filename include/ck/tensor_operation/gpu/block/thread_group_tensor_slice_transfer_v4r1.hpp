@@ -8,6 +8,7 @@
 #include "ck/tensor_description/tensor_descriptor_helper.hpp"
 #include "ck/tensor_description/cluster_descriptor.hpp"
 #include "ck/tensor_operation/gpu/thread/threadwise_tensor_slice_transfer_v3r1.hpp"
+#include "ck/tensor_operation/gpu/thread/threadwise_tensor_slice_transfer.hpp"
 
 namespace ck {
 
@@ -48,6 +49,9 @@ struct ThreadGroupTensorSliceTransfer_v4r1
 
     static constexpr auto thread_slice_lengths = BlockSliceLengths{} / ThreadClusterLengths{};
 
+    static constexpr auto src_scalar_per_access = generate_sequence(
+            detail::lambda_scalar_per_access<SrcVectorDim, SrcScalarPerVector>{}, Number<nDim>{});
+
     using Index = MultiIndex<nDim>;
 
     __device__ constexpr ThreadGroupTensorSliceTransfer_v4r1(
@@ -85,7 +89,8 @@ struct ThreadGroupTensorSliceTransfer_v4r1
             const auto thread_cluster_idx = thread_cluster_desc_.CalculateBottomIndex(
                 make_multi_index(ThreadGroup::GetThreadId()));
 
-            const auto thread_data_idx_begin = thread_cluster_idx * thread_slice_lengths;
+            // This line result in non-packed reading.
+            const auto thread_data_idx_begin = thread_cluster_idx * src_scalar_per_access;
 
             threadwise_transfer_.SetSrcSliceOrigin(src_desc,
                                                    src_block_slice_origin + thread_data_idx_begin);
@@ -152,7 +157,8 @@ struct ThreadGroupTensorSliceTransfer_v4r1
         make_cluster_descriptor(ThreadClusterLengths{}, ThreadClusterArrangeOrder{});
 
     using ThreadwiseTransfer =
-        ThreadwiseTensorSliceTransfer_v3r1<decltype(thread_slice_lengths),
+        ThreadwiseTensorSliceTransfer_v3r1<ThreadClusterLengths,
+                                           decltype(thread_slice_lengths),
                                            SrcElementwiseOperation,
                                            DstElementwiseOperation,
                                            DstInMemOp,

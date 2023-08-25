@@ -1137,15 +1137,10 @@ struct ThreadwiseTensorSliceTransfer_v4
 
             move_tensor_coordinate(src_desc, src_data_coord, src_ref_to_data_disp_coord_step);
 #if 0
-            printf("Tid: %03d, Inele_Offset: %d, Coord: (%d, %d, %d, %d, %d, %d)\n",
+            printf("Tid: %03d, LDS read bank: %ld, Inele_Offset: %d\n",
                 get_thread_local_1d_id(),
-                src_data_coord.GetOffset(),
-                src_data_coord.GetIndex().At(Number<0>{}), 
-                src_data_coord.GetIndex().At(Number<1>{}), 
-                src_data_coord.GetIndex().At(Number<2>{}), 
-                src_data_coord.GetIndex().At(Number<3>{}), 
-                src_data_coord.GetIndex().At(Number<4>{}), 
-                src_data_coord.GetIndex().At(Number<5>{}));
+                (src_data_coord.GetOffset()*sizeof(SrcData)/4) %32,
+                src_data_coord.GetOffset());
 #endif
             vector_type_maker_t<SrcData, SrcScalarPerVector> src_tmp_vector;
 
@@ -1188,12 +1183,6 @@ struct ThreadwiseTensorSliceTransfer_v4
 
                 dst_buf(Number<dst_offset>{}) = dst_tmp_vector.template AsType<DstData>()[i];
             });
-#if 0
-            printf("Tid: %03d, Inele_Offset: %d\n",
-                get_thread_local_1d_id(),
-                dst_desc.CalculateOffset(
-                    dst_origin_idx + data_to_origin_disp_idx));
-#endif
         });
     }
 
@@ -1410,7 +1399,7 @@ struct ThreadwiseTensorSliceTransfer_StaticToStatic_InterRow
                 constexpr index_t dst_offset = dst_desc.CalculateOffset(
                     dst_slice_origin_idx + idx_md + i * dst_scalar_step_in_vector);
 
-                SrcData v_this_row, v_theother_row;
+                SrcData v_this_row;
                 // int type temp value due to intrinsic requirement
                 int temp = 0;
 
@@ -1425,6 +1414,8 @@ struct ThreadwiseTensorSliceTransfer_StaticToStatic_InterRow
                     v_this_row = type_convert_sp<SrcData>(temp);
                 }
 
+                dst_buf(Number<dst_offset>{}) = type_convert_sp<DstData>(v_this_row);
+#if 0
                 // apply inter-row permute.
                 temp           = __builtin_amdgcn_permlanex16(temp,
                                                     type_convert_sp<int>(v_this_row),
@@ -1448,6 +1439,7 @@ struct ThreadwiseTensorSliceTransfer_StaticToStatic_InterRow
                         type_convert_sp<DstData>(v_this_row);
                     dst_buf(Number<dst_offset>{}) = type_convert_sp<DstData>(v_theother_row);
                 }
+#endif
             });
         });
     }

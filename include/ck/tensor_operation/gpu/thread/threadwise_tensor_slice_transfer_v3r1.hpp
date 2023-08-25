@@ -49,7 +49,8 @@ struct lambda_scalar_per_access_for_src_and_dst
 //   2. SrcBuffer and DstBuffer are DynamicBuffer
 //   3. src_slice_origin and dst_slice_origin are not known at compile-time,
 //   4. Use thread buffer
-template <typename SliceLengths,
+template <typename ThreadClusterLengths,
+          typename SliceLengths,
           typename SrcElementwiseOperation,
           typename DstElementwiseOperation,
           InMemoryDataOperationEnum DstInMemOp,
@@ -134,13 +135,15 @@ struct ThreadwiseTensorSliceTransfer_v3r1
         constexpr auto ordered_src_access_lengths =
             container_reorder_given_new2old(src_access_lengths, src_dim_access_order);
 
+        constexpr auto src_move_per_access = ThreadClusterLengths{}*src_scalar_per_access;
         // make forward steps
         const auto src_forward_steps = generate_tuple(
             [&](auto i) {
                 Index forward_step_idx;
 
                 static_for<0, nDim, 1>{}([&](auto j) {
-                    forward_step_idx(j) = (i.value == j.value) ? src_scalar_per_access[i] : 0;
+                    // Move on block-wise instead of thread-wise
+                    forward_step_idx(j) = (i.value == j.value) ? src_move_per_access[i] : 0;
                 });
 
                 return make_tensor_coordinate_step(src_desc, forward_step_idx);
@@ -153,7 +156,7 @@ struct ThreadwiseTensorSliceTransfer_v3r1
                 Index backward_step_idx;
 
                 static_for<0, nDim, 1>{}([&](auto j) {
-                    backward_step_idx(j) = (i.value == j.value) ? -src_scalar_per_access[i] : 0;
+                    backward_step_idx(j) = (i.value == j.value) ? -src_move_per_access[i] : 0;
                 });
 
                 return make_tensor_coordinate_step(src_desc, backward_step_idx);
@@ -194,7 +197,11 @@ struct ThreadwiseTensorSliceTransfer_v3r1
                 return container_reorder_given_old2new(ordered_idx, src_dim_access_order) *
                        src_scalar_per_access;
             }();
-
+#if 0
+            printf("Tid: %03d, global buf offset inbyte: %ld, inele offset: %d, coord: (%d, %d, %d)\n", get_thread_local_1d_id(), 
+                    src_coord_.GetOffset()*sizeof(DstData), src_coord_.GetOffset(), 
+                    src_coord_.GetIndex().At(Number<0>{}), src_coord_.GetIndex().At(Number<1>{}), src_coord_.GetIndex().At(Number<2>{}));
+#endif
             constexpr auto src_data_idx_seq = generate_sequence_v2(
                 [&](auto i) { return Number<src_data_idx[i]>{}; }, Number<src_data_idx.Size()>{});
 
@@ -369,6 +376,8 @@ struct ThreadwiseTensorSliceTransfer_v3r1
         constexpr auto dst_scalar_per_access = generate_sequence(
             detail::lambda_scalar_per_access<DstVectorDim, DstScalarPerVector>{}, Number<nDim>{});
 
+        constexpr auto dst_move_per_access = ThreadClusterLengths{}*dst_scalar_per_access;
+
         constexpr auto dst_access_lengths = SliceLengths{} / dst_scalar_per_access;
 
         constexpr auto dst_dim_access_order = DstDimAccessOrder{};
@@ -382,7 +391,7 @@ struct ThreadwiseTensorSliceTransfer_v3r1
                 Index forward_step_idx;
 
                 static_for<0, nDim, 1>{}([&](auto j) {
-                    forward_step_idx(j) = (i.value == j.value) ? dst_scalar_per_access[i] : 0;
+                    forward_step_idx(j) = (i.value == j.value) ? dst_move_per_access[i] : 0;
                 });
 
                 return make_tensor_coordinate_step(dst_desc, forward_step_idx);
@@ -395,7 +404,7 @@ struct ThreadwiseTensorSliceTransfer_v3r1
                 Index backward_step_idx;
 
                 static_for<0, nDim, 1>{}([&](auto j) {
-                    backward_step_idx(j) = (i.value == j.value) ? -dst_scalar_per_access[i] : 0;
+                    backward_step_idx(j) = (i.value == j.value) ? -dst_move_per_access[i] : 0;
                 });
 
                 return make_tensor_coordinate_step(dst_desc, backward_step_idx);
@@ -439,7 +448,11 @@ struct ThreadwiseTensorSliceTransfer_v3r1
 
             constexpr auto dst_data_idx_seq = generate_sequence_v2(
                 [&](auto i) { return Number<dst_data_idx[i]>{}; }, Number<dst_data_idx.Size()>{});
-
+#if 0
+            printf("Tid: %03d, LDS write bank: %ld, inele offset: %04d, coord (%d, %d, %d)\n", get_thread_local_1d_id(), 
+                    (dst_coord_.GetOffset()*sizeof(DstData)/4 )%32, dst_coord_.GetOffset(),
+                    dst_coord_.GetIndex().At(Number<0>{}), dst_coord_.GetIndex().At(Number<1>{}), dst_coord_.GetIndex().At(Number<2>{}));
+#endif 
             const bool is_dst_valid =
                 coordinate_has_valid_offset_assuming_visible_index_is_valid(dst_desc, dst_coord_);
 
@@ -505,7 +518,16 @@ struct ThreadwiseTensorSliceTransfer_v3r1
         {
             const auto dst_reset_step =
                 make_tensor_coordinate_step(dst_desc, GetDstCoordinateResetStep());
-
+#if 0
+            const auto dst_reset_idx = GetDstCoordinateResetStep();
+            if (get_thread_local_1d_id()==0)
+            {
+               printf("dst_reset_step: %d, %d, %d\n",
+                    dst_reset_idx.At(Number<0>{}),
+                    dst_reset_idx.At(Number<1>{}),
+                    dst_reset_idx.At(Number<2>{}));
+            }
+#endif
             move_tensor_coordinate(dst_desc, dst_coord_, dst_reset_step);
         }
     }
@@ -517,12 +539,19 @@ struct ThreadwiseTensorSliceTransfer_v3r1
         constexpr auto src_scalar_per_access = generate_sequence(
             detail::lambda_scalar_per_access<SrcVectorDim, SrcScalarPerVector>{}, Number<nDim>{});
 
-        constexpr auto src_access_lengths = SliceLengths{} / src_scalar_per_access;
+        constexpr auto src_access_unit = SliceLengths{} / src_scalar_per_access;
+
+        constexpr auto src_access_unit_helper = generate_sequence(
+            detail::lambda_scalar_per_access<SrcVectorDim, 1>{}, Number<nDim>{});
+
+        constexpr auto src_access_stride = ThreadClusterLengths{} * (src_access_unit - src_access_unit_helper);
 
         constexpr auto src_dim_access_order = SrcDimAccessOrder{};
 
-        constexpr auto ordered_src_access_lengths =
-            container_reorder_given_new2old(src_access_lengths, src_dim_access_order);
+        constexpr auto ordered_src_access_stride =
+            container_reorder_given_new2old(src_access_stride, src_dim_access_order);
+        constexpr auto ordered_src_access_unit =
+            container_reorder_given_new2old(src_access_unit, src_dim_access_order);
 
         // judge move forward or move backward during the last iteration
         constexpr auto forward_sweep = [&]() {
@@ -531,10 +560,10 @@ struct ThreadwiseTensorSliceTransfer_v3r1
             forward_sweep_(I0) = true;
 
             static_for<1, nDim, 1>{}([&](auto i) {
-                index_t tmp = ordered_src_access_lengths[I0] - 1;
+                index_t tmp = ordered_src_access_unit[I0] - 1;
 
                 static_for<1, i, 1>{}([&](auto j) {
-                    tmp = tmp * ordered_src_access_lengths[j] + ordered_src_access_lengths[j] - 1;
+                    tmp = tmp * ordered_src_access_unit[j] + ordered_src_access_unit[j] - 1;
                 });
 
                 forward_sweep_(i) = tmp % 2 == 0;
@@ -549,7 +578,7 @@ struct ThreadwiseTensorSliceTransfer_v3r1
             Index ordered_idx;
 
             static_for<0, nDim, 1>{}([&](auto i) {
-                ordered_idx(i) = forward_sweep[i] ? ordered_src_access_lengths[i] - 1 : 0;
+                ordered_idx(i) = forward_sweep[i] ? ordered_src_access_stride[i] : 0;
             });
 
             return container_reorder_given_old2new(ordered_idx, src_dim_access_order) *
@@ -564,7 +593,18 @@ struct ThreadwiseTensorSliceTransfer_v3r1
 
             return reset_src_data_step_;
         }();
-
+#if 0 
+        if (get_thread_local_1d_id()==0)
+        {
+           printf("ordered_src_access_stride: %d, %d, %d | src_data_idx: %d, %d, %d\n",
+                ordered_src_access_stride.At(Number<0>{}).value,
+                ordered_src_access_stride.At(Number<1>{}).value,
+                ordered_src_access_stride.At(Number<2>{}).value,
+                src_data_idx.At(Number<0>{}),
+                src_data_idx.At(Number<1>{}),
+                src_data_idx.At(Number<2>{}));
+        }
+#endif
         return reset_src_data_step;
     }
 
@@ -574,13 +614,29 @@ struct ThreadwiseTensorSliceTransfer_v3r1
         // TODO: don't use lambda_scalar_per_access
         constexpr auto dst_scalar_per_access = generate_sequence(
             detail::lambda_scalar_per_access<DstVectorDim, DstScalarPerVector>{}, Number<nDim>{});
+        
+        constexpr auto dst_access_unit = SliceLengths{} / dst_scalar_per_access;
 
-        constexpr auto dst_access_lengths = SliceLengths{} / dst_scalar_per_access;
+        constexpr auto dst_access_unit_helper = generate_sequence(
+            detail::lambda_scalar_per_access<DstVectorDim, 1>{}, Number<nDim>{});
 
+        constexpr auto dst_access_strides =  ThreadClusterLengths{} * (dst_access_unit - dst_access_unit_helper);
+#if 0
+        if (get_thread_local_1d_id()==0)
+            {
+               printf("dst_access_strides: %d, %d, %d\n",
+                    dst_access_strides.At(Number<0>{}).value,
+                    dst_access_strides.At(Number<1>{}).value,
+                    dst_access_strides.At(Number<2>{}).value);
+            }
+#endif
         constexpr auto dst_dim_access_order = DstDimAccessOrder{};
 
-        constexpr auto ordered_dst_access_lengths =
-            container_reorder_given_new2old(dst_access_lengths, dst_dim_access_order);
+        constexpr auto ordered_dst_access_strides =
+            container_reorder_given_new2old(dst_access_strides, dst_dim_access_order);
+        
+        constexpr auto ordered_dst_access_unit =
+            container_reorder_given_new2old(dst_access_unit, dst_dim_access_order);
 
         // judge move forward or move backward during the last iteration
         constexpr auto forward_sweep = [&]() {
@@ -589,10 +645,10 @@ struct ThreadwiseTensorSliceTransfer_v3r1
             forward_sweep_(I0) = true;
 
             static_for<1, nDim, 1>{}([&](auto i) {
-                index_t tmp = ordered_dst_access_lengths[I0] - 1;
+                index_t tmp = ordered_dst_access_unit[I0] - 1;
 
                 static_for<1, i, 1>{}([&](auto j) {
-                    tmp = tmp * ordered_dst_access_lengths[j] + ordered_dst_access_lengths[j] - 1;
+                    tmp = tmp * ordered_dst_access_unit[j] + ordered_dst_access_unit[j] - 1;
                 });
 
                 forward_sweep_(i) = tmp % 2 == 0;
@@ -600,14 +656,22 @@ struct ThreadwiseTensorSliceTransfer_v3r1
 
             return forward_sweep_;
         }();
-
+#if 0
+        if (get_thread_local_1d_id()==0)
+            {
+               printf("forward_sweep: %d, %d, %d\n",
+                    forward_sweep[Number<0>{}],
+                    forward_sweep[Number<1>{}],
+                    forward_sweep[Number<2>{}]);
+            }
+#endif
         // calculate dst data index after last iteration in RunWrite(), if it has not being reset by
         // RunWrite()
         constexpr auto dst_data_idx = [&]() {
             Index ordered_idx;
 
             static_for<0, nDim, 1>{}([&](auto i) {
-                ordered_idx(i) = forward_sweep[i] ? ordered_dst_access_lengths[i] - 1 : 0;
+                ordered_idx(i) = forward_sweep[i] ? ordered_dst_access_strides[i] : 0;
             });
 
             return container_reorder_given_old2new(ordered_idx, dst_dim_access_order) *
@@ -637,6 +701,18 @@ struct ThreadwiseTensorSliceTransfer_v3r1
 
         // is it OK to construct a new step every time?
         const auto adjusted_step = make_tensor_coordinate_step(src_desc, adjusted_step_idx);
+#if 0
+        if (get_thread_local_1d_id()==0)
+        {
+           printf("InputSrcStep: %d, %d, %d | MoveSrcSliceWindowStep: %d, %d, %d\n",
+                src_slice_origin_step_idx.At(Number<0>{}),
+                src_slice_origin_step_idx.At(Number<1>{}),
+                src_slice_origin_step_idx.At(Number<2>{}),
+                adjusted_step_idx.At(Number<0>{}),
+                adjusted_step_idx.At(Number<1>{}),
+                adjusted_step_idx.At(Number<2>{}));
+        }
+#endif
 
         move_tensor_coordinate(src_desc, src_coord_, adjusted_step);
     }
