@@ -220,6 +220,18 @@ int main(int argc, char* argv[])
         d_m_n.GenerateTensorValue(GeneratorTensor_3<DDataType>{-0.5, 0.5});
     }
 
+#if 0
+    for(int im = 0; im<M; im++)
+    {
+        for(int ik = 0; ik<K; ik++)
+        {
+            if(ik%8==0) printf("|");
+
+            printf("%4x ", *(reinterpret_cast<uint16_t*>(&(a_m_k(im,ik)))));
+        }
+        printf("\n");
+    }
+#endif
     DeviceMem a_device_buf(sizeof(ADataType) * a_m_k.mDesc.GetElementSpaceSize());
     DeviceMem b_device_buf(sizeof(BDataType) * b_k_n.mDesc.GetElementSpaceSize());
     DeviceMem d_device_buf(sizeof(DDataType) * d_m_n.mDesc.GetElementSpaceSize());

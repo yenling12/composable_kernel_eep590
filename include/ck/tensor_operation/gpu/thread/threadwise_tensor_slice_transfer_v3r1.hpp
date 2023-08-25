@@ -550,6 +550,8 @@ struct ThreadwiseTensorSliceTransfer_v3r1
 
         constexpr auto ordered_src_access_stride =
             container_reorder_given_new2old(src_access_stride, src_dim_access_order);
+        constexpr auto ordered_src_access_unit =
+            container_reorder_given_new2old(src_access_unit, src_dim_access_order);
 
         // judge move forward or move backward during the last iteration
         constexpr auto forward_sweep = [&]() {
@@ -558,10 +560,10 @@ struct ThreadwiseTensorSliceTransfer_v3r1
             forward_sweep_(I0) = true;
 
             static_for<1, nDim, 1>{}([&](auto i) {
-                index_t tmp = ordered_src_access_stride[I0] - 1;
+                index_t tmp = ordered_src_access_unit[I0] - 1;
 
                 static_for<1, i, 1>{}([&](auto j) {
-                    tmp = tmp * ordered_src_access_stride[j] + ordered_src_access_stride[j] - 1;
+                    tmp = tmp * ordered_src_access_unit[j] + ordered_src_access_unit[j] - 1;
                 });
 
                 forward_sweep_(i) = tmp % 2 == 0;
@@ -619,11 +621,22 @@ struct ThreadwiseTensorSliceTransfer_v3r1
             detail::lambda_scalar_per_access<DstVectorDim, 1>{}, Number<nDim>{});
 
         constexpr auto dst_access_strides =  ThreadClusterLengths{} * (dst_access_unit - dst_access_unit_helper);
-
+#if 0
+        if (get_thread_local_1d_id()==0)
+            {
+               printf("dst_access_strides: %d, %d, %d\n",
+                    dst_access_strides.At(Number<0>{}).value,
+                    dst_access_strides.At(Number<1>{}).value,
+                    dst_access_strides.At(Number<2>{}).value);
+            }
+#endif
         constexpr auto dst_dim_access_order = DstDimAccessOrder{};
 
         constexpr auto ordered_dst_access_strides =
             container_reorder_given_new2old(dst_access_strides, dst_dim_access_order);
+        
+        constexpr auto ordered_dst_access_unit =
+            container_reorder_given_new2old(dst_access_unit, dst_dim_access_order);
 
         // judge move forward or move backward during the last iteration
         constexpr auto forward_sweep = [&]() {
@@ -632,10 +645,10 @@ struct ThreadwiseTensorSliceTransfer_v3r1
             forward_sweep_(I0) = true;
 
             static_for<1, nDim, 1>{}([&](auto i) {
-                index_t tmp = ordered_dst_access_strides[I0] - 1;
+                index_t tmp = ordered_dst_access_unit[I0] - 1;
 
                 static_for<1, i, 1>{}([&](auto j) {
-                    tmp = tmp * ordered_dst_access_strides[j] + ordered_dst_access_strides[j] - 1;
+                    tmp = tmp * ordered_dst_access_unit[j] + ordered_dst_access_unit[j] - 1;
                 });
 
                 forward_sweep_(i) = tmp % 2 == 0;
@@ -643,7 +656,15 @@ struct ThreadwiseTensorSliceTransfer_v3r1
 
             return forward_sweep_;
         }();
-
+#if 0
+        if (get_thread_local_1d_id()==0)
+            {
+               printf("forward_sweep: %d, %d, %d\n",
+                    forward_sweep[Number<0>{}],
+                    forward_sweep[Number<1>{}],
+                    forward_sweep[Number<2>{}]);
+            }
+#endif
         // calculate dst data index after last iteration in RunWrite(), if it has not being reset by
         // RunWrite()
         constexpr auto dst_data_idx = [&]() {
