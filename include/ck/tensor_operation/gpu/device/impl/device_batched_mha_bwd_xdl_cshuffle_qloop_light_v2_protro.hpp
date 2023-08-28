@@ -306,6 +306,7 @@ template <index_t NumDimG,
           index_t KPerBlock, // Gemm0KPerBlock
           index_t Gemm1NPerBlock,
           index_t Gemm1KPerBlock,
+          index_t Gemm2KPerBlock,
           index_t AK1,
           index_t BK1,
           index_t B1K1,
@@ -761,6 +762,7 @@ struct DeviceBatchedMultiheadAttentionBackward_Qloop_Xdl_CShuffle_Light_V2
         KPerBlock,
         Gemm1NPerBlock,
         Gemm1KPerBlock,
+        Gemm2KPerBlock,
         AK1,
         BK1,
         B1K1,
@@ -1457,6 +1459,7 @@ struct DeviceBatchedMultiheadAttentionBackward_Qloop_Xdl_CShuffle_Light_V2
             << MPerBlock << ", "
             << Gemm1NPerBlock << ", "
             << Gemm1KPerBlock << ", "
+            << Gemm2KPerBlock << ", "
             << B1K1 << ", "
             << getGemmSpecializationString(GemmSpec) << ", "
             << "ASpec" << getTensorSpecializationString(ASpec) << ", "
