@@ -32,19 +32,7 @@ inline __host__ __device__ constexpr float type_convert<float, bhalf_t>(bhalf_t 
 }
 
 // convert fp32 to bfp16
-#ifndef FLASH_ATTENTION_INTERNAL_USE_RTN
-template <>
-inline __host__ __device__ constexpr bhalf_t type_convert<bhalf_t, float>(float x)
-{
-    union
-    {
-        float fp32;
-        uint32_t int32;
-    } u = {x};
-
-    return uint16_t(u.int32 >> 16);
-}
-#else
+#if FLASH_ATTENTION_INTERNAL_USE_RTN
 template <>
 inline __host__ __device__ constexpr bhalf_t type_convert<bhalf_t, float>(float x)
 {
@@ -84,6 +72,18 @@ inline __host__ __device__ constexpr bhalf_t type_convert<bhalf_t, float>(float 
 
     u.int32 += flag0 ? 0x7fff + ((u.int32 >> 16) & 1) : 0; // Round to nearest, round to even
     u.int32 |= flag1 ? 0x10000 : 0x0;                      // Preserve signaling NaN
+
+    return uint16_t(u.int32 >> 16);
+}
+#else
+template <>
+inline __host__ __device__ constexpr bhalf_t type_convert<bhalf_t, float>(float x)
+{
+    union
+    {
+        float fp32;
+        uint32_t int32;
+    } u = {x};
 
     return uint16_t(u.int32 >> 16);
 }
