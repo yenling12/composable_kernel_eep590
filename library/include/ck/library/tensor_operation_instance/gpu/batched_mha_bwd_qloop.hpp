@@ -18,47 +18,66 @@ namespace device {
 namespace instance {
 
 void add_device_batched_mha_bwd_qloop_casual_f16_f16_gmk_gnk_gno_gmo_instances(
-    std::vector<std::unique_ptr<
-        DeviceBatchedMultiheadAttentionBackward<2,
-                                                1,
-                                                1,
-                                                1,
-                                                F16,
-                                                F16,
-                                                unsigned short,
-                                                F32, 
-                                                ck::Tuple<>,
-                                                ck::Tuple<>,
-                                                PassThrough,
-                                                PassThrough,
-                                                Scale,
-                                                PassThrough,
-                                                PassThrough,
-                                                MaskingSpecialization::MaskUpperTriangleFromTopLeft>>>&
-        instances);
+    std::vector<std::unique_ptr<DeviceBatchedMultiheadAttentionBackward<
+        2,
+        1,
+        1,
+        1,
+        1,
+        F16,
+        F16,
+        unsigned short,
+        F32,
+        ck::Tuple<>,
+        ck::Tuple<>,
+        PassThrough,
+        PassThrough,
+        Scale,
+        PassThrough,
+        PassThrough,
+        MaskingSpecialization::MaskUpperTriangleFromTopLeft>>>& instances);
 
 void add_device_batched_mha_bwd_qloop_noncasual_f16_f16_gmk_gnk_gno_gmo_instances(
-    std::vector<
-        std::unique_ptr<DeviceBatchedMultiheadAttentionBackward<2,
-                                                                1,
-                                                                1,
-                                                                1,
-                                                                1,
-                                                                F16,
-                                                                F16,
-                                                                unsigned short,
-                                                                F32, 
-                                                                ck::Tuple<>,
-                                                                ck::Tuple<>,
-                                                                PassThrough,
-                                                                PassThrough,
-                                                                Scale,
-                                                                PassThrough,
-                                                                PassThrough,
-                                                                MaskingSpecialization::MaskDisabled>>>&
-        instances);
+    std::vector<std::unique_ptr<
+        DeviceBatchedMultiheadAttentionBackward<2,
+                                                1,
+                                                1,
+                                                1,
+                                                1,
+                                                F16,
+                                                F16,
+                                                unsigned short,
+                                                F32,
+                                                ck::Tuple<>,
+                                                ck::Tuple<>,
+                                                PassThrough,
+                                                PassThrough,
+                                                Scale,
+                                                PassThrough,
+                                                PassThrough,
+                                                MaskingSpecialization::MaskDisabled>>>& instances);
 
 void add_device_batched_mha_bwd_qloop_casual_bf16_bf16_gmk_gnk_gno_gmo_instances(
+    std::vector<std::unique_ptr<DeviceBatchedMultiheadAttentionBackward<
+        2,
+        1,
+        1,
+        1,
+        1,
+        BF16,
+        BF16,
+        unsigned short,
+        F32,
+        ck::Tuple<>,
+        ck::Tuple<>,
+        PassThrough,
+        PassThrough,
+        Scale,
+        PassThrough,
+        PassThrough,
+        MaskingSpecialization::MaskUpperTriangleFromTopLeft>>>& instances);
+
+void add_device_batched_mha_bwd_qloop_noncasual_bf16_bf16_gmk_gnk_gno_gmo_instances(
     std::vector<std::unique_ptr<
         DeviceBatchedMultiheadAttentionBackward<2,
                                                 1,
@@ -68,7 +87,7 @@ void add_device_batched_mha_bwd_qloop_casual_bf16_bf16_gmk_gnk_gno_gmo_instances
                                                 BF16,
                                                 BF16,
                                                 unsigned short,
-                                                F32, 
+                                                F32,
                                                 ck::Tuple<>,
                                                 ck::Tuple<>,
                                                 PassThrough,
@@ -76,29 +95,7 @@ void add_device_batched_mha_bwd_qloop_casual_bf16_bf16_gmk_gnk_gno_gmo_instances
                                                 Scale,
                                                 PassThrough,
                                                 PassThrough,
-                                                MaskingSpecialization::MaskUpperTriangleFromTopLeft>>>&
-        instances);
-
-void add_device_batched_mha_bwd_qloop_noncasual_bf16_bf16_gmk_gnk_gno_gmo_instances(
-    std::vector<
-        std::unique_ptr<DeviceBatchedMultiheadAttentionBackward<2,
-                                                                1,
-                                                                1,
-                                                                1,
-                                                                1,
-                                                                BF16,
-                                                                BF16,
-                                                                unsigned short,
-                                                                F32, 
-                                                                ck::Tuple<>,
-                                                                ck::Tuple<>,
-                                                                PassThrough,
-                                                                PassThrough,
-                                                                Scale,
-                                                                PassThrough,
-                                                                PassThrough,
-                                                                MaskingSpecialization::MaskDisabled>>>&
-        instances);
+                                                MaskingSpecialization::MaskDisabled>>>& instances);
 
 template <typename InputDataType,
           typename OutputDataType,
@@ -151,8 +148,7 @@ struct DeviceOperationInstanceFactory<
         {
             if constexpr(MaskingSpec == MaskingSpecialization::MaskUpperTriangleFromTopLeft)
             {
-                add_device_batched_mha_bwd_qloop_casual_f16_f16_gmk_gnk_gno_gmo_instances(
-                    op_ptrs);
+                add_device_batched_mha_bwd_qloop_casual_f16_f16_gmk_gnk_gno_gmo_instances(op_ptrs);
             }
             else if(MaskingSpec == MaskingSpecialization::MaskDisabled)
             {
