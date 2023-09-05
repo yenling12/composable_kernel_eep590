@@ -6,3 +6,6 @@ target_link_libraries(client_fused_attention_bias PRIVATE composable_kernel::dev
 
 add_executable(client_fused_attention_bwd fused_attention_bwd.cpp)
 target_link_libraries(client_fused_attention_bwd PRIVATE composable_kernel::device_operations)
+
+add_executable(client_fused_attention_bwd_qloop_light_v1 fused_attention_bwd_qloop_light_v1.cpp)
+target_link_libraries(client_fused_attention_bwd_qloop_light_v1 PRIVATE composable_kernel::device_operations)
