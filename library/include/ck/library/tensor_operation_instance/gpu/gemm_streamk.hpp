@@ -22,6 +22,11 @@ void add_device_gemm_xdl_streamk_f16_f16_f16_mk_kn_mn_instances(
         DeviceGemmStreamK<Row, Row, Row, F16, F16, F16, PassThrough, PassThrough, PassThrough>>>&
         instances);
 
+void add_device_gemm_xdl_streamk_f16_f16_f16_mk_nk_mn_instances(
+    std::vector<std::unique_ptr<
+        DeviceGemmStreamK<Row, Col, Row, F16, F16, F16, PassThrough, PassThrough, PassThrough>>>&
+        instances);
+
 template <typename ADataType,
           typename BDataType,
           typename CDataType,
@@ -109,6 +114,11 @@ struct DeviceOperationInstanceFactory<ck::tensor_operation::device::DeviceGemmSt
                          is_same_v<CLayout, Row>)
             {
                 add_device_gemm_xdl_streamk_f16_f16_f16_mk_kn_mn_instances(op_ptrs);
+            }
+            if constexpr(is_same_v<ALayout, Row> && is_same_v<BLayout, Col> &&
+                         is_same_v<CLayout, Row>)
+            {
+                add_device_gemm_xdl_streamk_f16_f16_f16_mk_nk_mn_instances(op_ptrs);
             }
         }
         return op_ptrs;
