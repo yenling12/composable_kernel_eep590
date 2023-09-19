@@ -333,15 +333,10 @@ struct BlockwiseGemmXdlops_pipeline_v1
                         CThreadBuffer& c_thread_buf,
                         index_t num_loop) const
     {
-        auto a_thread_read_buf = make_static_buffer<AddressSpaceEnum::Vgpr, FloatAB>(
+        auto a_thread_buf = make_static_buffer<AddressSpaceEnum::Vgpr, FloatAB>(
             a_thread_desc_.GetElementSpaceSize());
-        auto a_thread_compute_buf = make_static_buffer<AddressSpaceEnum::Vgpr, FloatAB>(
-            a_thread_desc_.GetElementSpaceSize());
-        auto b_thread_read_buf = make_static_buffer<AddressSpaceEnum::Vgpr, FloatAB>(
+        auto b_thread_buf = make_static_buffer<AddressSpaceEnum::Vgpr, FloatAB>(
             b_thread_desc_.GetElementSpaceSize());
-        auto b_thread_compute_buf = make_static_buffer<AddressSpaceEnum::Vgpr, FloatAB>(
-            b_thread_desc_.GetElementSpaceSize());
-
         // preload data into LDS
         a_blockwise_copy.RunRead(a_grid_desc, a_grid_buf);
         b_blockwise_copy.RunRead(b_grid_desc, b_grid_buf);
@@ -361,8 +356,8 @@ struct BlockwiseGemmXdlops_pipeline_v1
                                make_tuple(m0, I0, I0, I0),
                                a_block_buf,
                                a_thread_desc_,
-                               make_tuple(I0, I0, I0, I0),
-                               a_thread_read_buf);
+                               make_tuple(m0, I0, I0, I0),
+                               a_thread_buf);
 
             static_for<0, NRepeat, 1>{}([&](auto n0) {
                 // read B
@@ -370,59 +365,64 @@ struct BlockwiseGemmXdlops_pipeline_v1
                                    make_tuple(n0, I0, I0, I0),
                                    b_block_buf,
                                    b_thread_desc_,
-                                   make_tuple(I0, I0, I0, I0),
-                                   b_thread_read_buf);
+                                   make_tuple(n0, I0, I0, I0),
+                                   b_thread_buf);
             });
         });
-        // Initialize C
-        c_thread_buf.Clear();
 
         // main body
         if constexpr(HasMainLoop)
         {
+#if 0
+            if(get_thread_local_1d_id() == 0)
+            {
+                printf("HasMainLoop=True\n");
+            }
+#endif
             index_t i = 0;
 
             do
             {
+                __builtin_amdgcn_sched_group_barrier(0x020, 4, 0); // VMEM read 
+                __builtin_amdgcn_sched_group_barrier(0x100, 2, 0); // DS read
+                __builtin_amdgcn_sched_group_barrier(0x008, 2, 0); // MFMA
+                __builtin_amdgcn_sched_group_barrier(0x200, 4, 0); // DS write
+                __builtin_amdgcn_sched_group_barrier(0x008, 2, 0); // MFMA
+                __builtin_amdgcn_sched_group_barrier(0x100, 2, 0); // DS read
                 a_blockwise_copy.RunRead(a_grid_desc, a_grid_buf);
                 b_blockwise_copy.RunRead(b_grid_desc, b_grid_buf);
 
                 // Here only KRepeat-1 times read (1~KRepeat) & compute (0~KRepat-1) of this k-loop
                 static_for<1, KRepeat, 1>{}([&](auto k) { // k=1,2 instead of kpack*1, ...
-                    // Switch read/compute VGPR buffer
-                    a_thread_compute_buf = a_thread_read_buf;
-                    b_thread_compute_buf = b_thread_read_buf;
                     /* Read N+1 */
                     static_for<0, MRepeat, 1>{}([&](auto m0) {
                         // read A
-                        a_thread_copy_.Run(
-                            a_block_desc_m0_m1_m2_k,
-                            make_tuple(m0, I0, I0, Number<k * AMmaKStride>{}),
-                            a_block_buf,
-                            a_thread_desc_,
-                            make_tuple(I0, I0, I0, I0),
-                            a_thread_read_buf);
+                        a_thread_copy_.Run(a_block_desc_m0_m1_m2_k,
+                                           make_tuple(m0, I0, I0, Number<k * AMmaKStride>{}),
+                                           a_block_buf,
+                                           a_thread_desc_,
+                                           make_tuple(m0, Number<k % 2>{}, I0, I0),
+                                           a_thread_buf);
 
                         static_for<0, NRepeat, 1>{}([&](auto n0) {
                             // read B
-                            b_thread_copy_.Run(
-                                b_block_desc_n0_n1_n2_k,
-                                make_tuple(n0, I0, I0, Number<k * BMmaKStride>{}),
-                                b_block_buf,
-                                b_thread_desc_,
-                                make_tuple(I0, I0, I0, I0),
-                                b_thread_read_buf);
+                            b_thread_copy_.Run(b_block_desc_n0_n1_n2_k,
+                                               make_tuple(n0, I0, I0, Number<k * BMmaKStride>{}),
+                                               b_block_buf,
+                                               b_thread_desc_,
+                                               make_tuple(n0, Number<k % 2>{}, I0, I0),
+                                               b_thread_buf);
                             /* Compute N */
                             vector_type<FloatAB, KPack> a_thread_vec;
                             vector_type<FloatAB, KPack> b_thread_vec;
 
                             static_for<0, KPack, 1>{}([&](auto ik) {
                                 a_thread_vec.template AsType<FloatAB>()(ik) =
-                                    a_thread_compute_buf[Number<a_thread_desc_.CalculateOffset(
-                                        make_tuple(0, 0, 0, ik))>{}];
+                                    a_thread_buf[Number<a_thread_desc_.CalculateOffset(
+                                        make_tuple(m0, (k - 1) % 2, 0, ik))>{}];
                                 b_thread_vec.template AsType<FloatAB>()(ik) =
-                                    b_thread_compute_buf[Number<b_thread_desc_.CalculateOffset(
-                                        make_tuple(0, 0, 0, ik))>{}];
+                                    b_thread_buf[Number<b_thread_desc_.CalculateOffset(
+                                        make_tuple(n0, (k - 1) % 2, 0, ik))>{}];
                             });
 
                             using mfma_input_type =
@@ -452,9 +452,6 @@ struct BlockwiseGemmXdlops_pipeline_v1
                 // Wait all wave produce next k-loop data
                 block_sync_lds();
 
-                // switch read/compute VGPR buffer
-                a_thread_compute_buf = a_thread_read_buf;
-                b_thread_compute_buf = b_thread_read_buf;
                 // Here 1 time read(idx=0) of next K-loop & compute(idx=KRepeat) this K-loop
                 static_for<0, MRepeat, 1>{}([&](auto m0) {
                     // read A
@@ -462,8 +459,8 @@ struct BlockwiseGemmXdlops_pipeline_v1
                                        make_tuple(m0, I0, I0, I0),
                                        a_block_buf,
                                        a_thread_desc_,
-                                       make_tuple(I0, I0, I0, I0),
-                                       a_thread_read_buf);
+                                       make_tuple(m0, I0, I0, I0),
+                                       a_thread_buf);
 
                     static_for<0, NRepeat, 1>{}([&](auto n0) {
                         // read B
@@ -471,17 +468,19 @@ struct BlockwiseGemmXdlops_pipeline_v1
                                            make_tuple(n0, I0, I0, I0),
                                            b_block_buf,
                                            b_thread_desc_,
-                                           make_tuple(I0, I0, I0, I0),
-                                           b_thread_read_buf);
+                                           make_tuple(n0, I0, I0, I0),
+                                           b_thread_buf);
                         /* Compute N */
                         vector_type<FloatAB, KPack> a_thread_vec;
                         vector_type<FloatAB, KPack> b_thread_vec;
 
                         static_for<0, KPack, 1>{}([&](auto ik) {
-                            a_thread_vec.template AsType<FloatAB>()(ik) = a_thread_compute_buf
-                                [Number<a_thread_desc_.CalculateOffset(make_tuple(0, 0, 0, ik))>{}];
-                            b_thread_vec.template AsType<FloatAB>()(ik) = b_thread_compute_buf
-                                [Number<b_thread_desc_.CalculateOffset(make_tuple(0, 0, 0, ik))>{}];
+                            a_thread_vec.template AsType<FloatAB>()(ik) =
+                                a_thread_buf[Number<a_thread_desc_.CalculateOffset(
+                                    make_tuple(m0, (KRepeat - 1) % 2, 0, ik))>{}];
+                            b_thread_vec.template AsType<FloatAB>()(ik) =
+                                b_thread_buf[Number<b_thread_desc_.CalculateOffset(
+                                    make_tuple(n0, (KRepeat - 1) % 2, 0, ik))>{}];
                         });
 
                         using mfma_input_type =
@@ -503,40 +502,64 @@ struct BlockwiseGemmXdlops_pipeline_v1
         {
             // Here only KRepeat-1 times read & compute
             static_for<1, KRepeat, 1>{}([&](auto k) { // k=1,2 instead of kpack*1, ...
-                // switch read/compute VGPR buffer
-                a_thread_compute_buf = a_thread_read_buf;
-                b_thread_compute_buf = b_thread_read_buf;
                 /* Read N+1 */
                 static_for<0, MRepeat, 1>{}([&](auto m0) {
                     // read A
-                    a_thread_copy_.Run(
-                        a_block_desc_m0_m1_m2_k,
-                        make_tuple(m0, I0, I0, Number<k * AMmaKStride>{}),
-                        a_block_buf,
-                        a_thread_desc_,
-                        make_tuple(I0, I0, I0, I0),
-                        a_thread_read_buf);
+                    a_thread_copy_.Run(a_block_desc_m0_m1_m2_k,
+                                       make_tuple(m0, I0, I0, Number<k * AMmaKStride>{}),
+                                       a_block_buf,
+                                       a_thread_desc_,
+                                       make_tuple(m0, Number<k % 2>{}, I0, I0),
+                                       a_thread_buf);
 
                     static_for<0, NRepeat, 1>{}([&](auto n0) {
                         // read B
-                        b_thread_copy_.Run(
-                            b_block_desc_n0_n1_n2_k,
-                            make_tuple(n0, I0, I0, Number<k * BMmaKStride>{}),
-                            b_block_buf,
-                            b_thread_desc_,
-                            make_tuple(I0, I0, I0, I0),
-                            b_thread_read_buf);
+                        b_thread_copy_.Run(b_block_desc_n0_n1_n2_k,
+                                           make_tuple(n0, I0, I0, Number<k * BMmaKStride>{}),
+                                           b_block_buf,
+                                           b_thread_desc_,
+                                           make_tuple(n0, Number<k % 2>{}, I0, I0),
+                                           b_thread_buf);
                         /* Compute N */
                         vector_type<FloatAB, KPack> a_thread_vec;
                         vector_type<FloatAB, KPack> b_thread_vec;
 
                         static_for<0, KPack, 1>{}([&](auto ik) {
-                            a_thread_vec.template AsType<FloatAB>()(ik) = a_thread_compute_buf
-                                [Number<a_thread_desc_.CalculateOffset(make_tuple(0, 0, 0, ik))>{}];
-                            b_thread_vec.template AsType<FloatAB>()(ik) = b_thread_compute_buf
-                                [Number<b_thread_desc_.CalculateOffset(make_tuple(0, 0, 0, ik))>{}];
+                            a_thread_vec.template AsType<FloatAB>()(ik) =
+                                a_thread_buf[Number<a_thread_desc_.CalculateOffset(
+                                    make_tuple(m0, (k - 1) % 2, 0, ik))>{}];
+                            b_thread_vec.template AsType<FloatAB>()(ik) =
+                                b_thread_buf[Number<b_thread_desc_.CalculateOffset(
+                                    make_tuple(n0, (k - 1) % 2, 0, ik))>{}];
                         });
-
+#if 0
+                        if(get_thread_local_1d_id() == 0)
+                        {
+                            printf("rep of m.n.k (%01d, %01d, %01d)\n",
+                                   m0.value,
+                                   n0.value,
+                                   k.value - 1);
+                        }
+                        printf(
+                            "Tid: %03d, A_compute_buf: %04x %04x %04x %04x %04x %04x %04x %04x\n",
+                            get_thread_local_1d_id(),
+                            *(reinterpret_cast<uint16_t*>(
+                                &(a_thread_vec.template AsType<FloatAB>()(Number<0>{})))),
+                            *(reinterpret_cast<uint16_t*>(
+                                &(a_thread_vec.template AsType<FloatAB>()(Number<1>{})))),
+                            *(reinterpret_cast<uint16_t*>(
+                                &(a_thread_vec.template AsType<FloatAB>()(Number<2>{})))),
+                            *(reinterpret_cast<uint16_t*>(
+                                &(a_thread_vec.template AsType<FloatAB>()(Number<3>{})))),
+                            *(reinterpret_cast<uint16_t*>(
+                                &(a_thread_vec.template AsType<FloatAB>()(Number<4>{})))),
+                            *(reinterpret_cast<uint16_t*>(
+                                &(a_thread_vec.template AsType<FloatAB>()(Number<5>{})))),
+                            *(reinterpret_cast<uint16_t*>(
+                                &(a_thread_vec.template AsType<FloatAB>()(Number<6>{})))),
+                            *(reinterpret_cast<uint16_t*>(
+                                &(a_thread_vec.template AsType<FloatAB>()(Number<7>{})))));
+#endif
                         using mfma_input_type =
                             typename vector_type<FloatAB, xdlops_gemm.K1PerXdlops>::type;
 
@@ -557,11 +580,39 @@ struct BlockwiseGemmXdlops_pipeline_v1
                     vector_type<FloatAB, KPack> b_thread_vec;
 
                     static_for<0, KPack, 1>{}([&](auto i) {
-                        a_thread_vec.template AsType<FloatAB>()(i) = a_thread_compute_buf
-                            [Number<a_thread_desc_.CalculateOffset(make_tuple(0, 0, 0, i))>{}];
-                        b_thread_vec.template AsType<FloatAB>()(i) = b_thread_compute_buf
-                            [Number<b_thread_desc_.CalculateOffset(make_tuple(0, 0, 0, i))>{}];
+                        a_thread_vec.template AsType<FloatAB>()(i) =
+                            a_thread_buf[Number<a_thread_desc_.CalculateOffset(
+                                make_tuple(m0, (KRepeat - 1) % 2, 0, i))>{}];
+                        b_thread_vec.template AsType<FloatAB>()(i) =
+                            b_thread_buf[Number<b_thread_desc_.CalculateOffset(
+                                make_tuple(n0, (KRepeat - 1) % 2, 0, i))>{}];
                     });
+
+#if 0
+                    if(get_thread_local_1d_id() == 0)
+                    {
+                        printf(
+                            "rep of m.n.k (%01d, %01d, %01d)\n", m0.value, n0.value, KRepeat - 1);
+                    }
+                    printf("Tid: %03d, A_compute_buf: %04x %04x %04x %04x %04x %04x %04x %04x\n",
+                           get_thread_local_1d_id(),
+                           *(reinterpret_cast<uint16_t*>(
+                               &(a_thread_vec.template AsType<FloatAB>()(Number<0>{})))),
+                           *(reinterpret_cast<uint16_t*>(
+                               &(a_thread_vec.template AsType<FloatAB>()(Number<1>{})))),
+                           *(reinterpret_cast<uint16_t*>(
+                               &(a_thread_vec.template AsType<FloatAB>()(Number<2>{})))),
+                           *(reinterpret_cast<uint16_t*>(
+                               &(a_thread_vec.template AsType<FloatAB>()(Number<3>{})))),
+                           *(reinterpret_cast<uint16_t*>(
+                               &(a_thread_vec.template AsType<FloatAB>()(Number<4>{})))),
+                           *(reinterpret_cast<uint16_t*>(
+                               &(a_thread_vec.template AsType<FloatAB>()(Number<5>{})))),
+                           *(reinterpret_cast<uint16_t*>(
+                               &(a_thread_vec.template AsType<FloatAB>()(Number<6>{})))),
+                           *(reinterpret_cast<uint16_t*>(
+                               &(a_thread_vec.template AsType<FloatAB>()(Number<7>{})))));
+#endif
 
                     using mfma_input_type =
                         typename vector_type<FloatAB, xdlops_gemm.K1PerXdlops>::type;
@@ -579,13 +630,15 @@ struct BlockwiseGemmXdlops_pipeline_v1
     }
 
     protected:
+    // M1, N1 as double buffer index
+    // Read buffer + Compute buffer
     // A[M0, M1, M2, KPack]
     static constexpr auto a_thread_desc_ =
-        make_naive_tensor_descriptor_packed(make_tuple(I1, I1, I1, Number<KPack>{}));
+        make_naive_tensor_descriptor_packed(make_tuple(Number<MRepeat>{}, I2, I1, Number<KPack>{}));
 
     // B[N0, N1, N2, KPack]
     static constexpr auto b_thread_desc_ =
-        make_naive_tensor_descriptor_packed(make_tuple(I1, I1, I1, Number<KPack>{}));
+        make_naive_tensor_descriptor_packed(make_tuple(Number<NRepeat>{}, I2, I1, Number<KPack>{}));
 
     // C[M, N, NumRegXdlops]
     static constexpr auto c_thread_desc_ = make_naive_tensor_descriptor_packed(

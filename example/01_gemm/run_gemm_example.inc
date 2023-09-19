@@ -76,6 +76,19 @@ bool run_gemm(const ProblemType& problem_size, const ExecutionConfig& config)
     Tensor<CDataType> c_m_n_host_result(f_host_tensor_descriptor(M, N, StrideC, CLayout{}));
     Tensor<CDataType> c_m_n_device_result(f_host_tensor_descriptor(M, N, StrideC, CLayout{}));
 
+#if 0
+    printf("A Matrix\n");
+    for(int im = 0; im < M; im++)
+    {
+        for(int ik = 0; ik < K; ik++)
+        {
+            if(ik % 8 == 0)
+                printf("|");
+            printf("%04x ", *(reinterpret_cast<uint16_t*>(&(a_m_k(im, ik)))));
+        }
+        printf("\n");
+    }
+#endif
     std::cout << "a_m_k: " << a_m_k.mDesc << std::endl;
     std::cout << "b_k_n: " << b_k_n.mDesc << std::endl;
     std::cout << "c_m_n: " << c_m_n_host_result.mDesc << std::endl;
