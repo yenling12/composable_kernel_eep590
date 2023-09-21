@@ -434,6 +434,9 @@ struct BlockwiseGemmXdlops_pipeline_v1
                 });
 
                 // Wait all wave consume this k-loop data
+                // __syncthreads();
+                // __builtin_amdgcn_s_waitcnt(0);
+                // __builtin_amdgcn_s_barrier();
                 block_sync_lds();
 
                 a_blockwise_copy.MoveSrcSliceWindow(a_grid_desc, a_block_copy_step);
@@ -472,6 +475,9 @@ struct BlockwiseGemmXdlops_pipeline_v1
                     });
                 });
                 // Wait all wave produce next k-loop data
+                // __syncthreads();
+                // __builtin_amdgcn_s_waitcnt(0);
+                // __builtin_amdgcn_s_barrier();
                 block_sync_lds();
                 // Here 1 time prefetch read(idx=0) of next K-loop
                 static_for<0, MRepeat, 1>{}([&](auto m0) {
