@@ -383,12 +383,6 @@ struct BlockwiseGemmXdlops_pipeline_v1
 
             do
             {
-                __builtin_amdgcn_sched_group_barrier(0x020, 4, 0); // VMEM read 
-                __builtin_amdgcn_sched_group_barrier(0x100, 2, 0); // DS read
-                __builtin_amdgcn_sched_group_barrier(0x008, 2, 0); // MFMA
-                __builtin_amdgcn_sched_group_barrier(0x200, 4, 0); // DS write
-                __builtin_amdgcn_sched_group_barrier(0x008, 2, 0); // MFMA
-                __builtin_amdgcn_sched_group_barrier(0x100, 2, 0); // DS read
                 a_blockwise_copy.RunRead(a_grid_desc, a_grid_buf);
                 b_blockwise_copy.RunRead(b_grid_desc, b_grid_buf);
 
@@ -449,27 +443,9 @@ struct BlockwiseGemmXdlops_pipeline_v1
                 b_blockwise_copy.RunWrite(b_block_desc, b_block_buf);
 
                 ++i;
-                // Wait all wave produce next k-loop data
-                block_sync_lds();
-
-                // Here 1 time read(idx=0) of next K-loop & compute(idx=KRepeat) this K-loop
+                // compute(idx=KRepeat) this K-loop can hide ds_write latency
                 static_for<0, MRepeat, 1>{}([&](auto m0) {
-                    // read A
-                    a_thread_copy_.Run(a_block_desc_m0_m1_m2_k,
-                                       make_tuple(m0, I0, I0, I0),
-                                       a_block_buf,
-                                       a_thread_desc_,
-                                       make_tuple(m0, I0, I0, I0),
-                                       a_thread_buf);
-
                     static_for<0, NRepeat, 1>{}([&](auto n0) {
-                        // read B
-                        b_thread_copy_.Run(b_block_desc_n0_n1_n2_k,
-                                           make_tuple(n0, I0, I0, I0),
-                                           b_block_buf,
-                                           b_thread_desc_,
-                                           make_tuple(n0, I0, I0, I0),
-                                           b_thread_buf);
                         /* Compute N */
                         vector_type<FloatAB, KPack> a_thread_vec;
                         vector_type<FloatAB, KPack> b_thread_vec;
@@ -495,6 +471,34 @@ struct BlockwiseGemmXdlops_pipeline_v1
                             c_thread_buf.GetVectorTypeReference(Number<c_offset>{}));
                     });
                 });
+                // Wait all wave produce next k-loop data
+                block_sync_lds();
+                // Here 1 time prefetch read(idx=0) of next K-loop
+                static_for<0, MRepeat, 1>{}([&](auto m0) {
+                    // read A
+                    a_thread_copy_.Run(a_block_desc_m0_m1_m2_k,
+                                       make_tuple(m0, I0, I0, I0),
+                                       a_block_buf,
+                                       a_thread_desc_,
+                                       make_tuple(m0, I0, I0, I0),
+                                       a_thread_buf);
+
+                    static_for<0, NRepeat, 1>{}([&](auto n0) {
+                        // read B
+                        b_thread_copy_.Run(b_block_desc_n0_n1_n2_k,
+                                           make_tuple(n0, I0, I0, I0),
+                                           b_block_buf,
+                                           b_thread_desc_,
+                                           make_tuple(n0, I0, I0, I0),
+                                           b_thread_buf);
+                    });
+                });
+                __builtin_amdgcn_sched_group_barrier(0x020, 6, 0); // VMEM read 
+                __builtin_amdgcn_sched_group_barrier(0x100, 6, 0); // DS read
+                __builtin_amdgcn_sched_group_barrier(0x008, 16, 0); // MFMA
+                __builtin_amdgcn_sched_group_barrier(0x200, 6, 0); // DS write
+                __builtin_amdgcn_sched_group_barrier(0x008, 16, 0); // MFMA
+                __builtin_amdgcn_sched_group_barrier(0x100, 6, 0); // DS read
             } while(i < (num_loop - 1));
         }
 
