@@ -934,10 +934,11 @@ struct DeviceGroupedMultiheadAttentionBackward_Kloop_Xdl_CShuffle_V1
             //     some_has_main_k_block_loop |= y;
             // }
 
-            hipGetErrorString(hipMemcpy(arg.p_workspace_,
-                                        arg.group_kernel_args_.data(),
-                                        arg.group_kernel_args_.size() * sizeof(GroupKernelArg),
-                                        hipMemcpyHostToDevice));
+            hipGetErrorString(hipMemcpyAsync(arg.p_workspace_,
+                                             arg.group_kernel_args_.data(),
+                                             arg.group_kernel_args_.size() * sizeof(GroupKernelArg),
+                                             hipMemcpyHostToDevice,
+                                             stream_config.stream_id_));
 
             float ave_time = 0;
 
@@ -954,6 +955,7 @@ struct DeviceGroupedMultiheadAttentionBackward_Kloop_Xdl_CShuffle_V1
                         has_main_k_block_loop_,
                         Deterministic>;
 
+                std::cerr << "Calling kernel kernel_grouped_multihead_attention_backward_kloop_xdl_cshuffle_v1 LINE: " << __LINE__ << " arg.p_workspace_ = " << arg.p_workspace_ << std::endl;
                 return launch_and_time_kernel(
                     stream_config,
                     kernel,

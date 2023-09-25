@@ -955,10 +955,11 @@ struct DeviceGroupedMultiheadAttentionBackward_Qloop_Xdl_CShuffle_V1
             //     some_has_main_k_block_loop |= y;
             // }
 
-            hipGetErrorString(hipMemcpy(arg.p_workspace_,
-                                        arg.group_kernel_args_.data(),
-                                        arg.group_kernel_args_.size() * sizeof(GroupKernelArg),
-                                        hipMemcpyHostToDevice));
+            hipGetErrorString(hipMemcpyWithStream(arg.p_workspace_,
+                                                  arg.group_kernel_args_.data(),
+                                                  arg.group_kernel_args_.size() * sizeof(GroupKernelArg),
+                                                  hipMemcpyHostToDevice,
+                                                  stream_config.stream_id_));
 
             float ave_time = 0;
 
