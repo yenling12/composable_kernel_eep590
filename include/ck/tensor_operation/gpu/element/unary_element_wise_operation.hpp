@@ -51,6 +51,19 @@ struct PassThrough
         y = x;
     }
 
+#if FLASH_ATTENTION_INTERNAL_USE_RTN
+    template <>
+    __host__ __device__ void operator()<bhalf_t, float>(bhalf_t& y, const float& x) const
+    {
+        y = bf16_convert_rtn<bhalf_t>(x);
+    }
+
+    template <>
+    __host__ __device__ void operator()<bhalf_t, half_t>(bhalf_t& y, const half_t& x) const
+    {
+        y = bf16_convert_rtn<bhalf_t>(x);
+    }
+#else
     template <>
     __host__ __device__ void operator()<bhalf_t, float>(bhalf_t& y, const float& x) const
     {
@@ -62,6 +75,7 @@ struct PassThrough
     {
         y = type_convert<bhalf_t>(x);
     }
+#endif
 
     template <>
     __host__ __device__ void operator()<int8_t, int8_t>(int8_t& y, const int8_t& x) const
