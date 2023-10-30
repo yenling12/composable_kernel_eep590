@@ -31,7 +31,7 @@ inline __host__ __device__ constexpr float type_convert<float, bhalf_t>(bhalf_t 
     return u.fp32;
 }
 
-#if FLASH_ATTENTION_INTERNAL_USE_RTN
+#ifdef USE_RTN_BF16_CONVERT
 // Convert fp32 to bf16 with RTN if higher precision is needed
 template <>
 inline __host__ __device__ constexpr bhalf_t type_convert<bhalf_t, float>(float x)
