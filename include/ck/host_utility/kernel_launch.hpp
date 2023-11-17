@@ -33,10 +33,14 @@ float launch_and_time_kernel(const StreamConfig& stream_config,
         printf("Warm up 1 time\n");
 #endif
         // warm up
-        kernel<<<grid_dim, block_dim, lds_byte, stream_config.stream_id_>>>(args...);
-        hip_check_error(hipGetLastError());
-
-        const int nrepeat = 10;
+        const int warmup_repeat = 50;
+        const int profile_repeat = 200;
+        for(int i = 0; i < warmup_repeat; ++i)
+        {
+            kernel<<<grid_dim, block_dim, lds_byte, stream_config.stream_id_>>>(args...);
+            hip_check_error(hipGetLastError());
+        }
+        
 #if DEBUG_LOG
         printf("Start running %d times...\n", nrepeat);
 #endif
@@ -48,7 +52,7 @@ float launch_and_time_kernel(const StreamConfig& stream_config,
         hip_check_error(hipDeviceSynchronize());
         hip_check_error(hipEventRecord(start, stream_config.stream_id_));
 
-        for(int i = 0; i < nrepeat; ++i)
+        for(int i = 0; i < profile_repeat; ++i)
         {
             kernel<<<grid_dim, block_dim, lds_byte, stream_config.stream_id_>>>(args...);
             hip_check_error(hipGetLastError());
@@ -61,7 +65,7 @@ float launch_and_time_kernel(const StreamConfig& stream_config,
 
         hip_check_error(hipEventElapsedTime(&total_time, start, stop));
 
-        return total_time / nrepeat;
+        return total_time / profile_repeat;
     }
     else
     {
