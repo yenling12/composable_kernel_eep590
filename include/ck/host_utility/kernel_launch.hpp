@@ -33,14 +33,13 @@ float launch_and_time_kernel(const StreamConfig& stream_config,
         printf("Warm up 1 time\n");
 #endif
         // warm up
-        const int warmup_repeat = 50;
-        const int profile_repeat = 200;
-        for(int i = 0; i < warmup_repeat; ++i)
+        for(int i = 0; i < stream_config.cold_niters_; ++i)
         {
             kernel<<<grid_dim, block_dim, lds_byte, stream_config.stream_id_>>>(args...);
             hip_check_error(hipGetLastError());
         }
-        
+
+        const int nrepeat = stream_config.nrepeat_;
 #if DEBUG_LOG
         printf("Start running %d times...\n", nrepeat);
 #endif
