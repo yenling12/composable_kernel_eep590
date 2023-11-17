@@ -8,7 +8,7 @@ Gemm + Softmax + Gemm fused operation. Computes C_g_m_o = Softmax(A_g_m_k * B0_g
                                                           |-------------------------------------|
                                                                           Gemm1
 */
-#define DIM 128 // DIM should be a multiple of 8.
+#define DIM 64 // DIM should be a multiple of 8.
 
 #include <iostream>
 #include <numeric>
