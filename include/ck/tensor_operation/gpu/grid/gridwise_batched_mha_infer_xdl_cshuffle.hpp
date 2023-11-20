@@ -689,10 +689,7 @@ struct GridwiseMultiHeadFlashAttentionInfer_Xdl_CShuffle
         const auto Q_k = a_grid_desc_ak0_m_ak1.GetLength(I0) * a_grid_desc_ak0_m_ak1.GetLength(I2);
         // gridwise GEMM pipeline
         // Only supports LoopScheduler::Default
-        const auto gridwise_gemm_pipeline = GridwiseGemmPipeline_v1r1<
-            NumGemmKPrefetchStage>{}; /*GridwiseGemmPipeline_Selector<PipelineVer,
-                NumGemmKPrefetchStage,
-                LoopScheduler::Default>();*/
+        const auto gridwise_gemm_pipeline = GridwiseGemmPipeline_v1r1<1>{};
 
         const index_t num_k_block_main_loop = __builtin_amdgcn_readfirstlane(
             (a_grid_desc_ak0_m_ak1.GetLength(I0) * a_grid_desc_ak0_m_ak1.GetLength(I2)) /
@@ -956,7 +953,7 @@ struct GridwiseMultiHeadFlashAttentionInfer_Xdl_CShuffle
                 acc_thread_buf,
                 num_k_block_main_loop,
                 p_shared,
-                gemm1_k_block_outer_index == 0 && Q_k <= 64);
+                gemm1_k_block_outer_index == 0 || Q_k > 64);
 
             // do MNK padding or upper triangular masking
             if constexpr(MaskOutUpperTriangle || PadN)
