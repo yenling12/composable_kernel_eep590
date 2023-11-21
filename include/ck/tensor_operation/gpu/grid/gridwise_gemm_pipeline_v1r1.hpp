@@ -55,7 +55,8 @@ struct GridwiseGemmPipeline_v1r1<1>
                                CThreadBuffer& c_thread_buf,
                                index_t num_loop,
                                void* p_shared,
-                               bool bIsLoadAblock)
+                               bool bIsLoadAblock,
+                               bool bIsChangeCache)
     {
         auto a_block_buf = make_dynamic_buffer<AddressSpaceEnum::Lds>(
             static_cast<FloatAB*>(p_shared) + 0, a_block_desc.GetElementSpaceSize());
@@ -95,9 +96,14 @@ struct GridwiseGemmPipeline_v1r1<1>
                 if(bIsLoadAblock)
                     a_blockwise_copy.MoveSrcSliceWindow(a_grid_desc, a_block_copy_step);
                 b_blockwise_copy.MoveSrcSliceWindow(b_grid_desc, b_block_copy_step);
-                a_block_buf = make_dynamic_buffer<AddressSpaceEnum::Lds>(
-                    static_cast<FloatAB*>(p_shared) + a_block_desc.GetElementSpaceSize() * (i + 1),
-                    a_block_desc.GetElementSpaceSize());
+                
+                ignore = bIsChangeCache;
+                if(bIsChangeCache)
+                    a_block_buf = make_dynamic_buffer<AddressSpaceEnum::Lds>(
+                        static_cast<FloatAB*>(p_shared) +
+                            a_block_desc.GetElementSpaceSize() * (i + 1),
+                        a_block_desc.GetElementSpaceSize());
+
                 if(bIsLoadAblock)
                     a_blockwise_copy.RunWrite(a_block_desc, a_block_buf);
                 b_blockwise_copy.RunWrite(b_block_desc, b_block_buf);
