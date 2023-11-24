@@ -9,7 +9,7 @@
 #include "ck/tensor_description/tensor_descriptor_helper.hpp"
 #include "ck/tensor_operation/gpu/grid/block_to_ctile_map.hpp"
 #include "ck/tensor_operation/gpu/grid/gridwise_gemm_pipeline_selector.hpp"
-#include "ck/tensor_operation/gpu/block/blockwise_gemm_pipeline_xdlops_v3.hpp"
+#include "ck/tensor_operation/gpu/block/blockwise_gemm_pipeline_xdlops_v4.hpp"
 #include "ck/tensor_operation/gpu/block/thread_group_tensor_slice_transfer_v4r1.hpp"
 #include "ck/tensor_operation/gpu/block/thread_group_tensor_slice_transfer_v6r1.hpp"
 #include "ck/tensor_operation/gpu/thread/threadwise_tensor_slice_transfer.hpp"
@@ -569,8 +569,8 @@ struct GridwiseGemm_k0mk1_k0nk1_mn_xdl_cshuffle_v1
         constexpr auto c_block_size =
             c_shuffle_block_desc_mblock_mperblock_nblock_nperblock.GetElementSpaceSize();
 
-        return math::max((a_block_space_size_aligned * sizeof(ComputeTypeA) +
-                          b_block_space_size_aligned * sizeof(ComputeTypeB)),
+        return math::max(2 * (a_block_space_size_aligned * sizeof(ComputeTypeA) +
+                              b_block_space_size_aligned * sizeof(ComputeTypeB)),
                          c_block_size * sizeof(FloatCShuffle));
     }
 
@@ -670,7 +670,7 @@ struct GridwiseGemm_k0mk1_k0nk1_mn_xdl_cshuffle_v1
         // check gridwise gemm pipeline
         const auto num_k_loop = (CalculateAK0(problem.K) * AK1Value) / KPerBlock;
 
-        if(!GridwiseGemmPipe::IsSupported(num_k_loop))
+        if(num_k_loop < 3 || (num_k_loop - 3) % 2 != 0)
         {
             return false;
         }
@@ -683,7 +683,7 @@ struct GridwiseGemm_k0mk1_k0nk1_mn_xdl_cshuffle_v1
     {
         const index_t num_loop = K / KPerBlock;
 
-        return GridwiseGemmPipe::CalculateHasMainLoop(num_loop);
+        return num_loop > 3;
     }
 
     template <typename CGridDesc>
@@ -847,7 +847,7 @@ struct GridwiseGemm_k0mk1_k0nk1_mn_xdl_cshuffle_v1
         //     NXdlPerWave,
         //     KPack,
         //     LoopSched>();
-        auto blockwise_gemm_pipeline = BlockwiseGemmXdlops_pipeline_v3<
+        auto blockwise_gemm_pipeline = BlockwiseGemmXdlops_pipeline_v4<
             BlockSize,
             ComputeTypeA,
             FloatGemmAcc,
@@ -870,12 +870,28 @@ struct GridwiseGemm_k0mk1_k0nk1_mn_xdl_cshuffle_v1
         constexpr auto a_block_space_size_aligned = math::integer_least_multiple(
             a_block_desc_ak0_m_ak1.GetElementSpaceSize(), max_lds_align);
 
-        auto a_block_buf = make_dynamic_buffer<AddressSpaceEnum::Lds>(
+        constexpr auto b_block_space_size_aligned = math::integer_least_multiple(
+            b_block_desc_bk0_n_bk1.GetElementSpaceSize(), max_lds_align);
+
+        auto a_block_buf_ping = make_dynamic_buffer<AddressSpaceEnum::Lds>(
             static_cast<ComputeTypeA*>(p_shared), a_block_desc_ak0_m_ak1.GetElementSpaceSize());
 
-        auto b_block_buf = make_dynamic_buffer<AddressSpaceEnum::Lds>(
+        auto b_block_buf_ping = make_dynamic_buffer<AddressSpaceEnum::Lds>(
             static_cast<ComputeTypeB*>(p_shared) + a_block_space_size_aligned,
             b_block_desc_bk0_n_bk1.GetElementSpaceSize());
+
+        auto a_block_buf_pong = make_dynamic_buffer<AddressSpaceEnum::Lds>(
+            static_cast<ComputeTypeA*>(p_shared) + a_block_space_size_aligned +
+                b_block_space_size_aligned,
+            a_block_desc_ak0_m_ak1.GetElementSpaceSize());
+
+        auto b_block_buf_pong = make_dynamic_buffer<AddressSpaceEnum::Lds>(
+            static_cast<ComputeTypeB*>(p_shared) + a_block_space_size_aligned +
+                a_block_space_size_aligned + b_block_space_size_aligned,
+            b_block_desc_bk0_n_bk1.GetElementSpaceSize());
+
+        auto a_block_bufs = make_tuple(a_block_buf_ping, a_block_buf_pong);
+        auto b_block_bufs = make_tuple(b_block_buf_ping, b_block_buf_pong);
 
         constexpr auto a_block_slice_copy_step = make_multi_index(KPerBlock / AK1Number, 0, 0);
         constexpr auto b_block_slice_copy_step = make_multi_index(KPerBlock / BK1Number, 0, 0);
@@ -892,13 +908,13 @@ struct GridwiseGemm_k0mk1_k0nk1_mn_xdl_cshuffle_v1
                                                                 a_block_desc_ak0_m_ak1,
                                                                 a_blockwise_copy,
                                                                 a_grid_buf,
-                                                                a_block_buf,
+                                                                a_block_bufs,
                                                                 a_block_slice_copy_step,
                                                                 b_grid_desc_bk0_n_bk1,
                                                                 b_block_desc_bk0_n_bk1,
                                                                 b_blockwise_copy,
                                                                 b_grid_buf,
-                                                                b_block_buf,
+                                                                b_block_bufs,
                                                                 b_block_slice_copy_step,
                                                                 c_thread_buf,
                                                                 num_k_block_main_loop);

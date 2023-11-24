@@ -7,7 +7,6 @@
 #include "ck/tensor_operation/gpu/device/impl/device_gemm_xdl_cshuffle.hpp"
 #include "ck/tensor_operation/gpu/device/impl/device_gemm_xdl_waveletmodel_cshuffle.hpp"
 
-
 using ADataType        = ck::half_t;
 using BDataType        = ck::half_t;
 using AccDataType      = float;
@@ -18,7 +17,7 @@ using F16 = ck::half_t;
 using F32 = float;
 
 using ALayout = Row;
-using BLayout = Row;
+using BLayout = Col;
 using CLayout = Row;
 
 using AElementOp = PassThrough;
@@ -213,22 +212,6 @@ using DeviceGemmFactory =
         S<8, 32, 1>,  S<0, 2, 1>,  S<0, 2, 1>, 
         1, 4, 2, 0,
         1, 1, S<1, 32, 1, 8>, 8>,
-#endif
-    ck::tensor_operation::device::DeviceGemm_Xdl_CShuffle<
-        Row,   Row,  Row,   
-        F16,   F16,  F16,  F32,  F16, 
-        PassThrough, PassThrough, PassThrough, GemmDefault, 
-        2,   256,
-        256, 256, 
-        32, 8, 4,
-        32,   32,
-        4,    4, 
-        S<4, 64, 1>,  S<1, 0, 2>,  S<1, 0, 2>, 
-        2, 8, 8, 1,
-        S<4, 64, 1>,  S<0, 2, 1>,  S<0, 2, 1>, 
-        1, 4, 4, 1,
-        1, 1, S<1, 32, 1, 8>, 8,
-        ck::LoopScheduler::Default, ck::PipelineVersion::v1>,
     ck::tensor_operation::device::DeviceGemm_Xdl_CShuffle<
         Row,   Row,  Row,   
         F16,   F16,  F16,  F32,  F16, 
@@ -244,8 +227,24 @@ using DeviceGemmFactory =
         1, 4, 4, 1,
         1, 1, S<1, 32, 1, 8>, 8,
         ck::LoopScheduler::Default, ck::PipelineVersion::v1>
-    >;
+#endif
+    ck::tensor_operation::device::DeviceGemm_Xdl_CShuffle<
+        Row,   Col,  Row,   
+        F16,   F16,  F16,  F32,  F16, 
+        PassThrough, PassThrough, PassThrough, GemmDefault, 
+        2,   256,
+        256, 256, 
+        32, 8, 8,
+        32,   32,
+        4,    4, 
+        S<4, 64, 1>,  S<1, 0, 2>,  S<1, 0, 2>, 
+        2, 8, 8, 0,
+        S<4, 64, 1>,  S<1, 0, 2>,  S<1, 0, 2>, 
+        2, 8, 8, 0,
+        1, 1, S<1, 32, 1, 8>, 8,
+        ck::LoopScheduler::Default, ck::PipelineVersion::v1>
 
+    >;
 
 // clang-format on
 

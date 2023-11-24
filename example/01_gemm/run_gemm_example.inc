@@ -3,8 +3,6 @@
 
 #pragma once
 
-#include "ck/tensor_operation/gpu/device/device_gemm_streamk.hpp"
-
 template <typename ProblemType>
 bool run_gemm(const ProblemType& problem_size, const ExecutionConfig& config)
 {
@@ -68,6 +66,26 @@ bool run_gemm(const ProblemType& problem_size, const ExecutionConfig& config)
         ck::utils::FillUniformDistributionIntegerValue<ADataType>{-5.f, 5.f}(a_m_k);
         ck::utils::FillUniformDistributionIntegerValue<BDataType>{-5.f, 5.f}(b_k_n);
         break;
+    case 2:
+        ck::utils::FillUniformDistribution<ADataType>{-5.f, 5.f}(a_m_k);
+        ck::utils::FillUniformDistribution<BDataType>{-5.f, 5.f}(b_k_n);
+        break;
+    case 3:
+        ck::utils::FillUniformDistribution<ADataType>{-1.f, 1.f}(a_m_k);
+        ck::utils::FillUniformDistribution<BDataType>{-1.f, 1.f}(b_k_n);
+        break;
+    case 4:
+        ck::utils::FillUniformDistribution<ADataType>{0.0f, 0.1f}(a_m_k);
+        ck::utils::FillUniformDistribution<BDataType>{-0.01f, 0.01f}(b_k_n);
+        break;
+    case 5:
+        ck::utils::FillConstant<ADataType>{static_cast<ADataType>(1.f)}(a_m_k);
+        ck::utils::FillUniformDistributionIntegerValue<BDataType>{-5.f, 5.f}(b_k_n);
+        break;
+    case 6:
+        ck::utils::FillUniformDistributionIntegerValue<ADataType>{-5.f, 5.f}(a_m_k);
+        ck::utils::FillConstant<BDataType>{static_cast<BDataType>(1.f)}(b_k_n);
+        break;
     default:
         ck::utils::FillUniformDistribution<ADataType>{-1.f, 1.f}(a_m_k);
         ck::utils::FillUniformDistribution<BDataType>{-1.f, 1.f}(b_k_n);
@@ -99,30 +117,24 @@ bool run_gemm(const ProblemType& problem_size, const ExecutionConfig& config)
     a_m_k_device_buf.ToDevice(a_m_k.mData.data());
     b_k_n_device_buf.ToDevice(b_k_n.mData.data());
 #endif
-    DeviceMem workspace;
 
     auto a_element_op = AElementOp{};
     auto b_element_op = BElementOp{};
     auto c_element_op = CElementOp{};
 
-    using BaseStreamK = ck::tensor_operation::device::DeviceGemmStreamK<ALayout,
-                                                                        BLayout,
-                                                                        CLayout,
-                                                                        ADataType,
-                                                                        BDataType,
-                                                                        CDataType,
-                                                                        AElementOp,
-                                                                        BElementOp,
-                                                                        CElementOp>;
+    float best_perf         = .0;
+    float best_time         = .0;
+    std::string best_kernel = "";
 
-    // do GEMM
-    auto gemm      = DeviceGemmInstance{};
-    auto invoker   = gemm.MakeInvoker();
-    float ave_time = 0;
+    ck::static_for<0, std::tuple_size_v<DeviceGemmFactory>, 1>{}([&](auto i) -> void {
+        const auto device_gemm_instance = std::get<i>(DeviceGemmFactory{});
 
-    if constexpr(std::is_same<ProblemType, ProblemSize>::value &&
-                 !std::is_base_of<BaseStreamK, DeviceGemmInstance>::value)
-    {
+        using DeviceGemmInstance = ck::remove_cvref_t<decltype(device_gemm_instance)>;
+        // do GEMM
+        auto gemm      = DeviceGemmInstance{};
+        auto invoker   = gemm.MakeInvoker();
+        float ave_time = 0;
+
         auto argument = gemm.MakeArgument(
 #ifdef BUILD_INT4_EXAMPLE
             static_cast<KernelADataType*>(a_m_k_device_buf.GetDeviceBuffer()),
@@ -142,82 +154,46 @@ bool run_gemm(const ProblemType& problem_size, const ExecutionConfig& config)
             a_element_op,
             b_element_op,
             c_element_op);
-
-        if(!gemm.IsSupportedArgument(argument))
-        {
-            std::cerr << gemm.GetTypeString() << " does not support this problem" << std::endl;
-
-            return true;
-        }
-
-        ave_time = invoker.Run(argument, StreamConfig{nullptr, config.time_kernel});
-    }
-    else if constexpr(std::is_same<ProblemType, ProblemSizeStreamK>::value &&
-                      std::is_base_of<BaseStreamK, DeviceGemmInstance>::value)
-    {
-        auto argument = gemm.MakeArgument(
-#ifdef BUILD_INT4_EXAMPLE
-            static_cast<KernelADataType*>(a_m_k_device_buf.GetDeviceBuffer()),
-            static_cast<KernelBDataType*>(b_k_n_device_buf.GetDeviceBuffer()),
-            static_cast<KernelCDataType*>(c_m_n_device_buf.GetDeviceBuffer()),
-#else
-            static_cast<ADataType*>(a_m_k_device_buf.GetDeviceBuffer()),
-            static_cast<BDataType*>(b_k_n_device_buf.GetDeviceBuffer()),
-            static_cast<CDataType*>(c_m_n_device_buf.GetDeviceBuffer()),
-#endif
-            M,
-            N,
-            K,
-            StrideA,
-            StrideB,
-            StrideC,
-            a_element_op,
-            b_element_op,
-            c_element_op,
-            problem_size.NumSKBlocks);
-
-        if(!gemm.IsSupportedArgument(argument))
-        {
-            std::cerr << gemm.GetTypeString() << " does not support this problem" << std::endl;
-
-            return true;
-        }
-
-        std::size_t workspace_size = gemm.GetWorkSpaceSize(&argument);
-        if(workspace_size != 0)
-        {
-            workspace.Realloc(workspace_size);
-            gemm.SetWorkSpacePointer(&argument, workspace.GetDeviceBuffer());
-        }
-
-        ave_time = invoker.Run(argument, StreamConfig{nullptr, config.time_kernel});
-
 #if 0
-        // TODO!!!!!
-        if(workspace_size != 0){
-            float * ws_ptr = reinterpret_cast<float*>(malloc(workspace_size));
-            size_t ws_dwords = workspace_size / sizeof(float);
-            workspace.FromDevice(ws_ptr);
+        if(!gemm.IsSupportedArgument(argument))
+        {
+            std::cerr << gemm.GetTypeString() << " does not support this problem" << std::endl;
 
-            for(size_t i = 0; i < ws_dwords; i++) {
-                uint32_t rere = reinterpret_cast<uint32_t*>(ws_ptr)[i];
-                printf("%4lu : %f(0x%08x)\n", i, ws_ptr[i], rere);
-            }
-            free(ws_ptr);
+            return true;
         }
 #endif
-    }
+        ave_time = invoker.Run(argument, StreamConfig{nullptr, config.time_kernel});
 
-    std::size_t flop = 2_uz * M * N * K;
-    std::size_t num_btype =
-        sizeof(ADataType) * M * K + sizeof(BDataType) * K * N + sizeof(CDataType) * M * N;
+        std::size_t flop = 2_uz * M * N * K;
+        std::size_t num_btype =
+            sizeof(ADataType) * M * K + sizeof(BDataType) * K * N + sizeof(CDataType) * M * N;
 
-    float tflops = static_cast<float>(flop) / 1.E9 / ave_time;
+        float tflops = static_cast<float>(flop) / 1.E9 / ave_time;
+        if(tflops > best_perf)
+        {
+            best_perf   = tflops;
+            best_time   = ave_time;
+            best_kernel = gemm.GetTypeString();
+        }
 
-    float gb_per_sec = num_btype / 1.E6 / ave_time;
+        float gb_per_sec = num_btype / 1.E6 / ave_time;
 
-    std::cout << "Perf: " << ave_time << " ms, " << tflops << " TFlops, " << gb_per_sec << " GB/s, "
-              << gemm.GetTypeString() << std::endl;
+        std::cout << "Perf: " << ave_time << " ms, " << tflops << " TFlops, " << gb_per_sec
+                  << " GB/s, " << gemm.GetTypeString() << std::endl;
+    });
+
+    std::cout << "---------------------------------------------------------------------------------"
+                 "-----------"
+              << std::endl;
+    std::cout << "Problem Size: M: " << M << ", N: " << N << ", K: " << K << std::endl;
+    std::cout << "---------------------------------------------------------------------------------"
+                 "-----------"
+              << std::endl;
+    std::cout << "Best kernel: " << best_kernel << " , " << best_perf << " TFlops , " << best_time
+              << " ms" << std::endl;
+    std::cout << "---------------------------------------------------------------------------------"
+                 "-----------"
+              << std::endl;
 
     if(config.do_verification)
     {

@@ -51,7 +51,7 @@ float launch_and_time_kernel(const StreamConfig& stream_config,
         hip_check_error(hipDeviceSynchronize());
         hip_check_error(hipEventRecord(start, stream_config.stream_id_));
 
-        for(int i = 0; i < profile_repeat; ++i)
+        for(int i = 0; i < nrepeat; ++i)
         {
             kernel<<<grid_dim, block_dim, lds_byte, stream_config.stream_id_>>>(args...);
             hip_check_error(hipGetLastError());
@@ -64,7 +64,7 @@ float launch_and_time_kernel(const StreamConfig& stream_config,
 
         hip_check_error(hipEventElapsedTime(&total_time, start, stop));
 
-        return total_time / profile_repeat;
+        return total_time / nrepeat;
     }
     else
     {

@@ -12,7 +12,7 @@
 #include "ck/tensor_operation/gpu/device/tensor_layout.hpp"
 #include "ck/tensor_operation/gpu/device/device_gemm.hpp"
 #include "ck/tensor_operation/gpu/device/gemm_specialization.hpp"
-#include "ck/tensor_operation/gpu/grid/gridwise_gemm_xdl_cshuffle_v1.hpp"
+#include "ck/tensor_operation/gpu/grid/gridwise_gemm_xdl_cshuffle_v1_doublelds.hpp"
 #include "ck/host_utility/device_prop.hpp"
 #include "ck/host_utility/kernel_launch.hpp"
 
@@ -155,10 +155,15 @@ struct DeviceGemm_Xdl_CShuffle : public DeviceGemm<ALayout,
             index_t gdx, gdy, gdz;
             std::tie(gdx, gdy, gdz) = GridwiseGemm::CalculateGridSize(arg.M, arg.N);
 
-            const auto K = GridwiseGemm::CalculateAK0(arg.K) * AK1;
-
             float ave_time = 0;
+#if 1
+            const auto kernel = kernel_gemm_xdl_cshuffle_v1<GridwiseGemm, true>;
 
+            ave_time = launch_and_time_kernel(
+                stream_config, kernel, dim3(gdx, gdy, gdz), dim3(BlockSize), 0, arg);
+#endif
+#if 0
+            const auto K = GridwiseGemm::CalculateAK0(arg.K) * AK1;
             if(GridwiseGemm::CalculateHasMainKBlockLoop(K))
             {
                 const auto kernel = kernel_gemm_xdl_cshuffle_v1<GridwiseGemm, true>;
@@ -173,7 +178,7 @@ struct DeviceGemm_Xdl_CShuffle : public DeviceGemm<ALayout,
                 ave_time = launch_and_time_kernel(
                     stream_config, kernel, dim3(gdx, gdy, gdz), dim3(BlockSize), 0, arg);
             }
-
+#endif
             return ave_time;
         }
 
