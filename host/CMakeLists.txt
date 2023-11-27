@@ -10,10 +10,10 @@ set(CK_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/..)
 
 find_package(ROCM)
 include(ROCMInstallTargets)
-include(ROCMTest)
+#include(ROCMTest)
 
 list(APPEND CMAKE_MODULE_PATH ${CK_ROOT}/cmake)
-include(Embed)
+#include(Embed)
 file(GLOB_RECURSE KERNEL_FILES CONFIGURE_DEPENDS
     ${CK_ROOT}/include/ck/*.hpp)
 message(STATUS "KERNEL_FILES: ${KERNEL_FILES}")
@@ -25,7 +25,7 @@ add_definitions(-std=c++17)
 file(GLOB SOURCES CONFIGURE_DEPENDS src/*.cpp)
 # TODO: Use object library
 add_library(ck_host STATIC ${SOURCES})
-target_link_libraries(ck_host PRIVATE ck_headers)
+#target_link_libraries(ck_host PRIVATE ck_headers)
 
 # TODO: Set -fPIC
 set_target_properties(ck_host PROPERTIES LINKER_LANGUAGE CXX)
@@ -38,11 +38,7 @@ add_executable(ck-template-driver driver/main.cpp)
 target_link_libraries(ck-template-driver ck_host)
 
 rocm_install(
-    TARGETS ck_host ck_headers
+    TARGETS ck_host
     EXPORT ck_hostTargets
 )
 rocm_install(DIRECTORY include/ck DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-
-if(BUILD_TESTING)
-add_subdirectory(test)
-endif()

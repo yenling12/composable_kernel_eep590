@@ -1,6 +1,8 @@
 
 #include <functional>
 #include <iostream>
+#include<fstream>
+#include<cstdlib>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -22,9 +24,13 @@ struct Emitters
         };
     }
 
-    std::string Emit(const std::string& name)
+    void Emit(const std::string& name)
     {
-        return "std::tuple<\n" + ck::host::JoinStrings(m.at(name)(), ",\n") + ">";
+        std::fstream op_inst;
+        op_inst.open(name + ".cpp", std::ios::out);
+        op_inst << ck::host::JoinStrings(m.at(name)(), ",\n");
+        op_inst.close();
+        //system("clang-format-12 -i out.cpp");
     }
 
     std::vector<std::string> List() const
@@ -59,7 +65,7 @@ int main(int argc, const char* argv[])
     }
 
     for(auto name : args)
-        std::cout << e.Emit(name) << std::endl;
+        e.Emit(name);
 
     return 0;
 }
