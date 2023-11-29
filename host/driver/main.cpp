@@ -1,8 +1,7 @@
-
 #include <functional>
 #include <iostream>
-#include<fstream>
-#include<cstdlib>
+#include <fstream>
+#include <cstdlib>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -26,11 +25,15 @@ struct Emitters
 
     void Emit(const std::string& name)
     {
-        std::fstream op_inst;
-        op_inst.open(name + ".cpp", std::ios::out);
-        op_inst << ck::host::JoinStrings(m.at(name)(), ",\n");
-        op_inst.close();
-        //system("clang-format-12 -i out.cpp");
+        for(auto vecIt = m.at(name)().begin(); vecIt != m.at(name)().end(); ++vecIt)
+        {
+	    int x = 0;
+            std::fstream op_inst;
+            op_inst.open(name + std::to_string(x) + ".cpp", std::ios::out);
+            op_inst << ck::host::JoinStrings(m.at(name)(), ",\n");
+            op_inst.close();
+	    x++;
+        }
     }
 
     std::vector<std::string> List() const
@@ -57,9 +60,9 @@ int main(int argc, const char* argv[])
         std::cout << "FLAGS:" << std::endl;
         std::cout << "    -h, --help                     Show help" << std::endl;
         std::cout << std::endl;
-        std::cout << "TEMPLATES:" << std::endl;
-        for(auto x : e.List())
-            std::cout << "    " << x << std::endl;
+        std::cout << "TEMPLATES : " << std::endl;
+        for(auto x : e.List()) 
+		std::cout << "    " << x << std::endl;
         std::cout << std::endl;
         return 0;
     }

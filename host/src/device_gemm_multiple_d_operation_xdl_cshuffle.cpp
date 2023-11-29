@@ -179,7 +179,9 @@ std::vector<Operation_Xdl_CShuffle> CreateOperationsImpl(F f, Layout ALayout, La
         x.cshuffle         = cshuffle_descriptions[i];
         x.c_block_transfer = c_block_descriptions[i];
         auto all           = f(x);                                                                                                                                              
+	//std::vector<Operation_Xdl_CShuffle> tmp(all.begin(), all.end());
         result.insert(result.end(), all.begin(), all.end());
+	//result.push_back(tmp);
     }
     return result;
 }
