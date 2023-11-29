@@ -25,7 +25,7 @@ struct DynamicBuffer
 {
     using type = T;
 
-    T* p_data_;
+    T* __restrict__ p_data_;
     ElementSpaceSize element_space_size_;
     T invalid_element_value_ = T{0};
 
@@ -410,7 +410,7 @@ template <AddressSpaceEnum BufferAddressSpace,
           AmdBufferCoherenceEnum coherence = AmdBufferCoherenceEnum::DefaultCoherence,
           typename T,
           typename ElementSpaceSize>
-__host__ __device__ constexpr auto make_dynamic_buffer(T* p, ElementSpaceSize element_space_size)
+__host__ __device__ constexpr auto make_dynamic_buffer(T* __restrict__ p, ElementSpaceSize element_space_size)
 {
     return DynamicBuffer<BufferAddressSpace, T, ElementSpaceSize, true, coherence>{
         p, element_space_size};
