@@ -317,15 +317,28 @@ struct BlockwiseGemmXdlops_pipeline_v4
 
         constexpr auto num_issue = num_buffer_load_inst;
 
-        static_for<0, num_issue, 1>{}([&](auto i) {
+        static_for<0, num_issue/2, 1>{}([&](auto i) {
             ignore = i;
-            __builtin_amdgcn_sched_group_barrier(0x008, 1, 0); // MFMA
-            __builtin_amdgcn_sched_group_barrier(0x100, num_ds_read_inst/num_buffer_load_inst, 0); // DS read
-            __builtin_amdgcn_sched_group_barrier(0x008, 1, 0); // MFMA
-            __builtin_amdgcn_sched_group_barrier(0x200, num_ds_write_inst/num_buffer_load_inst, 0); // DS write
+            static_for<0, 2*num_ds_read_inst/num_issue, 1>{}([&](auto ir) {
+                ignore = ir;
+                __builtin_amdgcn_sched_group_barrier(0x008, 1, 0); // MFMA
+                __builtin_amdgcn_sched_group_barrier(0x100, 1, 0); // DS read
+            });
             __builtin_amdgcn_sched_group_barrier(0x008, 1, 0); // MFMA
             __builtin_amdgcn_sched_group_barrier(0x020, 1, 0); // VMEM read
-            __builtin_amdgcn_sched_group_barrier(0x008, num_mfma_inst/num_buffer_load_inst-3, 0); // MFMA
+            __builtin_amdgcn_sched_group_barrier(0x008, num_mfma_inst/num_buffer_load_inst-2*num_ds_read_inst/num_issue -1, 0); // MFMA
+        });
+
+        static_for<0, num_issue/2, 1>{}([&](auto i) {
+            ignore = i;
+            static_for<0, 2*num_ds_write_inst/num_issue, 1>{}([&](auto iw) {
+                ignore = iw;
+                __builtin_amdgcn_sched_group_barrier(0x008, 1, 0); // MFMA
+                __builtin_amdgcn_sched_group_barrier(0x200, 1, 0); // DS write
+            });
+            __builtin_amdgcn_sched_group_barrier(0x008, 1, 0); // MFMA
+            __builtin_amdgcn_sched_group_barrier(0x020, 1, 0); // VMEM read
+            __builtin_amdgcn_sched_group_barrier(0x008, num_mfma_inst/num_buffer_load_inst-2*num_ds_write_inst/num_issue -1, 0); // MFMA
         });
     }
 
