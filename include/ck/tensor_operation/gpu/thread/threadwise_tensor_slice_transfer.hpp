@@ -1050,7 +1050,7 @@ struct ThreadwiseTensorSliceTransfer_v4
               typename DstBuffer>
     __device__ void Run(const SrcDesc&,
                         const SrcRefToOriginDisplacement&,
-                        const SrcBuffer& src_buf,
+                        const SrcBuffer& __restrict__ src_buf,
                         const DstDesc&,
                         const DstOriginIdx&,
                         DstBuffer& dst_buf) const
