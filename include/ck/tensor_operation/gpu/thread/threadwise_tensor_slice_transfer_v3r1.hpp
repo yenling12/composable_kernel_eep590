@@ -382,7 +382,7 @@ struct ThreadwiseTensorSliceTransfer_v3r1
 
     template <typename DstBuffer, index_t ThreadScratchId = 0>
     __device__ void RunWrite(const DstDesc& dst_desc,
-                             DstBuffer& __restrict__ dst_buf,
+                             DstBuffer& dst_buf,
                              Number<ThreadScratchId> thread_scratch_id = Number<ThreadScratchId>{})
     {
         // if there is transpose, it's done here

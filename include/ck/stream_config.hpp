@@ -9,7 +9,7 @@
 struct StreamConfig
 {
     hipStream_t stream_id_ = nullptr;
-    bool time_kernel_      = false;
+    int time_kernel_      = 0;
     int log_level_         = 0;
     int cold_niters_       = 50;
     int nrepeat_           = 200;

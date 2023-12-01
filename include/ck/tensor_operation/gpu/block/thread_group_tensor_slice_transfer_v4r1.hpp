@@ -123,7 +123,7 @@ struct ThreadGroupTensorSliceTransfer_v4r1
 
     template <typename DstBuffer, index_t ThreadScratchId = 0>
     __device__ void RunWrite(const DstDesc& dst_desc,
-                             DstBuffer& __restrict__ dst_buf,
+                             DstBuffer& dst_buf,
                              Number<ThreadScratchId> thread_scratch_id = Number<ThreadScratchId>{})
     {
         if(ThreadGroup::GetNumOfThread() == thread_cluster_desc_.GetElementSize() or

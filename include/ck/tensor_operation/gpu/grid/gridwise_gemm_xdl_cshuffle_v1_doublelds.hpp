@@ -30,6 +30,7 @@ __global__ void
     __shared__ char p_shared_0[GridwiseGemm::GetSharedMemoryNumberOfByte()];
     __shared__ char p_shared_1[GridwiseGemm::GetSharedMemoryNumberOfByte()];
 
+
     GridwiseGemm::template Run<HasMainKBlockLoop>(
         karg.p_a_grid, karg.p_b_grid, karg.p_c_grid, p_shared_0, p_shared_1, karg);
 #else
@@ -46,9 +47,9 @@ __global__ void
 #if CK_USE_LAUNCH_BOUNDS
     __launch_bounds__(CK_MAX_THREAD_PER_BLOCK, CK_MIN_BLOCK_PER_CU)
 #endif
-        kernel_gemm_xdl_cshuffle_v1(const FloatA* __restrict__ p_a_grid,
-                                    const FloatB* __restrict__ p_b_grid,
-                                    FloatC* __restrict__ p_c_grid,
+        kernel_gemm_xdl_cshuffle_v1(const FloatA* p_a_grid,
+                                    const FloatB* p_b_grid,
+                                    FloatC* p_c_grid,
                                     typename GridwiseGemm::Problem problem)
 {
 #if(!defined(__HIP_DEVICE_COMPILE__) || defined(__gfx908__) || defined(__gfx90a__) || \
@@ -706,11 +707,11 @@ struct GridwiseGemm_k0mk1_k0nk1_mn_xdl_cshuffle_v1
     using Block2CTileMap = BlockToCTileMap_M00_N0_M01Adapt<MPerBlock, NPerBlock>;
 
     template <bool HasMainKBlockLoop>
-    __device__ static void Run(const FloatA* __restrict__ p_a_grid,
-                               const FloatB* __restrict__ p_b_grid,
-                               FloatC* __restrict__ p_c_grid,
-                               void* __restrict__ p_shared_0,
-                               void* __restrict__ p_shared_1,
+    __device__ static void Run(const FloatA* p_a_grid,
+                               const FloatB* p_b_grid,
+                               FloatC* p_c_grid,
+                               void* p_shared_0,
+                               void* p_shared_1,
                                const Problem& problem)
     {
         const auto a_grid_desc_ak0_m_ak1 = MakeAGridDescriptor_AK0_M_AK1(
@@ -872,17 +873,17 @@ struct GridwiseGemm_k0mk1_k0nk1_mn_xdl_cshuffle_v1
             a_block_desc_ak0_m_ak1.GetElementSpaceSize(), max_lds_align);
 
         auto a_block_buf_ping = make_dynamic_buffer<AddressSpaceEnum::Lds>(
-            static_cast<ComputeTypeA* __restrict__>(p_shared_0), a_block_desc_ak0_m_ak1.GetElementSpaceSize());
+            static_cast<ComputeTypeA*>(p_shared_0), a_block_desc_ak0_m_ak1.GetElementSpaceSize());
 
         auto b_block_buf_ping = make_dynamic_buffer<AddressSpaceEnum::Lds>(
-            static_cast<ComputeTypeB* __restrict__>(p_shared_0) + a_block_space_size_aligned,
+            static_cast<ComputeTypeB*>(p_shared_0) + a_block_space_size_aligned,
             b_block_desc_bk0_n_bk1.GetElementSpaceSize());
 
         auto a_block_buf_pong = make_dynamic_buffer<AddressSpaceEnum::Lds>(
-            static_cast<ComputeTypeA* __restrict__>(p_shared_1), a_block_desc_ak0_m_ak1.GetElementSpaceSize());
+            static_cast<ComputeTypeA*>(p_shared_1), a_block_desc_ak0_m_ak1.GetElementSpaceSize());
 
         auto b_block_buf_pong = make_dynamic_buffer<AddressSpaceEnum::Lds>(
-            static_cast<ComputeTypeB* __restrict__>(p_shared_1) + a_block_space_size_aligned,
+            static_cast<ComputeTypeB*>(p_shared_1) + a_block_space_size_aligned,
             b_block_desc_bk0_n_bk1.GetElementSpaceSize());
 
         auto a_block_bufs = make_tuple(a_block_buf_ping, a_block_buf_pong);

@@ -162,7 +162,7 @@ bool run_gemm(const ProblemType& problem_size, const ExecutionConfig& config)
             return true;
         }
 #endif
-        ave_time = invoker.Run(argument, StreamConfig{nullptr, config.time_kernel});
+        ave_time = invoker.Run(argument, StreamConfig{nullptr, config.time_kernel, 0, 300, 3000});
 
         std::size_t flop = 2_uz * M * N * K;
         std::size_t num_btype =
@@ -178,7 +178,11 @@ bool run_gemm(const ProblemType& problem_size, const ExecutionConfig& config)
 
         float gb_per_sec = num_btype / 1.E6 / ave_time;
 
-        std::cout << "Perf: " << ave_time << " ms, " << tflops << " TFlops, " << gb_per_sec
+        if(config.time_kernel==1)
+        std::cout << "Perf mode Mean: " << ave_time << " ms, " << tflops << " TFlops, " << gb_per_sec
+                  << " GB/s, " << gemm.GetTypeString() << std::endl;
+        else if(config.time_kernel==2)
+        std::cout << "Perf mode Median: " << ave_time << " ms, " << tflops << " TFlops, " << gb_per_sec
                   << " GB/s, " << gemm.GetTypeString() << std::endl;
     });
 

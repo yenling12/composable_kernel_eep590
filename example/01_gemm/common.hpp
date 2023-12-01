@@ -50,7 +50,7 @@ struct ExecutionConfig final
 {
     bool do_verification = true;
     int init_method      = 1;
-    bool time_kernel     = false;
+    int time_kernel     = 0;
 };
 
 template <ck::index_t... Is>

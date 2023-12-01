@@ -30,7 +30,7 @@ float launch_and_time_kernel(const StreamConfig& stream_config,
                block_dim.y,
                block_dim.z);
 
-        printf("Warm up 1 time\n");
+        printf("Warm up %d time\n", stream_config.cold_niters_);
 #endif
         // warm up
         for(int i = 0; i < stream_config.cold_niters_; ++i)
@@ -48,23 +48,39 @@ float launch_and_time_kernel(const StreamConfig& stream_config,
         hip_check_error(hipEventCreate(&start));
         hip_check_error(hipEventCreate(&stop));
 
-        hip_check_error(hipDeviceSynchronize());
-        hip_check_error(hipEventRecord(start, stream_config.stream_id_));
+        std::vector<float> execution_time_series;
 
         for(int i = 0; i < nrepeat; ++i)
         {
+            float execution_time = 0;
+            hip_check_error(hipDeviceSynchronize());
+            hip_check_error(hipEventRecord(start, stream_config.stream_id_));
             kernel<<<grid_dim, block_dim, lds_byte, stream_config.stream_id_>>>(args...);
             hip_check_error(hipGetLastError());
+            hip_check_error(hipEventRecord(stop, stream_config.stream_id_));
+            hip_check_error(hipEventSynchronize(stop));
+            hip_check_error(hipEventElapsedTime(&execution_time, start, stop));
+            execution_time_series.push_back(execution_time);
         }
 
-        hip_check_error(hipEventRecord(stop, stream_config.stream_id_));
-        hip_check_error(hipEventSynchronize(stop));
+        float mean_execution_time = 0;
+        float median_execution_time = 0;
 
-        float total_time = 0;
+#if DEBUG_LOG
+        for(int i =0; i<nrepeat; i++){
+           std::cout<<i<<" th launch, execution time = "<<execution_time_series[i]<<" ms"<<std::endl;
+        }
+#endif
 
-        hip_check_error(hipEventElapsedTime(&total_time, start, stop));
+        std::sort(execution_time_series.begin(),execution_time_series.end());
 
-        return total_time / nrepeat;
+        mean_execution_time = std::reduce(execution_time_series.begin(), execution_time_series.end(), .0)/static_cast<float>(nrepeat);
+        median_execution_time = execution_time_series[execution_time_series.size()/2];
+
+        if(stream_config.time_kernel_==1)
+        return mean_execution_time;
+        else
+        return median_execution_time;
     }
     else
     {
