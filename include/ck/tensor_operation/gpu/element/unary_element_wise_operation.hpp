@@ -197,7 +197,9 @@ struct PassThrough
     template <>
     __host__ __device__ void operator()<half_t, f8_t>(half_t& y, const f8_t& x) const
     {
-        y = type_convert<half_t>(x);
+        const uint16_t tmp = bit_cast<uint8_t>(x);
+        y                  = bit_cast<half_t>(tmp);
+        // y = type_convert<half_t>(x);
     }
 
     template <>

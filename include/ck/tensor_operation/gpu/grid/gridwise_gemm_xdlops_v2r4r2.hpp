@@ -401,7 +401,7 @@ struct GridwiseGemm_bk0mk1_bk0nk1_mn_xdlops_v2r4r2
             GetCBlockDescriptor_MBlock_MPerBlock_NBlock_NPerBlock().GetElementSpaceSize();
 
         return math::max((a_block_space_size + b_block_space_size) * sizeof(ComputeType),
-                         c_block_size * sizeof(FloatC));
+                         c_block_size * sizeof(FloatAcc));
     }
 
     __host__ __device__ static constexpr bool CheckValidity(const Argument& karg)
@@ -891,7 +891,7 @@ struct GridwiseGemm_bk0mk1_bk0nk1_mn_xdlops_v2r4r2
                 GetCBlockDescriptor_MBlock_MPerBlock_NBlock_NPerBlock();
 
             auto c_block_buf = make_dynamic_buffer<AddressSpaceEnum::Lds>(
-                static_cast<FloatC*>(p_shared_block),
+                static_cast<FloatAcc*>(p_shared_block),
                 c_block_desc_mblock_mperblock_nblock_nperblock.GetElementSpaceSize());
 
             constexpr auto c_block_desc_m0_n0_m1_n1_m2_m3_m4_n2 = transform_tensor_descriptor(
@@ -942,7 +942,7 @@ struct GridwiseGemm_bk0mk1_bk0nk1_mn_xdlops_v2r4r2
             // VGPR to LDS
             auto c_thread_copy_vgpr_to_lds =
                 ThreadwiseTensorSliceTransfer_v1r3<FloatAcc,
-                                                   FloatC,
+                                                   FloatAcc,
                                                    decltype(c_m0_n0_m1_n1_m2_m3_m4_n2_thread_desc),
                                                    decltype(c_block_desc_m0_n0_m1_n1_m2_m3_m4_n2),
                                                    ck::tensor_operation::element_wise::PassThrough,
@@ -982,7 +982,7 @@ struct GridwiseGemm_bk0mk1_bk0nk1_mn_xdlops_v2r4r2
                          CShuffleNRepeatPerShuffle * NWave * NPerXDL>, // BlockSliceLengths,
                 CBlockTransferClusterLengths_MBlock_MPerBlock_NBlock_NPerBlock,
                 Sequence<0, 1, 2, 3>, // typename ThreadClusterArrangeOrder,
-                FloatC,               // typename SrcData,
+                FloatAcc,             // typename SrcData,
                 FloatC,               // typename DstData,
                 decltype(c_block_desc_mblock_mperblock_nblock_nperblock),
                 decltype(c_grid_desc_mblock_mperblock_nblock_nperblock),
