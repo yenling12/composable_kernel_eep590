@@ -157,7 +157,7 @@ bool run_splitK_gemm(const ProblemSize& problem_size, const ExecutionConfig& con
 
     if(config.time_kernel)
     {
-        float ave_time = invoker.Run(argument, StreamConfig{nullptr, config.time_kernel});
+        float ave_time = invoker.Run(argument, StreamConfig{nullptr, true, 0, 300, 1000});
 
         std::size_t flop = std::size_t(2) * M * N * K;
         std::size_t num_btype =
@@ -165,7 +165,7 @@ bool run_splitK_gemm(const ProblemSize& problem_size, const ExecutionConfig& con
 
         float tflops     = static_cast<float>(flop) / 1.E9 / ave_time;
         float gb_per_sec = num_btype / 1.E6 / ave_time;
-        std::cout << "Perf: " << ave_time << " ms, " << tflops << " TFlops, " << gb_per_sec
+        std::cout << ">>> Perf: " << ave_time << " ms, " << tflops << " TFlops, " << gb_per_sec
                   << " GB/s, " << gemm.GetTypeString() << std::endl;
     }
 
