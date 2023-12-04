@@ -33,6 +33,53 @@ MakeGemmMmaTileDescriptor_MN0_MN1_MN2_K(const TileDesc_K0_MN_K1&)
 }
 #endif
 
+template<
+    index_t BlockSize,
+    index_t MPerBlock,
+    index_t NPerBlock,
+    index_t KPerBlock,
+    index_t ABufferLoadWidth,
+    index_t BBufferLoadWidth,
+    index_t ALDSWriteWidth,
+    index_t BLDSWriteWidth,
+    index_t ALDSReadWidth,
+    index_t BLDSReadWidth,
+    index_t MRepeat,
+    index_t NRepeat,
+    index_t MPerXDL,
+    index_t NPerXDL,
+    index_t KPerXDL>
+struct BlockwiseGemmXdlops_pipeline_hotloop_inst
+{
+    static constexpr index_t WaveSize = 64;
+    static constexpr index_t WaveNumM = MPerBlock / ( MRepeat *MPerXDL);
+    static constexpr index_t WaveNumN = NPerBlock / ( NRepeat *NPerXDL);
+
+    static constexpr index_t A_Buffer_Load_Inst_Num = MPerBlock* KPerBlock / (BlockSize* ABufferLoadWidth);
+    static constexpr index_t B_Buffer_Load_Inst_Num = NPerBlock* KPerBlock / (BlockSize* BBufferLoadWidth);
+
+    static constexpr index_t A_LDS_Write_Inst_Num = MPerBlock* KPerBlock / (BlockSize* ALDSWriteWidth);
+    static constexpr index_t B_LDS_Write_Inst_Num = NPerBlock* KPerBlock / (BlockSize* BLDSWriteWidth);
+
+    static constexpr index_t A_LDS_Read_Inst_Num = WaveNumN* MPerBlock* KPerBlock / (BlockSize* ALDSReadWidth);
+    static constexpr index_t B_LDS_Read_Inst_Num = WaveNumM* MPerBlock* KPerBlock / (BlockSize* BLDSReadWidth);
+
+    static constexpr index_t C_MFMA_Inst_Num = MPerBlock*NPerBlock*KPerBlock / (BlockSize/WaveSize)/(MPerXDL*NPerXDL*KPerXDL);
+
+    static constexpr auto Print(){
+        printf(" Blk/Wave Size: %d, %d, M/N/K PerBlk: %d, %d, %d, M/N/K PerXdl: %d, %d, %d\n",
+        BlockSize,WaveSize,
+        MPerBlock,NPerBlock,KPerBlock,
+        MPerXDL,NPerXDL,KPerXDL);
+
+        printf(" A/B buffer load inst: %d, %d\n A/B LDS write inst: %d, %d\n A/B LDS read inst: %d, %d\n C MFMA inst: %d\n",
+        A_Buffer_Load_Inst_Num, B_Buffer_Load_Inst_Num,
+        A_LDS_Write_Inst_Num, B_LDS_Write_Inst_Num,
+        A_LDS_Read_Inst_Num, B_LDS_Read_Inst_Num,
+        C_MFMA_Inst_Num);
+    }
+};
+
 template <
     index_t BlockSize,
     typename FloatAB,
@@ -79,6 +126,22 @@ struct BlockwiseGemmXdlops_pipeline_v4
     static constexpr index_t MWaves = MPerBlock / (MRepeat * MPerXDL);
     static constexpr index_t NWaves = NPerBlock / (NRepeat * NPerXDL);
 
+    using HotLoopInstList = BlockwiseGemmXdlops_pipeline_hotloop_inst< BlockSize,
+                                                                       MPerBlock,
+                                                                       NPerBlock,
+                                                                       KPerBlock,
+                                                                       A_K1,
+                                                                       B_K1,
+                                                                       A_K1,
+                                                                       B_K1,
+                                                                       KPack,
+                                                                       KPack,
+                                                                       MRepeat,
+                                                                       NRepeat,
+                                                                       MPerXDL,
+                                                                       NPerXDL,
+                                                                       xdlops_gemm.KPerXdlops>;
+    
     static_assert(KPerThread % KPack == 0,
                   "Wrong KPack setting; try increasing KPerThread or decreasing KPack");
 
@@ -184,6 +247,8 @@ struct BlockwiseGemmXdlops_pipeline_v4
 
         static_assert(MPerBlock % (MPerXDL * MRepeat) == 0 && NPerBlock % (NPerXDL * NRepeat) == 0,
                       "wrong!");
+
+        // HotLoopInstList::Print();
     }
 
     // transposed XDL output supporting C_xdl' = B_xdl' * A_xdl'
@@ -310,10 +375,10 @@ struct BlockwiseGemmXdlops_pipeline_v4
     __device__ static constexpr auto HotLoopScheduler()
     {
         // schedule
-        constexpr auto num_ds_read_inst = 16;
-        constexpr auto num_ds_write_inst = 8;
-        constexpr auto num_buffer_load_inst = 8;
-        constexpr auto num_mfma_inst = 64;
+        constexpr auto num_ds_read_inst = HotLoopInstList::A_LDS_Read_Inst_Num+HotLoopInstList::B_LDS_Read_Inst_Num;
+        constexpr auto num_ds_write_inst = HotLoopInstList::A_LDS_Write_Inst_Num+HotLoopInstList::B_LDS_Write_Inst_Num;;
+        constexpr auto num_buffer_load_inst = HotLoopInstList::A_Buffer_Load_Inst_Num+HotLoopInstList::B_Buffer_Load_Inst_Num;;
+        constexpr auto num_mfma_inst = HotLoopInstList::C_MFMA_Inst_Num;
 
         constexpr auto num_issue = num_buffer_load_inst;
 
@@ -338,9 +403,9 @@ struct BlockwiseGemmXdlops_pipeline_v4
     __device__ static constexpr auto TailScheduler<1>()
     {
         // schedule
-        constexpr auto num_ds_read_inst = 16;
-        constexpr auto num_ds_write_inst = 8;
-        constexpr auto num_mfma_inst = 64;
+        constexpr auto num_ds_read_inst = HotLoopInstList::A_LDS_Read_Inst_Num+HotLoopInstList::B_LDS_Read_Inst_Num;
+        constexpr auto num_ds_write_inst = HotLoopInstList::A_LDS_Write_Inst_Num+HotLoopInstList::B_LDS_Write_Inst_Num;;
+        constexpr auto num_mfma_inst = HotLoopInstList::C_MFMA_Inst_Num;
 
         constexpr auto num_issue = num_ds_write_inst;
 
@@ -360,8 +425,8 @@ struct BlockwiseGemmXdlops_pipeline_v4
     __device__ static constexpr auto TailScheduler<2>()
     {
         // schedule
-        constexpr auto num_ds_read_inst = 16;
-        constexpr auto num_mfma_inst = 64;
+        constexpr auto num_ds_read_inst = HotLoopInstList::A_LDS_Read_Inst_Num+HotLoopInstList::B_LDS_Read_Inst_Num;
+        constexpr auto num_mfma_inst = HotLoopInstList::C_MFMA_Inst_Num;
 
         constexpr auto num_issue = num_ds_read_inst;
 

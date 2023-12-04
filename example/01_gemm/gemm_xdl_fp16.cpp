@@ -243,6 +243,22 @@ using DeviceGemmFactory =
         2, 8, 8, 0,
         1, 1, S<1, 32, 1, 8>, 8,
         ck::LoopScheduler::Default, ck::PipelineVersion::v1>
+    // ,
+    // ck::tensor_operation::device::DeviceGemm_Xdl_CShuffle<
+    //     Row,   Col,  Row,   
+    //     F16,   F16,  F16,  F32,  F16, 
+    //     PassThrough, PassThrough, PassThrough, GemmDefault, 
+    //     2,   256,
+    //     256, 224, 
+    //     32, 8, 4,
+    //     32,   32,
+    //     2,    7, 
+    //     S<4, 64, 1>,  S<1, 0, 2>,  S<1, 0, 2>, 
+    //     2, 8, 8, 0,
+    //     S<8, 32, 1>,  S<1, 0, 2>,  S<1, 0, 2>, 
+    //     2, 8, 4, 0,
+    //     1, 1, S<1, 64, 1, 4>, 8,
+    //     ck::LoopScheduler::Default, ck::PipelineVersion::v1>
 
     >;
 
