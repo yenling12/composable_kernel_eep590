@@ -17,22 +17,22 @@ struct Emitters
     {
         m[name] = [] {
             auto ops = T::CreateOperations();
-
             return ck::host::Transform(
                 ops, [](const auto& op) { return op.ToSolution().ToTemplateString(); });
         };
+        // std::cout << m[name]()[1] << std::endl;
     }
 
     void Emit(const std::string& name)
     {
-        for(auto vecIt = m.at(name)().begin(); vecIt != m.at(name)().end(); ++vecIt)
+        int x = 0;
+        for(auto vecIt = m[name]()[x]; x < 2; vecIt = m[name]()[x])
         {
-	    int x = 0;
             std::fstream op_inst;
             op_inst.open(name + std::to_string(x) + ".cpp", std::ios::out);
-            op_inst << ck::host::JoinStrings(m.at(name)(), ",\n");
+            op_inst << m[name]()[x];
             op_inst.close();
-	    x++;
+            x++;
         }
     }
 
@@ -61,8 +61,8 @@ int main(int argc, const char* argv[])
         std::cout << "    -h, --help                     Show help" << std::endl;
         std::cout << std::endl;
         std::cout << "TEMPLATES : " << std::endl;
-        for(auto x : e.List()) 
-		std::cout << "    " << x << std::endl;
+        for(auto x : e.List())
+            std::cout << "    " << x << std::endl;
         std::cout << std::endl;
         return 0;
     }

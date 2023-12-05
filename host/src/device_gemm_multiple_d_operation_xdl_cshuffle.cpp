@@ -60,8 +60,10 @@ std::vector<Operation_Xdl_CShuffle> CreateOperationsImpl(F f, Layout ALayout, La
         // clang-format on
     };
 
-    std::vector<operation::BlockTransferDesc> a_block_descriptions_rowmajor = {
-        // clang-format off
+    std::vector<operation::BlockTransferDesc>
+        a_block_descriptions_rowmajor =
+            {
+                // clang-format off
 //  ABlockTransfer| ABlockTransfer| ABlockTransfer| ABlockTransfer| ABlockTransfer| ABlockTransfer| ABlockLds|
 //   ThreadCluster|  ThreadCluster| SrcAccessOrder|   SrcVectorDim|      SrcScalar|      DstScalar| AddExtraM|
 // Lengths_K0_M_K1|   ArrangeOrder|               |               |      PerVector|   PerVector_K1|          |
@@ -82,8 +84,8 @@ std::vector<Operation_Xdl_CShuffle> CreateOperationsImpl(F f, Layout ALayout, La
 //   {    S<4, 64, 1>,     S<1, 0, 2>,     S<1, 0, 2>,              2,              8,              8,         1},
 //   {    S<4, 64, 1>,     S<1, 0, 2>,     S<1, 0, 2>,              2,              8,              8,         1},
 //   {    S<4, 64, 1>,     S<1, 0, 2>,     S<1, 0, 2>,              2,              8,              8,         1},
-        // clang-format on
-    };
+                // clang-format on
+            };
 
     std::vector<operation::BlockTransferDesc> b_block_descriptions_rowmajor = {
         // clang-format off
@@ -178,10 +180,8 @@ std::vector<Operation_Xdl_CShuffle> CreateOperationsImpl(F f, Layout ALayout, La
         x.b_block_transfer = b_block_descriptions[i];
         x.cshuffle         = cshuffle_descriptions[i];
         x.c_block_transfer = c_block_descriptions[i];
-        auto all           = f(x);                                                                                                                                              
-	std::vector<Operation_Xdl_CShuffle> tmp(all.begin(), all.end());
+        auto all           = f(x);
         result.insert(result.end(), all.begin(), all.end());
-	//result.push_back(tmp);
     }
     return result;
 }
@@ -219,14 +219,7 @@ std::vector<Operation_Xdl_CShuffle> Operation_Xdl_CShuffle::CreateOperations(con
 }
 
 static const char* const DeviceGemmMultipleD_Xdl_CShuffleTemplate =
-// "bool run_gemm_${name}(int argc, char* argv[])\n"
-// "{\n"
-// "    ProblemSize problem_size;\n"
-// "    ExecutionConfig config;\n\n"
-
-// "    return !parse_cmd_args(argc, argv, problem_size, config) || run_gemm_${name}(problem_size, config); \n"
-// "}\n";
-R"(// SPDX-License-Identifier: MIT
+    R"(// SPDX-License-Identifier: MIT
 // Copyright (c) 2018-2023, Advanced Micro Devices, Inc. All rights reserved.
 
 #include <iostream>
@@ -535,7 +528,9 @@ int main(int argc, char* argv[])
 
 Solution Operation_Xdl_CShuffle::ToSolution() const
 {
-    //name = (str(operation.tile_desc.block_size) + "_" + std::to_string(this->tile_desc.m_per_block) + "_" + std::to_string(this->tile_desc.n_per_block)
+    // name = (str(operation.tile_desc.block_size) + "_" +
+    // std::to_string(this->tile_desc.m_per_block) + "_" +
+    // std::to_string(this->tile_desc.n_per_block)
     //+ "_" + str(std::to_string(this->tile_desc.k_per_block)) + "_" + str(operation.tile_desc.k1))
     std::unordered_map<std::string, std::string> values = {
         {"name", ToString(this->A.layout)},
