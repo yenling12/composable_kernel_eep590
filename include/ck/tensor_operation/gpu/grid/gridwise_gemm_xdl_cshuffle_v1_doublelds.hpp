@@ -32,7 +32,6 @@ __global__ void
     __shared__ char p_shared_0[GridwiseGemm::GetSharedMemoryNumberOfByte()];
     __shared__ char p_shared_1[GridwiseGemm::GetSharedMemoryNumberOfByte()];
 
-
     GridwiseGemm::template Run<HasMainKBlockLoop>(
         karg.p_a_grid, karg.p_b_grid, karg.p_c_grid, p_shared_0, p_shared_1, karg);
 #else
@@ -59,7 +58,8 @@ __global__ void
     __shared__ char p_shared_0[GridwiseGemm::GetSharedMemoryNumberOfByte()];
     __shared__ char p_shared_1[GridwiseGemm::GetSharedMemoryNumberOfByte()];
 
-    GridwiseGemm::template Run<HasMainKBlockLoop>(p_a_grid, p_b_grid, p_c_grid, p_shared_0, p_shared_1, problem);
+    GridwiseGemm::template Run<HasMainKBlockLoop>(
+        p_a_grid, p_b_grid, p_c_grid, p_shared_0, p_shared_1, problem);
 #else
     ignore = p_a_grid;
     ignore = p_b_grid;
@@ -575,7 +575,7 @@ struct GridwiseGemm_k0mk1_k0nk1_mn_xdl_cshuffle_v1
             c_shuffle_block_desc_mblock_mperblock_nblock_nperblock.GetElementSpaceSize();
 
         return math::max((a_block_space_size_aligned * sizeof(ComputeTypeA) +
-                              b_block_space_size_aligned * sizeof(ComputeTypeB)),
+                          b_block_space_size_aligned * sizeof(ComputeTypeB)),
                          c_block_size * sizeof(FloatCShuffle));
     }
 
@@ -743,7 +743,7 @@ struct GridwiseGemm_k0mk1_k0nk1_mn_xdl_cshuffle_v1
 
         const auto block_work_idx =
             block_2_ctile_map.CalculateBottomIndex(make_multi_index(get_block_1d_id()));
-
+        const auto wgp_simd_idx = get_block_1d_id() %4;
         if(!block_2_ctile_map.ValidCTileIndex(
                block_work_idx,
                make_tuple(c_grid_desc_mblock_mperblock_nblock_nperblock.GetLength(I0),
@@ -915,7 +915,8 @@ struct GridwiseGemm_k0mk1_k0nk1_mn_xdl_cshuffle_v1
                                                                 b_block_bufs,
                                                                 b_block_slice_copy_step,
                                                                 c_thread_buf,
-                                                                num_k_block_main_loop);
+                                                                num_k_block_main_loop,
+                                                                wgp_simd_idx);
 
         // shuffle C and write out
         {

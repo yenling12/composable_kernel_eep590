@@ -10,7 +10,7 @@
 #include "ck/tensor_description/tensor_adaptor.hpp"
 
 // Double LDS buffer
-// Prefetech 2 stage
+// Prefetech 4 stage
 // Local prefetch 1 stage
 
 namespace ck {
@@ -117,7 +117,7 @@ template <
         KPack* XdlopsGemm<FloatAB, MPerXDL, NPerXDL, KPack, FloatAB, TransposeC>{}.K0PerXdlops,
     index_t BMmaKStride =
         KPack* XdlopsGemm<FloatAB, MPerXDL, NPerXDL, KPack, FloatAB, TransposeC>{}.K0PerXdlops>
-struct BlockwiseGemmXdlops_pipeline_v4
+struct BlockwiseGemmXdlops_pipeline_v5
 {
     static constexpr auto I0 = Number<0>{};
     static constexpr auto I1 = Number<1>{};
@@ -251,7 +251,7 @@ struct BlockwiseGemmXdlops_pipeline_v4
     using Tuple4 = decltype(CalculateAThreadOriginDataIndex());
 
     __host__ __device__
-    BlockwiseGemmXdlops_pipeline_v4(Tuple4 a_origin = CalculateAThreadOriginDataIndex(),
+    BlockwiseGemmXdlops_pipeline_v5(Tuple4 a_origin = CalculateAThreadOriginDataIndex(),
                                     Tuple4 b_origin = CalculateBThreadOriginDataIndex())
         : a_thread_copy_(a_origin), b_thread_copy_(b_origin)
     {
@@ -388,7 +388,6 @@ struct BlockwiseGemmXdlops_pipeline_v4
             c_grid_desc_g_m0_n0_m1_n1_m2_n2);
     }
 
-    template <index_t SIMD_ID>
     __device__ static constexpr auto HotLoopScheduler()
     {
         // schedule
@@ -406,7 +405,7 @@ struct BlockwiseGemmXdlops_pipeline_v4
 
         static_for<0, num_issue, 1>{}([&](auto i) {
             ignore = i;
-            __builtin_amdgcn_sched_group_barrier(0x008, SIMD_ID + 1, 0); // MFMA
+            __builtin_amdgcn_sched_group_barrier(0x008, 1, 0); // MFMA
             __builtin_amdgcn_sched_group_barrier(
                 0x100, num_ds_read_inst / num_buffer_load_inst, 0); // DS read
             __builtin_amdgcn_sched_group_barrier(0x008, 1, 0);      // MFMA
@@ -415,7 +414,7 @@ struct BlockwiseGemmXdlops_pipeline_v4
             __builtin_amdgcn_sched_group_barrier(0x008, 1, 0);       // MFMA
             __builtin_amdgcn_sched_group_barrier(0x020, 1, 0);       // VMEM read
             __builtin_amdgcn_sched_group_barrier(
-                0x008, num_mfma_inst / num_buffer_load_inst - 3 - SIMD_ID, 0); // MFMA
+                0x008, num_mfma_inst / num_buffer_load_inst - 3, 0); // MFMA
         });
     }
 
@@ -499,10 +498,8 @@ struct BlockwiseGemmXdlops_pipeline_v4
                         BBlockBuffer& b_block_buf,
                         const BBlockTransferStep& b_block_copy_step,
                         CThreadBuffer& c_thread_buf,
-                        index_t num_loop,
-                        index_t simd_id) const
+                        index_t num_loop) const
     {
-        ignore = simd_id;
         __builtin_amdgcn_sched_barrier(0);
         auto a_thread_buf = make_static_buffer<AddressSpaceEnum::Vgpr, FloatAB>(
             a_thread_desc_.GetElementSpaceSize());
@@ -518,17 +515,32 @@ struct BlockwiseGemmXdlops_pipeline_v4
         // v_mfma: 0
         // -------------------------------------------------------------------------------------------
 
-        // Global prefetch 1th, Fill Ping LDS
-        a_blockwise_copy.RunRead(a_grid_desc, a_grid_buf);
-        b_blockwise_copy.RunRead(b_grid_desc, b_grid_buf);
+        // Global prefetch 1st
+        a_blockwise_copy.RunRead(a_grid_desc, a_grid_buf, I0);
+        b_blockwise_copy.RunRead(b_grid_desc, b_grid_buf, I0);
 
         a_blockwise_copy.MoveSrcSliceWindow(a_grid_desc, a_block_copy_step);
         b_blockwise_copy.MoveSrcSliceWindow(b_grid_desc, b_block_copy_step);
 
-        a_blockwise_copy.RunWrite(a_block_desc, a_block_buf.At(I0));
-        b_blockwise_copy.RunWrite(b_block_desc, b_block_buf.At(I0));
+        // Global prefetch 2nd
+        a_blockwise_copy.RunRead(a_grid_desc, a_grid_buf, I1);
+        b_blockwise_copy.RunRead(b_grid_desc, b_grid_buf, I1);
 
-        // Local prefetch 1th, Fill Ping Reg
+        a_blockwise_copy.MoveSrcSliceWindow(a_grid_desc, a_block_copy_step);
+        b_blockwise_copy.MoveSrcSliceWindow(b_grid_desc, b_block_copy_step);
+
+        // Local prefill 1st, Fill Ping LDS
+        a_blockwise_copy.RunWrite(a_block_desc, a_block_buf.At(I0), I0);
+        b_blockwise_copy.RunWrite(b_block_desc, b_block_buf.At(I0), I0);
+
+        // Global prefetch 3rd
+        a_blockwise_copy.RunRead(a_grid_desc, a_grid_buf, I0);
+        b_blockwise_copy.RunRead(b_grid_desc, b_grid_buf, I0);
+
+        a_blockwise_copy.MoveSrcSliceWindow(a_grid_desc, a_block_copy_step);
+        b_blockwise_copy.MoveSrcSliceWindow(b_grid_desc, b_block_copy_step);
+
+        // Local prefetch 1st, Fill Ping Reg
         block_sync_lds();
         static_for<0, KRepeat, 1>{}([&](auto k) {
             static_for<0, MRepeat, 1>{}([&](auto m0) {
@@ -549,19 +561,13 @@ struct BlockwiseGemmXdlops_pipeline_v4
             });
         });
 
-        // Global prefetch 2th, Fill Pong LDS
-        a_blockwise_copy.RunRead(a_grid_desc, a_grid_buf);
-        b_blockwise_copy.RunRead(b_grid_desc, b_grid_buf);
+        // Local prefill 2nd, Fill Pong LDS
+        a_blockwise_copy.RunWrite(a_block_desc, a_block_buf.At(I1), I1);
+        b_blockwise_copy.RunWrite(b_block_desc, b_block_buf.At(I1), I1);
 
-        a_blockwise_copy.MoveSrcSliceWindow(a_grid_desc, a_block_copy_step);
-        b_blockwise_copy.MoveSrcSliceWindow(b_grid_desc, b_block_copy_step);
-
-        a_blockwise_copy.RunWrite(a_block_desc, a_block_buf.At(I1));
-        b_blockwise_copy.RunWrite(b_block_desc, b_block_buf.At(I1));
-
-        // Global prefetch 3rd
-        a_blockwise_copy.RunRead(a_grid_desc, a_grid_buf);
-        b_blockwise_copy.RunRead(b_grid_desc, b_grid_buf);
+        // Global prefetch 4th
+        a_blockwise_copy.RunRead(a_grid_desc, a_grid_buf, I1);
+        b_blockwise_copy.RunRead(b_grid_desc, b_grid_buf, I1);
 
         a_blockwise_copy.MoveSrcSliceWindow(a_grid_desc, a_block_copy_step);
         b_blockwise_copy.MoveSrcSliceWindow(b_grid_desc, b_block_copy_step);
@@ -574,157 +580,151 @@ struct BlockwiseGemmXdlops_pipeline_v4
         {
             index_t i = 0;
             // This hot loop has two legacy loopover, to implement the double local buffer strategy
+            do
+            {
+                // -------------------------------------------------------------------------------------------
+                using PingP1 = Number<0>;
+                using PongP1 = Number<1>;
+                // MFMA: Ping Reg
+                // DS_WRITE: To Ping LDS
+                // DS_READ: Pong LDS to Pong Reg
+                block_sync_lds();
 
-                do
-                {
-                    // -------------------------------------------------------------------------------------------
-                    using PingP1 = Number<0>;
-                    using PongP1 = Number<1>;
-                    // MFMA: Ping Reg
-                    // DS_WRITE: To Ping LDS
-                    // DS_READ: Pong LDS to Pong Reg
-                    block_sync_lds();
-
-                    static_for<0, KRepeat, 1>{}([&](auto k) {
-                        static_for<0, MRepeat, 1>{}([&](auto m0) {
-                            a_thread_copy_.Run(a_block_desc_m0_m1_m2_k,
-                                               make_tuple(m0, I0, I0, Number<k * AMmaKStride>{}),
-                                               a_block_buf.At(PongP1{}),
-                                               a_thread_desc_,
-                                               make_tuple(m0, I0, k, I0),
-                                               a_thread_bufs(PongP1{}));
-                            static_for<0, NRepeat, 1>{}([&](auto n0) {
-                                b_thread_copy_.Run(
-                                    b_block_desc_n0_n1_n2_k,
-                                    make_tuple(n0, I0, I0, Number<k * BMmaKStride>{}),
-                                    b_block_buf.At(PongP1{}),
-                                    b_thread_desc_,
-                                    make_tuple(n0, I0, k, I0),
-                                    b_thread_bufs(PongP1{}));
-                            });
+                static_for<0, KRepeat, 1>{}([&](auto k) {
+                    static_for<0, MRepeat, 1>{}([&](auto m0) {
+                        a_thread_copy_.Run(a_block_desc_m0_m1_m2_k,
+                                           make_tuple(m0, I0, I0, Number<k * AMmaKStride>{}),
+                                           a_block_buf.At(PongP1{}),
+                                           a_thread_desc_,
+                                           make_tuple(m0, I0, k, I0),
+                                           a_thread_bufs(PongP1{}));
+                        static_for<0, NRepeat, 1>{}([&](auto n0) {
+                            b_thread_copy_.Run(b_block_desc_n0_n1_n2_k,
+                                               make_tuple(n0, I0, I0, Number<k * BMmaKStride>{}),
+                                               b_block_buf.At(PongP1{}),
+                                               b_thread_desc_,
+                                               make_tuple(n0, I0, k, I0),
+                                               b_thread_bufs(PongP1{}));
                         });
                     });
+                });
 
-                    a_blockwise_copy.RunWrite(a_block_desc, a_block_buf.At(PingP1{}));
-                    b_blockwise_copy.RunWrite(b_block_desc, b_block_buf.At(PingP1{}));
+                a_blockwise_copy.RunWrite(a_block_desc, a_block_buf.At(PingP1{}), PingP1{});
+                b_blockwise_copy.RunWrite(b_block_desc, b_block_buf.At(PingP1{}), PingP1{});
 
-                    a_blockwise_copy.RunRead(a_grid_desc, a_grid_buf);
-                    b_blockwise_copy.RunRead(b_grid_desc, b_grid_buf);
+                a_blockwise_copy.RunRead(a_grid_desc, a_grid_buf, PingP1{});
+                b_blockwise_copy.RunRead(b_grid_desc, b_grid_buf, PingP1{});
 
-                    a_blockwise_copy.MoveSrcSliceWindow(a_grid_desc, a_block_copy_step);
-                    b_blockwise_copy.MoveSrcSliceWindow(b_grid_desc, b_block_copy_step);
+                a_blockwise_copy.MoveSrcSliceWindow(a_grid_desc, a_block_copy_step);
+                b_blockwise_copy.MoveSrcSliceWindow(b_grid_desc, b_block_copy_step);
 
-                    static_for<0, KRepeat, 1>{}([&](auto k0) {
-                        static_for<0, MRepeat, 1>{}([&](auto m0) {
-                            static_for<0, NRepeat, 1>{}([&](auto n0) {
-                                vector_type<FloatAB, KPack> a_thread_vec;
-                                vector_type<FloatAB, KPack> b_thread_vec;
+                static_for<0, KRepeat, 1>{}([&](auto k0) {
+                    static_for<0, MRepeat, 1>{}([&](auto m0) {
+                        static_for<0, NRepeat, 1>{}([&](auto n0) {
+                            vector_type<FloatAB, KPack> a_thread_vec;
+                            vector_type<FloatAB, KPack> b_thread_vec;
 
-                                static_for<0, KPack, 1>{}([&](auto ik) {
-                                    a_thread_vec.template AsType<FloatAB>()(ik) =
-                                        a_thread_bufs[PingP1{}]
-                                                     [Number<a_thread_desc_.CalculateOffset(
-                                                         make_tuple(m0, I0, k0, ik))>{}];
-                                    b_thread_vec.template AsType<FloatAB>()(ik) =
-                                        b_thread_bufs[PingP1{}]
-                                                     [Number<b_thread_desc_.CalculateOffset(
-                                                         make_tuple(n0, I0, k0, ik))>{}];
-                                });
-
-                                using mfma_input_type =
-                                    typename vector_type<FloatAB, xdlops_gemm.K1PerXdlops>::type;
-
-                                constexpr index_t c_offset =
-                                    c_thread_desc_.CalculateOffset(make_tuple(m0, n0, 0));
-
-                                xdlops_gemm.template Run(
-                                    a_thread_vec.template AsType<mfma_input_type>(),
-                                    b_thread_vec.template AsType<mfma_input_type>(),
-                                    c_thread_buf.GetVectorTypeReference(Number<c_offset>{}));
+                            static_for<0, KPack, 1>{}([&](auto ik) {
+                                a_thread_vec.template AsType<FloatAB>()(ik) =
+                                    a_thread_bufs[PingP1{}][Number<a_thread_desc_.CalculateOffset(
+                                        make_tuple(m0, I0, k0, ik))>{}];
+                                b_thread_vec.template AsType<FloatAB>()(ik) =
+                                    b_thread_bufs[PingP1{}][Number<b_thread_desc_.CalculateOffset(
+                                        make_tuple(n0, I0, k0, ik))>{}];
                             });
+
+                            using mfma_input_type =
+                                typename vector_type<FloatAB, xdlops_gemm.K1PerXdlops>::type;
+
+                            constexpr index_t c_offset =
+                                c_thread_desc_.CalculateOffset(make_tuple(m0, n0, 0));
+
+                            xdlops_gemm.template Run(
+                                a_thread_vec.template AsType<mfma_input_type>(),
+                                b_thread_vec.template AsType<mfma_input_type>(),
+                                c_thread_buf.GetVectorTypeReference(Number<c_offset>{}));
                         });
                     });
+                });
 
-                    HotLoopScheduler<0>();
-                    __builtin_amdgcn_sched_barrier(0);
+                HotLoopScheduler();
+                __builtin_amdgcn_sched_barrier(0);
 
-                    // -------------------------------------------------------------------------------------------
-                    using PingP2 = Number<1>;
-                    using PongP2 = Number<0>;
-                    // MFMA: Pong Reg
-                    // DS_WRITE: To Pong LDS
-                    // DS_READ: Ping LDS to Ping Reg
-                    block_sync_lds();
+                // -------------------------------------------------------------------------------------------
+                using PingP2 = Number<1>;
+                using PongP2 = Number<0>;
+                // MFMA: Pong Reg
+                // DS_WRITE: To Pong LDS
+                // DS_READ: Ping LDS to Ping Reg
+                block_sync_lds();
 
-                    static_for<0, KRepeat, 1>{}([&](auto k) {
-                        static_for<0, MRepeat, 1>{}([&](auto m0) {
-                            a_thread_copy_.Run(a_block_desc_m0_m1_m2_k,
-                                               make_tuple(m0, I0, I0, Number<k * AMmaKStride>{}),
-                                               a_block_buf.At(PongP2{}),
-                                               a_thread_desc_,
-                                               make_tuple(m0, I0, k, I0),
-                                               a_thread_bufs(PongP2{}));
-                            static_for<0, NRepeat, 1>{}([&](auto n0) {
-                                b_thread_copy_.Run(
-                                    b_block_desc_n0_n1_n2_k,
-                                    make_tuple(n0, I0, I0, Number<k * BMmaKStride>{}),
-                                    b_block_buf.At(PongP2{}),
-                                    b_thread_desc_,
-                                    make_tuple(n0, I0, k, I0),
-                                    b_thread_bufs(PongP2{}));
-                            });
+                static_for<0, KRepeat, 1>{}([&](auto k) {
+                    static_for<0, MRepeat, 1>{}([&](auto m0) {
+                        a_thread_copy_.Run(a_block_desc_m0_m1_m2_k,
+                                           make_tuple(m0, I0, I0, Number<k * AMmaKStride>{}),
+                                           a_block_buf.At(PongP2{}),
+                                           a_thread_desc_,
+                                           make_tuple(m0, I0, k, I0),
+                                           a_thread_bufs(PongP2{}));
+                        static_for<0, NRepeat, 1>{}([&](auto n0) {
+                            b_thread_copy_.Run(b_block_desc_n0_n1_n2_k,
+                                               make_tuple(n0, I0, I0, Number<k * BMmaKStride>{}),
+                                               b_block_buf.At(PongP2{}),
+                                               b_thread_desc_,
+                                               make_tuple(n0, I0, k, I0),
+                                               b_thread_bufs(PongP2{}));
                         });
                     });
+                });
 
-                    a_blockwise_copy.RunWrite(a_block_desc, a_block_buf.At(PingP2{}));
-                    b_blockwise_copy.RunWrite(b_block_desc, b_block_buf.At(PingP2{}));
+                a_blockwise_copy.RunWrite(a_block_desc, a_block_buf.At(PingP2{}), PingP2{});
+                b_blockwise_copy.RunWrite(b_block_desc, b_block_buf.At(PingP2{}), PingP2{});
 
-                    a_blockwise_copy.RunRead(a_grid_desc, a_grid_buf);
-                    b_blockwise_copy.RunRead(b_grid_desc, b_grid_buf);
+                a_blockwise_copy.RunRead(a_grid_desc, a_grid_buf, PingP2{});
+                b_blockwise_copy.RunRead(b_grid_desc, b_grid_buf, PingP2{});
 
-                    a_blockwise_copy.MoveSrcSliceWindow(a_grid_desc, a_block_copy_step);
-                    b_blockwise_copy.MoveSrcSliceWindow(b_grid_desc, b_block_copy_step);
+                a_blockwise_copy.MoveSrcSliceWindow(a_grid_desc, a_block_copy_step);
+                b_blockwise_copy.MoveSrcSliceWindow(b_grid_desc, b_block_copy_step);
 
-                    static_for<0, KRepeat, 1>{}([&](auto k0) {
-                        static_for<0, MRepeat, 1>{}([&](auto m0) {
-                            static_for<0, NRepeat, 1>{}([&](auto n0) {
-                                vector_type<FloatAB, KPack> a_thread_vec;
-                                vector_type<FloatAB, KPack> b_thread_vec;
+                static_for<0, KRepeat, 1>{}([&](auto k0) {
+                    static_for<0, MRepeat, 1>{}([&](auto m0) {
+                        static_for<0, NRepeat, 1>{}([&](auto n0) {
+                            vector_type<FloatAB, KPack> a_thread_vec;
+                            vector_type<FloatAB, KPack> b_thread_vec;
 
-                                static_for<0, KPack, 1>{}([&](auto ik) {
-                                    a_thread_vec.template AsType<FloatAB>()(ik) =
-                                        a_thread_bufs[PingP2{}]
-                                                     [Number<a_thread_desc_.CalculateOffset(
-                                                         make_tuple(m0, I0, k0, ik))>{}];
-                                    b_thread_vec.template AsType<FloatAB>()(ik) =
-                                        b_thread_bufs[PingP2{}]
-                                                     [Number<b_thread_desc_.CalculateOffset(
-                                                         make_tuple(n0, I0, k0, ik))>{}];
-                                });
-
-                                using mfma_input_type =
-                                    typename vector_type<FloatAB, xdlops_gemm.K1PerXdlops>::type;
-
-                                constexpr index_t c_offset =
-                                    c_thread_desc_.CalculateOffset(make_tuple(m0, n0, 0));
-
-                                xdlops_gemm.template Run(
-                                    a_thread_vec.template AsType<mfma_input_type>(),
-                                    b_thread_vec.template AsType<mfma_input_type>(),
-                                    c_thread_buf.GetVectorTypeReference(Number<c_offset>{}));
+                            static_for<0, KPack, 1>{}([&](auto ik) {
+                                a_thread_vec.template AsType<FloatAB>()(ik) =
+                                    a_thread_bufs[PingP2{}][Number<a_thread_desc_.CalculateOffset(
+                                        make_tuple(m0, I0, k0, ik))>{}];
+                                b_thread_vec.template AsType<FloatAB>()(ik) =
+                                    b_thread_bufs[PingP2{}][Number<b_thread_desc_.CalculateOffset(
+                                        make_tuple(n0, I0, k0, ik))>{}];
                             });
+
+                            using mfma_input_type =
+                                typename vector_type<FloatAB, xdlops_gemm.K1PerXdlops>::type;
+
+                            constexpr index_t c_offset =
+                                c_thread_desc_.CalculateOffset(make_tuple(m0, n0, 0));
+
+                            xdlops_gemm.template Run(
+                                a_thread_vec.template AsType<mfma_input_type>(),
+                                b_thread_vec.template AsType<mfma_input_type>(),
+                                c_thread_buf.GetVectorTypeReference(Number<c_offset>{}));
                         });
                     });
-        
-                    HotLoopScheduler<0>();
-                    __builtin_amdgcn_sched_barrier(0);
+                });
 
-                    i += 2;
-                } while(i < (num_loop - 3));
+                HotLoopScheduler();
+                __builtin_amdgcn_sched_barrier(0);
+
+                i += 2;
+            } while(i < (num_loop - 4));
         }
 
         // tail
         {
+            // stage 1
             using PingP1 = Number<0>;
             using PongP1 = Number<1>;
             // MFMA: Ping Reg
@@ -751,8 +751,8 @@ struct BlockwiseGemmXdlops_pipeline_v4
                 });
             });
 
-            a_blockwise_copy.RunWrite(a_block_desc, a_block_buf.At(PingP1{}));
-            b_blockwise_copy.RunWrite(b_block_desc, b_block_buf.At(PingP1{}));
+            a_blockwise_copy.RunWrite(a_block_desc, a_block_buf.At(PingP1{}), PingP1{});
+            b_blockwise_copy.RunWrite(b_block_desc, b_block_buf.At(PingP1{}), PingP1{});
 
             static_for<0, KRepeat, 1>{}([&](auto k0) {
                 static_for<0, MRepeat, 1>{}([&](auto m0) {
@@ -787,6 +787,7 @@ struct BlockwiseGemmXdlops_pipeline_v4
             __builtin_amdgcn_sched_barrier(0);
 
             // -------------------------------------------------------------------------------------------
+            // stage 2
             using PingP2 = Number<1>;
             using PongP2 = Number<0>;
             // MFMA: Pong Reg
@@ -812,6 +813,9 @@ struct BlockwiseGemmXdlops_pipeline_v4
                     });
                 });
             });
+
+            a_blockwise_copy.RunWrite(a_block_desc, a_block_buf.At(PingP2{}), PingP2{});
+            b_blockwise_copy.RunWrite(b_block_desc, b_block_buf.At(PingP2{}), PingP2{});
 
             static_for<0, KRepeat, 1>{}([&](auto k0) {
                 static_for<0, MRepeat, 1>{}([&](auto m0) {
@@ -842,10 +846,32 @@ struct BlockwiseGemmXdlops_pipeline_v4
                 });
             });
 
-            TailScheduler<2>();
+            TailScheduler<1>();
             __builtin_amdgcn_sched_barrier(0);
 
+            // stage 3
+            block_sync_lds();
+
             static_for<0, KRepeat, 1>{}([&](auto k) {
+                static_for<0, MRepeat, 1>{}([&](auto m0) {
+                    a_thread_copy_.Run(a_block_desc_m0_m1_m2_k,
+                                       make_tuple(m0, I0, I0, Number<k * AMmaKStride>{}),
+                                       a_block_buf.At(PongP1{}),
+                                       a_thread_desc_,
+                                       make_tuple(m0, I0, k, I0),
+                                       a_thread_bufs(PongP1{}));
+                    static_for<0, NRepeat, 1>{}([&](auto n0) {
+                        b_thread_copy_.Run(b_block_desc_n0_n1_n2_k,
+                                           make_tuple(n0, I0, I0, Number<k * BMmaKStride>{}),
+                                           b_block_buf.At(PongP1{}),
+                                           b_thread_desc_,
+                                           make_tuple(n0, I0, k, I0),
+                                           b_thread_bufs(PongP1{}));
+                    });
+                });
+            });
+
+            static_for<0, KRepeat, 1>{}([&](auto k0) {
                 static_for<0, MRepeat, 1>{}([&](auto m0) {
                     static_for<0, NRepeat, 1>{}([&](auto n0) {
                         vector_type<FloatAB, KPack> a_thread_vec;
@@ -853,11 +879,44 @@ struct BlockwiseGemmXdlops_pipeline_v4
 
                         static_for<0, KPack, 1>{}([&](auto ik) {
                             a_thread_vec.template AsType<FloatAB>()(ik) =
-                                a_thread_bufs[PongP2{}][Number<a_thread_desc_.CalculateOffset(
-                                    make_tuple(m0, I0, k, ik))>{}];
+                                a_thread_bufs[PingP1{}][Number<a_thread_desc_.CalculateOffset(
+                                    make_tuple(m0, I0, k0, ik))>{}];
                             b_thread_vec.template AsType<FloatAB>()(ik) =
-                                b_thread_bufs[PongP2{}][Number<b_thread_desc_.CalculateOffset(
-                                    make_tuple(n0, I0, k, ik))>{}];
+                                b_thread_bufs[PingP1{}][Number<b_thread_desc_.CalculateOffset(
+                                    make_tuple(n0, I0, k0, ik))>{}];
+                        });
+
+                        using mfma_input_type =
+                            typename vector_type<FloatAB, xdlops_gemm.K1PerXdlops>::type;
+
+                        constexpr index_t c_offset =
+                            c_thread_desc_.CalculateOffset(make_tuple(m0, n0, 0));
+
+                        xdlops_gemm.template Run(
+                            a_thread_vec.template AsType<mfma_input_type>(),
+                            b_thread_vec.template AsType<mfma_input_type>(),
+                            c_thread_buf.GetVectorTypeReference(Number<c_offset>{}));
+                    });
+                });
+            });
+
+            TailScheduler<2>();
+            __builtin_amdgcn_sched_barrier(0);
+
+            // stage 4
+            static_for<0, KRepeat, 1>{}([&](auto k0) {
+                static_for<0, MRepeat, 1>{}([&](auto m0) {
+                    static_for<0, NRepeat, 1>{}([&](auto n0) {
+                        vector_type<FloatAB, KPack> a_thread_vec;
+                        vector_type<FloatAB, KPack> b_thread_vec;
+
+                        static_for<0, KPack, 1>{}([&](auto ik) {
+                            a_thread_vec.template AsType<FloatAB>()(ik) =
+                                a_thread_bufs[PingP2{}][Number<a_thread_desc_.CalculateOffset(
+                                    make_tuple(m0, I0, k0, ik))>{}];
+                            b_thread_vec.template AsType<FloatAB>()(ik) =
+                                b_thread_bufs[PingP2{}][Number<b_thread_desc_.CalculateOffset(
+                                    make_tuple(n0, I0, k0, ik))>{}];
                         });
 
                         using mfma_input_type =

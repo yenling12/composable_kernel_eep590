@@ -178,12 +178,12 @@ bool run_gemm(const ProblemType& problem_size, const ExecutionConfig& config)
 
         float gb_per_sec = num_btype / 1.E6 / ave_time;
 
-        if(config.time_kernel==1)
-        std::cout << "Perf mode Mean: " << ave_time << " ms, " << tflops << " TFlops, " << gb_per_sec
-                  << " GB/s, " << gemm.GetTypeString() << std::endl;
-        else if(config.time_kernel==2)
-        std::cout << "Perf mode Median: " << ave_time << " ms, " << tflops << " TFlops, " << gb_per_sec
-                  << " GB/s, " << gemm.GetTypeString() << std::endl;
+        if(config.time_kernel == 1)
+            std::cout << "Perf mode Mean: " << ave_time << " ms, " << tflops << " TFlops, "
+                      << gb_per_sec << " GB/s, " << gemm.GetTypeString() << std::endl;
+        else if(config.time_kernel == 2)
+            std::cout << "Perf mode Median: " << ave_time << " ms, " << tflops << " TFlops, "
+                      << gb_per_sec << " GB/s, " << gemm.GetTypeString() << std::endl;
     });
 
     std::cout << "---------------------------------------------------------------------------------"

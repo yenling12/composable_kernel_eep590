@@ -310,22 +310,25 @@ struct BlockwiseGemmXdlops_pipeline_v4
     __device__ static constexpr auto HotLoopScheduler()
     {
         // schedule
-        constexpr auto num_ds_read_inst = 16;
-        constexpr auto num_ds_write_inst = 8;
+        constexpr auto num_ds_read_inst     = 16;
+        constexpr auto num_ds_write_inst    = 8;
         constexpr auto num_buffer_load_inst = 8;
-        constexpr auto num_mfma_inst = 64;
+        constexpr auto num_mfma_inst        = 64;
 
         constexpr auto num_issue = num_buffer_load_inst;
 
         static_for<0, num_issue, 1>{}([&](auto i) {
             ignore = i;
             __builtin_amdgcn_sched_group_barrier(0x008, 1, 0); // MFMA
-            __builtin_amdgcn_sched_group_barrier(0x100, num_ds_read_inst/num_buffer_load_inst, 0); // DS read
-            __builtin_amdgcn_sched_group_barrier(0x008, 1, 0); // MFMA
-            __builtin_amdgcn_sched_group_barrier(0x200, num_ds_write_inst/num_buffer_load_inst, 0); // DS write
-            __builtin_amdgcn_sched_group_barrier(0x008, 1, 0); // MFMA
-            __builtin_amdgcn_sched_group_barrier(0x020, 1, 0); // VMEM read
-            __builtin_amdgcn_sched_group_barrier(0x008, num_mfma_inst/num_buffer_load_inst-3, 0); // MFMA
+            __builtin_amdgcn_sched_group_barrier(
+                0x100, num_ds_read_inst / num_buffer_load_inst, 0); // DS read
+            __builtin_amdgcn_sched_group_barrier(0x008, 1, 0);      // MFMA
+            __builtin_amdgcn_sched_group_barrier(
+                0x200, num_ds_write_inst / num_buffer_load_inst, 0); // DS write
+            __builtin_amdgcn_sched_group_barrier(0x008, 1, 0);       // MFMA
+            __builtin_amdgcn_sched_group_barrier(0x020, 1, 0);       // VMEM read
+            __builtin_amdgcn_sched_group_barrier(
+                0x008, num_mfma_inst / num_buffer_load_inst - 3, 0); // MFMA
         });
     }
 
@@ -338,9 +341,9 @@ struct BlockwiseGemmXdlops_pipeline_v4
     __device__ static constexpr auto TailScheduler<1>()
     {
         // schedule
-        constexpr auto num_ds_read_inst = 16;
+        constexpr auto num_ds_read_inst  = 16;
         constexpr auto num_ds_write_inst = 8;
-        constexpr auto num_mfma_inst = 64;
+        constexpr auto num_mfma_inst     = 64;
 
         constexpr auto num_issue = num_ds_write_inst;
 
@@ -351,8 +354,10 @@ struct BlockwiseGemmXdlops_pipeline_v4
             __builtin_amdgcn_sched_group_barrier(0x008, 1, 0); // MFMA
             __builtin_amdgcn_sched_group_barrier(0x100, 1, 0); // DS read
             __builtin_amdgcn_sched_group_barrier(0x008, 1, 0); // MFMA
-            __builtin_amdgcn_sched_group_barrier(0x100, num_ds_read_inst/num_ds_write_inst-1, 0); // DS read
-            __builtin_amdgcn_sched_group_barrier(0x008, num_mfma_inst/num_ds_write_inst-3, 0); // MFMA
+            __builtin_amdgcn_sched_group_barrier(
+                0x100, num_ds_read_inst / num_ds_write_inst - 1, 0); // DS read
+            __builtin_amdgcn_sched_group_barrier(
+                0x008, num_mfma_inst / num_ds_write_inst - 3, 0); // MFMA
         });
     }
 
@@ -361,14 +366,15 @@ struct BlockwiseGemmXdlops_pipeline_v4
     {
         // schedule
         constexpr auto num_ds_read_inst = 16;
-        constexpr auto num_mfma_inst = 64;
+        constexpr auto num_mfma_inst    = 64;
 
         constexpr auto num_issue = num_ds_read_inst;
 
         static_for<0, num_issue, 1>{}([&](auto i) {
             ignore = i;
             __builtin_amdgcn_sched_group_barrier(0x100, 1, 0); // DS read
-            __builtin_amdgcn_sched_group_barrier(0x008, num_mfma_inst/num_ds_read_inst, 0); // MFMA
+            __builtin_amdgcn_sched_group_barrier(
+                0x008, num_mfma_inst / num_ds_read_inst, 0); // MFMA
         });
     }
 
