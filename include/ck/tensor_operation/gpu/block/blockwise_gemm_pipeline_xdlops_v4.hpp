@@ -867,9 +867,6 @@ struct BlockwiseGemmXdlops_pipeline_v4
                 });
             });
 
-            a_blockwise_copy.RunWrite(a_block_desc, a_block_buf.At(PingP1{}));
-            b_blockwise_copy.RunWrite(b_block_desc, b_block_buf.At(PingP1{}));
-
             static_for<0, KRepeat, 1>{}([&](auto k0) {
                 static_for<0, MRepeat, 1>{}([&](auto m0) {
                     static_for<0, NRepeat, 1>{}([&](auto n0) {
@@ -899,7 +896,7 @@ struct BlockwiseGemmXdlops_pipeline_v4
                 });
             });
 
-            TailScheduler<1>();
+            TailScheduler<2>();
             __builtin_amdgcn_sched_barrier(0);
 
             // -------------------------------------------------------------------------------------------
