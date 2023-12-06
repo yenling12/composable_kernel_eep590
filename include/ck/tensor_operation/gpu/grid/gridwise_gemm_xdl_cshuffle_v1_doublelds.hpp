@@ -17,7 +17,8 @@
 
 namespace ck {
 
-template <typename GridwiseGemm, bool HasMainKBlockLoop>
+template <typename GridwiseGemm, bool HasMainKBlockLoop,
+          index_t TailNum = 3>
 __global__ void
 #if CK_USE_LAUNCH_BOUNDS
     __launch_bounds__(CK_MAX_THREAD_PER_BLOCK, CK_MIN_BLOCK_PER_CU)
@@ -31,7 +32,7 @@ __global__ void
     __shared__ char p_shared_1[GridwiseGemm::GetSharedMemoryNumberOfByte()];
 
 
-    GridwiseGemm::template Run<HasMainKBlockLoop>(
+    GridwiseGemm::template Run<HasMainKBlockLoop, TailNum>(
         karg.p_a_grid, karg.p_b_grid, karg.p_c_grid, p_shared_0, p_shared_1, karg);
 #else
     ignore = karg;
@@ -673,7 +674,7 @@ struct GridwiseGemm_k0mk1_k0nk1_mn_xdl_cshuffle_v1
         // check gridwise gemm pipeline
         const auto num_k_loop = (CalculateAK0(problem.K) * AK1Value) / KPerBlock;
 
-        if(num_k_loop < 3 || (num_k_loop - 3) % 2 != 0)
+        if(num_k_loop < 4)
         {
             return false;
         }
@@ -687,6 +688,16 @@ struct GridwiseGemm_k0mk1_k0nk1_mn_xdl_cshuffle_v1
         const index_t num_loop = K / KPerBlock;
 
         return num_loop > 3;
+    }
+
+    __host__ static constexpr index_t CalculateKBlockLoopTailNum(index_t K)
+    {
+        const index_t num_loop = K / KPerBlock;
+
+        if(num_loop % 2 == 1)
+            return 3;
+        else
+            return 2;
     }
 
     template <typename CGridDesc>
@@ -706,7 +717,7 @@ struct GridwiseGemm_k0mk1_k0nk1_mn_xdl_cshuffle_v1
     // return block_id to C matrix tile idx (m0, n0) mapping
     using Block2CTileMap = BlockToCTileMap_M00_N0_M01Adapt<MPerBlock, NPerBlock>;
 
-    template <bool HasMainKBlockLoop>
+    template <bool HasMainKBlockLoop, index_t TailNum = 3>
     __device__ static void Run(const FloatA* p_a_grid,
                                const FloatB* p_b_grid,
                                FloatC* p_c_grid,
@@ -900,7 +911,7 @@ struct GridwiseGemm_k0mk1_k0nk1_mn_xdl_cshuffle_v1
             (a_grid_desc_ak0_m_ak1.GetLength(I0) * a_grid_desc_ak0_m_ak1.GetLength(I2)) /
             KPerBlock);
 
-        blockwise_gemm_pipeline.template Run<HasMainKBlockLoop>(a_grid_desc_ak0_m_ak1,
+        blockwise_gemm_pipeline.template Run<HasMainKBlockLoop, TailNum>(a_grid_desc_ak0_m_ak1,
                                                                 a_block_desc_ak0_m_ak1,
                                                                 a_blockwise_copy,
                                                                 a_grid_buf,
