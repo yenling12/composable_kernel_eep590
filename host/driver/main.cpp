@@ -1,6 +1,7 @@
 #include <functional>
 #include <iostream>
 #include <fstream>
+#include <filesystem>
 #include <cstdlib>
 #include <string>
 #include <unordered_map>
@@ -25,14 +26,13 @@ struct Emitters
 
     void Emit(const std::string& name)
     {
-        int x = 0;
-        for(auto vecIt = m[name]()[x]; x < 2; vecIt = m[name]()[x])
+//	std::filesystem::create_directory("~/workspace/composable_kernel/host/build/");
+        for(int x = 0; x < m[name]().size(); x++)
         {
             std::fstream op_inst;
-            op_inst.open(name + std::to_string(x) + ".cpp", std::ios::out);
+            op_inst.open("./tmp/" + name + std::to_string(x) + ".cpp", std::ios::out);
             op_inst << m[name]()[x];
             op_inst.close();
-            x++;
         }
     }
 
@@ -67,6 +67,7 @@ int main(int argc, const char* argv[])
         return 0;
     }
 
+    std::filesystem::create_directory("./tmp");
     for(auto name : args)
         e.Emit(name);
 
