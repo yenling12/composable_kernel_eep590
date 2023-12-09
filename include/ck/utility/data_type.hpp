@@ -125,11 +125,6 @@ template <> struct scalar_type<int4_t> {
 };
 #endif
 
-template <> struct scalar_type<f8_t> {
-  using type = f8_t;
-  static constexpr index_t vector_size = 1;
-};
-
 //
 template <typename T> struct vector_type<T, 1> {
   using d1_t = T;
