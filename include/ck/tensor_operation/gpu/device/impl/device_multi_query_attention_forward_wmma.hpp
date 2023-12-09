@@ -203,7 +203,11 @@ template <
 struct DeviceMultiQueryAttentionForward_Wmma
     : public DeviceBatchedGemmSoftmaxGemmPermute<
           NumDimG, NumDimM, NumDimL, NumDimK, NumDimN, ADataType, B0DataType,
-          B1DataType, CDataType, Acc0BiasDataType, Acc1BiasDataType,
+          B1DataType, CDataType,
+          std::conditional_t<is_same_v<Acc0BiasDataType, void>, ck::Tuple<>,
+                             Acc0BiasDataType>,
+          std::conditional_t<is_same_v<Acc1BiasDataType, void>, ck::Tuple<>,
+                             Acc1BiasDataType>,
           AElementwiseOperation, B0ElementwiseOperation,
           AccElementwiseOperation, B1ElementwiseOperation,
           CElementwiseOperation, MaskingSpec> {
@@ -211,13 +215,13 @@ struct DeviceMultiQueryAttentionForward_Wmma
                     NumDimN > 0,
                 "Number of dimension must be greater than 0");
 
+  // TODO ANT: implement bias combination
+  static_assert(is_same_v<Acc0BiasDataType, void> &&
+                    is_same_v<Acc1BiasDataType, void>,
+                "Bias addition is unimplemented");
+
   static constexpr index_t NumAcc0Bias = 0; // Acc0BiasDataType::Size();
   static constexpr index_t NumAcc1Bias = 0; // Acc1BiasDataType::Size();
-
-  // TODO ANT: implement bias combination
-  static_assert(is_same<Acc0BiasDataType, void>::value &&
-                    is_same<Acc1BiasDataType, void>::value,
-                "Bias addition is unimplemented");
 
   static constexpr index_t NumDimGemm0M = NumDimM;
   static constexpr index_t NumDimGemm0N = NumDimL;
@@ -455,7 +459,7 @@ struct DeviceMultiQueryAttentionForward_Wmma
     return RawArg{static_cast<const ADataType *>(p_a),
                   static_cast<const B0DataType *>(p_b0),
                   static_cast<const B1DataType *>(p_b1),
-                  static_cast<const CDataType *>(p_c),
+                  static_cast<CDataType *>(p_c),
                   M,
                   N,
                   K,
