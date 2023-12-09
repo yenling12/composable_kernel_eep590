@@ -435,7 +435,7 @@ struct DeviceGroupedQueryAttentionForward_Wmma
     RawArg(const ADataType *p_a_grid, const B0DataType *p_b0_grid,
            const B1DataType *p_b1_grid, CDataType *p_c_grid, index_t M,
            index_t N, index_t K, index_t O, index_t G0, index_t G1_Q,
-           float alpha, bool input_permute, bool output_permute)
+           index G1_KV, float alpha, bool input_permute, bool output_permute)
         : p_a_grid_{p_a_grid}, p_b0_grid_{p_b0_grid}, p_b1_grid_{p_b1_grid},
           p_c_grid_{p_c_grid}, M_{M}, N_{N}, K_{K}, O_{O}, G0_{G0}, G1_Q_{G1_Q},
           G1_KV_{G1_KV}, alpha_{alpha}, input_permute_{input_permute},

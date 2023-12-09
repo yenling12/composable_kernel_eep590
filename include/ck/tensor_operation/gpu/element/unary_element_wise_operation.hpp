@@ -70,12 +70,6 @@ struct PassThrough {
   }
 
   template <>
-  __host__ __device__ void
-  operator()<uint8_t, uint8_t>(uint8_t &y, const uint8_t &x) const {
-    y = x;
-  }
-
-  template <>
   __host__ __device__ void operator()<int8_t, int32_t>(int8_t &y,
                                                        const int32_t &x) const {
     y = type_convert<int8_t>(x);
@@ -140,22 +134,6 @@ struct ConvertBF16RTN {
                   "Data type is not supported by this operation!");
 
     y = bf16_convert_rtn<Y>(x);
-  }
-};
-
-struct ConvertF8SR {
-  // convert to fp8 using stochastic rounding (SR)
-  template <typename Y, typename X>
-  __host__ __device__ void operator()(Y &y, const X &x) const {
-    // check Y datatype
-    static_assert(is_same<Y, f8_t>::value,
-                  "Data type is not supported by this operation!");
-
-    // check X datatype
-    static_assert(is_same<X, float>::value || is_same<X, half_t>::value,
-                  "Data type is not supported by this operation!");
-
-    y = f8_convert_sr<Y>(x);
   }
 };
 
