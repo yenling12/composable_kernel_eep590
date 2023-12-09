@@ -113,7 +113,7 @@ __launch_bounds__(CK_MAX_THREAD_PER_BLOCK, CK_MIN_BLOCK_PER_CU)
     const auto compute_base_ptr_of_batch = 
                   typename DeviceOp::ComputeBasePtrOfStridedBatch{a_grid_desc_g_m_k, b0_grid_desc_g_l_k, b1_grid_desc_g_n_l, c_grid_desc_g_m_n};
     index_t batch_count = c_grid_desc_g_m_n.GetLength(Number<0>{});
-    const auto c0_matrix_mask = typename DeviceOp::C0MatrixMask{b0_grid_desc_g_l_k.GetLength(Number<1>{})};
+    const auto c0_matrix_mask = typename DeviceOp::C0MatrixMask{a_grid_desc_g_m_k.GetLength(I1), b0_grid_desc_g_l_k.GetLength(I1)};
 
   // clang-format on
   __shared__ char p_shared[GridwiseOp::GetSharedMemoryNumberOfByte()];
@@ -682,7 +682,8 @@ struct DeviceMultiQueryAttentionForward_Wmma
           a_element_op_{a_element_op}, b0_element_op_{b0_element_op},
           acc_element_op_{acc_element_op}, b1_element_op_{b1_element_op},
           c_element_op_{c_element_op},
-          c0_matrix_mask_{b0_grid_desc_g_l_k_.GetLength(I1)},
+          c0_matrix_mask_{a_grid_desc_g_m_k_.GetLength(I1),
+                          b0_grid_desc_g_l_k_.GetLength(I1)},
           raw_lengths_mz_lz_kz_nz_{
               a_gs_ms_ks_lengths[NumDimG + NumDimM - 1],
               b0_gs_ls_ks_lengths[NumDimG + NumDimL - 1],
