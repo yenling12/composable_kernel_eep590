@@ -81,6 +81,9 @@ private:
 // to track the points which need to be set to -inf on C0
 // Note: no need to reset M padding value, because they will not be stored out.
 template <typename MaskOutPredicate> struct C0MatrixMask_impl {
+#if defined(__WMMA__)
+  __host__ __device__
+#endif
   C0MatrixMask_impl(index_t MRaw, index_t NRaw)
       : NRaw_(NRaw), predicate_(MaskOutPredicate{}) {
     if constexpr (std::is_same<

@@ -422,8 +422,8 @@ struct DeviceMultiQueryAttentionForward_Wmma
       CShuffleBlockTransferClusterLengths_MBlock_MPerBlock_NBlock_NPerBlock,
       CShuffleBlockTransferScalarPerVector_NPerBlock,
       Transform::matrix_padder.PadN,
-      MaskingSpec == MaskingSpecialization::MaskUpperTriangleFromTopLeft,
-      NumPrefetch, LoopSched, PipelineVer>;
+      MaskingSpec != MaskingSpecialization::MaskDisabled, NumPrefetch,
+      LoopSched, PipelineVer>;
 
   struct RawArg : public BaseArgument {
     RawArg(const ADataType *p_a_grid, const B0DataType *p_b0_grid,
