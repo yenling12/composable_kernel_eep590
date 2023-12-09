@@ -470,7 +470,7 @@ struct DeviceGroupedQueryAttentionForward_Wmma
     return RawArg{static_cast<const ADataType *>(p_a),
                   static_cast<const B0DataType *>(p_b0),
                   static_cast<const B1DataType *>(p_b1),
-                  static_cast<const CDataType *>(p_c),
+                  static_cast<CDataType *>(p_c),
                   M,
                   N,
                   K,
