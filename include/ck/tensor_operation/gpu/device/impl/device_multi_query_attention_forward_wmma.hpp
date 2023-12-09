@@ -211,11 +211,12 @@ struct DeviceMultiQueryAttentionForward_Wmma
                     NumDimN > 0,
                 "Number of dimension must be greater than 0");
 
-  static constexpr index_t NumAcc0Bias = Acc0BiasDataType::Size();
-  static constexpr index_t NumAcc1Bias = Acc1BiasDataType::Size();
+  static constexpr index_t NumAcc0Bias = 0; // Acc0BiasDataType::Size();
+  static constexpr index_t NumAcc1Bias = 0; // Acc1BiasDataType::Size();
 
   // TODO ANT: implement bias combination
-  static_assert(NumAcc0Bias == 0 && NumAcc0Bias == 0,
+  static_assert(is_same<Acc0BiasDataType, void>::value &&
+                    is_same<Acc1BiasDataType, void>::value,
                 "Bias addition is unimplemented");
 
   static constexpr index_t NumDimGemm0M = NumDimM;
