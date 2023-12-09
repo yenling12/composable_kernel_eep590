@@ -339,8 +339,11 @@ struct DeviceMultiQueryAttentionForward_Wmma
     if constexpr (MaskingSpec == MaskingSpecialization::MaskDisabled) {
       return MaskDisabledPredicate{};
     } else if constexpr (MaskingSpec ==
-                         MaskingSpecialization::MaskOutUpperTriangle) {
-      return MaskOutUpperTrianglePredicate{};
+                         MaskingSpecialization::MaskUpperTriangleFromTopLeft) {
+      return MaskUpperTriangleFromTopLeftPredicate{};
+    } else if constexpr (MaskingSpec == MaskingSpecialization::
+                                            MaskUpperTriangleFromBottomRight) {
+      return MaskUpperTriangleFromBottomRightPredicate{};
     }
   }
   using C0MatrixMask = C0MatrixMask_impl<decltype(make_MaskOutPredicate())>;
@@ -414,8 +417,8 @@ struct DeviceMultiQueryAttentionForward_Wmma
       CShuffleBlockTransferClusterLengths_MBlock_MPerBlock_NBlock_NPerBlock,
       CShuffleBlockTransferScalarPerVector_NPerBlock,
       Transform::matrix_padder.PadN,
-      MaskingSpec == MaskingSpecialization::MaskOutUpperTriangle, NumPrefetch,
-      LoopSched, PipelineVer>;
+      MaskingSpec == MaskingSpecialization::MaskUpperTriangleFromTopLeft,
+      NumPrefetch, LoopSched, PipelineVer>;
 
   struct RawArg : public BaseArgument {
     RawArg(const ADataType *p_a_grid, const B0DataType *p_b0_grid,

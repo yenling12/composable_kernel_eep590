@@ -38,7 +38,8 @@ __launch_bounds__(CK_MAX_THREAD_PER_BLOCK, CK_MIN_BLOCK_PER_CU)
         const B1ElementwiseOperation b1_element_op,
         const CElementwiseOperation c_element_op) {
 #if (!defined(__HIP_DEVICE_COMPILE__) || defined(__gfx908__) ||                \
-     defined(__gfx90a__) || defined(__gfx940__))
+     defined(__gfx90a__) || defined(__gfx940__) || defined(__gfx941__) ||      \
+     defined(__gfx942__))
   __shared__ char p_shared[GridwiseGemm::GetSharedMemoryNumberOfByte()];
 
   const index_t block_id = get_block_1d_id();
@@ -228,8 +229,11 @@ struct DeviceGroupedGemmSoftmaxGemmPermute_Xdl_CShuffle
     if constexpr (MaskingSpec == MaskingSpecialization::MaskDisabled) {
       return MaskDisabledPredicate{};
     } else if constexpr (MaskingSpec ==
-                         MaskingSpecialization::MaskOutUpperTriangle) {
-      return MaskOutUpperTrianglePredicate{};
+                         MaskingSpecialization::MaskUpperTriangleFromTopLeft) {
+      return MaskUpperTriangleFromTopLeftPredicate{};
+    } else if constexpr (MaskingSpec == MaskingSpecialization::
+                                            MaskUpperTriangleFromBottomRight) {
+      return MaskUpperTriangleFromBottomRightPredicate{};
     }
   }
   using C0MatrixMask = C0MatrixMask_impl<decltype(make_MaskOutPredicate())>;
@@ -297,7 +301,7 @@ struct DeviceGroupedGemmSoftmaxGemmPermute_Xdl_CShuffle
       CShuffleBlockTransferClusterLengths_MBlock_MPerBlock_NBlock_NPerBlock,
       CShuffleBlockTransferScalarPerVector_NPerBlock, LoopSched,
       Transform::matrix_padder.PadN,
-      MaskingSpec == MaskingSpecialization::MaskOutUpperTriangle>;
+      MaskingSpec != MaskingSpecialization::MaskDisabled>;
 
   using Block2CTileMap =
       OffsettedBlockToCTileMap<typename GridwiseGemm::DefaultBlock2CTileMap>;
@@ -422,8 +426,8 @@ struct DeviceGroupedGemmSoftmaxGemmPermute_Xdl_CShuffle
                                          b1_grid_desc_g_n_k, c_grid_desc_g_m_n);
 
         // C0 mask
-        const auto c0_matrix_mask =
-            C0MatrixMask(b_grid_desc_g_n_k.GetLength(I1));
+        const auto c0_matrix_mask = C0MatrixMask(
+            a_grid_desc_g_m_k.GetLength(I1), b_grid_desc_g_n_k.GetLength(I1));
 
         grid_size_ += grid_size_grp;
 
@@ -549,9 +553,7 @@ struct DeviceGroupedGemmSoftmaxGemmPermute_Xdl_CShuffle
   }
 
   static bool IsSupportedArgument(const Argument &arg) {
-    if (!(ck::get_device_name() == "gfx908" ||
-          ck::get_device_name() == "gfx90a" ||
-          ck::get_device_name() == "gfx940")) {
+    if (!ck::is_xdl_supported()) {
       return false;
     }
 
