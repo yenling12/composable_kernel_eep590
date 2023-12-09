@@ -113,7 +113,7 @@ __launch_bounds__(CK_MAX_THREAD_PER_BLOCK, CK_MIN_BLOCK_PER_CU)
     const auto compute_base_ptr_of_batch = 
                   typename DeviceOp::ComputeBasePtrOfStridedBatch{a_grid_desc_g_m_k, b0_grid_desc_g_l_k, b1_grid_desc_g_n_l, c_grid_desc_g_m_n};
     index_t batch_count = c_grid_desc_g_m_n.GetLength(Number<0>{});
-    const auto c0_matrix_mask = typename DeviceOp::C0MatrixMask{a_grid_desc_g_m_k.GetLength(I1), b0_grid_desc_g_l_k.GetLength(I1)};
+    const auto c0_matrix_mask = typename DeviceOp::C0MatrixMask{a_grid_desc_g_m_k.GetLength(Number<1>{}), b0_grid_desc_g_l_k.GetLength(Number<1>{})};
 
   // clang-format on
   __shared__ char p_shared[GridwiseOp::GetSharedMemoryNumberOfByte()];
@@ -454,8 +454,9 @@ struct DeviceMultiQueryAttentionForward_Wmma
 
   static auto MakeArgument(const void *p_a, const void *p_b0, const void *p_b1,
                            void *p_c, index_t M, index_t N, index_t K,
-                           index_t O, index_t G0, index_t G1, float alpha,
-                           bool input_permute, bool output_permute) {
+                           index_t O, index_t G0, index_t G1, index_t G1_KV,
+                           float alpha, bool input_permute,
+                           bool output_permute) {
     return RawArg{static_cast<const ADataType *>(p_a),
                   static_cast<const B0DataType *>(p_b0),
                   static_cast<const B1DataType *>(p_b1),

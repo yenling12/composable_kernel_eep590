@@ -127,7 +127,8 @@ __launch_bounds__(CK_MAX_THREAD_PER_BLOCK, CK_MIN_BLOCK_PER_CU)
           c_grid_desc_g_m_n};
   index_t batch_count = c_grid_desc_g_m_n.GetLength(Number<0>{});
   const auto c0_matrix_mask = typename DeviceOp::C0MatrixMask{
-      a_grid_desc_g_m_k.GetLength(I1), b0_grid_desc_g_l_k.GetLength(I1)};
+      a_grid_desc_g_m_k.GetLength(Number<1>{}),
+      b0_grid_desc_g_l_k.GetLength(Number<1>{})};
 
   // clang-format on
   __shared__ char p_shared[GridwiseOp::GetSharedMemoryNumberOfByte()];
