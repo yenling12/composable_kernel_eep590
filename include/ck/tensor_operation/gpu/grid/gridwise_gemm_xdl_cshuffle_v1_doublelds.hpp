@@ -717,7 +717,8 @@ struct GridwiseGemm_k0mk1_k0nk1_mn_xdl_cshuffle_v1
     }
 
     // return block_id to C matrix tile idx (m0, n0) mapping
-    using Block2CTileMap = BlockToCTileMap_M00_N0_M01Adapt<MPerBlock, NPerBlock>;
+    // if arch = gfx942
+    using Block2CTileMap = BlockToCTileMap_Grouped_M00_N0_M01Adapt<8, MPerBlock, NPerBlock>;
 
     template <bool HasMainKBlockLoop, index_t TailNum = 3>
     __device__ static void Run(const FloatA* p_a_grid,
@@ -750,7 +751,7 @@ struct GridwiseGemm_k0mk1_k0nk1_mn_xdl_cshuffle_v1
         const CElementwiseOperation c_element_op{};
 
         // divide block work by [M, N]
-        const auto block_2_ctile_map = Block2CTileMap{problem.M, problem.N};
+        const auto block_2_ctile_map = Block2CTileMap{problem.M, problem.N, 4};
 
         const auto block_work_idx =
             block_2_ctile_map.CalculateBottomIndex(make_multi_index(get_block_1d_id()));
@@ -762,7 +763,17 @@ struct GridwiseGemm_k0mk1_k0nk1_mn_xdl_cshuffle_v1
         {
             return;
         }
-
+#if 1
+        if(threadIdx.x == 0){
+            printf("Hardware assigned No. %03d workgroup of logical C tile (%02d, %02d) on %d th XCC Die, %d th SE, %d th CU\n",
+               get_block_1d_id(),
+               block_work_idx[I0],
+               block_work_idx[I1],
+               __smid()>>6 & 0xf,
+               __smid()>>4 & 0x3,
+               __smid() & 0xf);
+        }
+#endif
         // HACK: this force m/n_block_data_idx_on_grid into SGPR
         const index_t m_block_data_idx_on_grid =
             __builtin_amdgcn_readfirstlane(block_work_idx[I0] * MPerBlock);

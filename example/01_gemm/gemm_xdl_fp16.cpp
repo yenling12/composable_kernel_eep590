@@ -17,7 +17,7 @@ using F16 = ck::half_t;
 using F32 = float;
 
 using ALayout = Row;
-using BLayout = Col;
+using BLayout = Row;
 using CLayout = Row;
 
 using AElementOp = PassThrough;
@@ -228,8 +228,10 @@ using DeviceGemmFactory =
         1, 1, S<1, 32, 1, 8>, 8,
         ck::LoopScheduler::Default, ck::PipelineVersion::v1>
 #endif
+    //RCR
+#if 0
     ck::tensor_operation::device::DeviceGemm_Xdl_CShuffle<
-        Row,   Col,  Row,   
+        ALayout,   BLayout,  CLayout,   
         F16,   F16,  F16,  F32,  F16, 
         PassThrough, PassThrough, PassThrough, GemmDefault, 
         2,   256,
@@ -243,23 +245,61 @@ using DeviceGemmFactory =
         2, 8, 8, 0,
         1, 1, S<1, 32, 1, 8>, 8,
         ck::LoopScheduler::Default, ck::PipelineVersion::v1>
-    // ,
-    // ck::tensor_operation::device::DeviceGemm_Xdl_CShuffle<
-    //     Row,   Col,  Row,   
-    //     F16,   F16,  F16,  F32,  F16, 
-    //     PassThrough, PassThrough, PassThrough, GemmDefault, 
-    //     2,   256,
-    //     256, 224, 
-    //     32, 8, 4,
-    //     32,   32,
-    //     2,    7, 
-    //     S<4, 64, 1>,  S<1, 0, 2>,  S<1, 0, 2>, 
-    //     2, 8, 8, 0,
-    //     S<8, 32, 1>,  S<1, 0, 2>,  S<1, 0, 2>, 
-    //     2, 8, 4, 0,
-    //     1, 1, S<1, 64, 1, 4>, 8,
-    //     ck::LoopScheduler::Default, ck::PipelineVersion::v1>
-
+#endif
+#if 1
+    //RRR
+    ck::tensor_operation::device::DeviceGemm_Xdl_CShuffle<
+        ALayout,   BLayout,  CLayout,   
+        F16,   F16,  F16,  F32,  F16, 
+        PassThrough, PassThrough, PassThrough, GemmDefault, 
+        2,   256,
+        256, 256, 
+        32, 8, 4,
+        32,   32,
+        4,    4, 
+        S<4, 64, 1>,  S<1, 0, 2>,  S<1, 0, 2>, 
+        2, 8, 8, 0,
+        S<8, 32, 1>,  S<0, 2, 1>,  S<0, 2, 1>,
+        1, 8, 4, 0,
+        1, 1, S<1, 32, 1, 8>, 8,
+        ck::LoopScheduler::Default, ck::PipelineVersion::v1>
+#endif
+#if 0
+    //CRR
+    ck::tensor_operation::device::DeviceGemm_Xdl_CShuffle<
+        ALayout,   BLayout,  CLayout,   
+        F16,   F16,  F16,  F32,  F16, 
+        PassThrough, PassThrough, PassThrough, GemmDefault, 
+        2,   256,
+        256, 256, 
+        32, 4, 4,
+        32,   32,
+        4,    4, 
+        S<8, 32, 1>,  S<0, 2, 1>,  S<0, 2, 1>,
+        1, 8, 4, 0,
+        S<8, 32, 1>,  S<0, 2, 1>,  S<0, 2, 1>,
+        1, 8, 4, 0,
+        1, 1, S<1, 32, 1, 8>, 8,
+        ck::LoopScheduler::Default, ck::PipelineVersion::v1>
+#endif
+#if 0
+    //CCR
+    ck::tensor_operation::device::DeviceGemm_Xdl_CShuffle<
+        ALayout,   BLayout,  CLayout,   
+        F16,   F16,  F16,  F32,  F16, 
+        PassThrough, PassThrough, PassThrough, GemmDefault, 
+        2,   256,
+        256, 256, 
+        32, 4, 8,
+        32,   32,
+        4,    4, 
+        S<8, 32, 1>,  S<0, 2, 1>,  S<0, 2, 1>,
+        1, 8, 4, 0,
+        S<4, 64, 1>,  S<1, 0, 2>,  S<1, 0, 2>, 
+        2, 8, 8, 0,
+        1, 1, S<1, 32, 1, 8>, 8,
+        ck::LoopScheduler::Default, ck::PipelineVersion::v1>
+#endif
     >;
 
 // clang-format on
