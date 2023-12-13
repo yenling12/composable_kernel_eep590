@@ -63,24 +63,28 @@ float launch_and_time_kernel(const StreamConfig& stream_config,
             execution_time_series.push_back(execution_time);
         }
 
-        float mean_execution_time = 0;
+        float mean_execution_time   = 0;
         float median_execution_time = 0;
 
 #if DEBUG_LOG
-        for(int i =0; i<nrepeat; i++){
-           std::cout<<i<<" th launch, execution time = "<<execution_time_series[i]<<" ms"<<std::endl;
+        for(int i = 0; i < nrepeat; i++)
+        {
+            std::cout << i << " th launch, execution time = " << execution_time_series[i] << " ms"
+                      << std::endl;
         }
 #endif
 
-        std::sort(execution_time_series.begin(),execution_time_series.end());
+        std::sort(execution_time_series.begin(), execution_time_series.end());
 
-        mean_execution_time = std::reduce(execution_time_series.begin(), execution_time_series.end(), .0)/static_cast<float>(nrepeat);
-        median_execution_time = execution_time_series[execution_time_series.size()/2];
+        mean_execution_time =
+            std::reduce(execution_time_series.begin(), execution_time_series.end(), .0) /
+            static_cast<float>(nrepeat);
+        median_execution_time = execution_time_series[execution_time_series.size() / 2];
 
-        if(stream_config.time_kernel_==1)
-        return mean_execution_time;
+        if(stream_config.time_kernel_ == 1)
+            return mean_execution_time;
         else
-        return median_execution_time;
+            return median_execution_time;
     }
     else
     {

@@ -17,8 +17,7 @@
 
 namespace ck {
 
-template <typename GridwiseGemm, bool HasMainKBlockLoop,
-          index_t TailNum = 3>
+template <typename GridwiseGemm, bool HasMainKBlockLoop, index_t TailNum = 3>
 __global__ void
 #if CK_USE_LAUNCH_BOUNDS
     __launch_bounds__(CK_MAX_THREAD_PER_BLOCK, CK_MIN_BLOCK_PER_CU)
@@ -32,7 +31,6 @@ __global__ void
     // operate on different lds chunk at same time without order dependecy
     __shared__ char p_shared_0[GridwiseGemm::GetSharedMemoryNumberOfByte()];
     __shared__ char p_shared_1[GridwiseGemm::GetSharedMemoryNumberOfByte()];
-
 
     GridwiseGemm::template Run<HasMainKBlockLoop, TailNum>(
         karg.p_a_grid, karg.p_b_grid, karg.p_c_grid, p_shared_0, p_shared_1, karg);
@@ -60,7 +58,8 @@ __global__ void
     __shared__ char p_shared_0[GridwiseGemm::GetSharedMemoryNumberOfByte()];
     __shared__ char p_shared_1[GridwiseGemm::GetSharedMemoryNumberOfByte()];
 
-    GridwiseGemm::template Run<HasMainKBlockLoop>(p_a_grid, p_b_grid, p_c_grid, p_shared_0, p_shared_1, problem);
+    GridwiseGemm::template Run<HasMainKBlockLoop>(
+        p_a_grid, p_b_grid, p_c_grid, p_shared_0, p_shared_1, problem);
 #else
     ignore = p_a_grid;
     ignore = p_b_grid;
@@ -576,7 +575,7 @@ struct GridwiseGemm_k0mk1_k0nk1_mn_xdl_cshuffle_v1
             c_shuffle_block_desc_mblock_mperblock_nblock_nperblock.GetElementSpaceSize();
 
         return math::max((a_block_space_size_aligned * sizeof(ComputeTypeA) +
-                              b_block_space_size_aligned * sizeof(ComputeTypeB)),
+                          b_block_space_size_aligned * sizeof(ComputeTypeB)),
                          c_block_size * sizeof(FloatCShuffle));
     }
 
@@ -763,7 +762,7 @@ struct GridwiseGemm_k0mk1_k0nk1_mn_xdl_cshuffle_v1
         {
             return;
         }
-#if 1
+#if 0
         if(threadIdx.x == 0){
             printf("Hardware assigned No. %03d workgroup of logical C tile (%02d, %02d) on %d th XCC Die, %d th SE, %d th CU\n",
                get_block_1d_id(),
@@ -925,19 +924,19 @@ struct GridwiseGemm_k0mk1_k0nk1_mn_xdl_cshuffle_v1
             KPerBlock);
 
         blockwise_gemm_pipeline.template Run<HasMainKBlockLoop, TailNum>(a_grid_desc_ak0_m_ak1,
-                                                                a_block_desc_ak0_m_ak1,
-                                                                a_blockwise_copy,
-                                                                a_grid_buf,
-                                                                a_block_bufs,
-                                                                a_block_slice_copy_step,
-                                                                b_grid_desc_bk0_n_bk1,
-                                                                b_block_desc_bk0_n_bk1,
-                                                                b_blockwise_copy,
-                                                                b_grid_buf,
-                                                                b_block_bufs,
-                                                                b_block_slice_copy_step,
-                                                                c_thread_buf,
-                                                                num_k_block_main_loop);
+                                                                         a_block_desc_ak0_m_ak1,
+                                                                         a_blockwise_copy,
+                                                                         a_grid_buf,
+                                                                         a_block_bufs,
+                                                                         a_block_slice_copy_step,
+                                                                         b_grid_desc_bk0_n_bk1,
+                                                                         b_block_desc_bk0_n_bk1,
+                                                                         b_blockwise_copy,
+                                                                         b_grid_buf,
+                                                                         b_block_bufs,
+                                                                         b_block_slice_copy_step,
+                                                                         c_thread_buf,
+                                                                         num_k_block_main_loop);
 
         // shuffle C and write out
         {

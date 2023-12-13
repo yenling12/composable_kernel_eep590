@@ -156,16 +156,18 @@ struct DeviceGemm_Xdl_CShuffle : public DeviceGemm<ALayout,
             std::tie(gdx, gdy, gdz) = GridwiseGemm::CalculateGridSize(arg.M, arg.N);
 
             float ave_time = 0;
-            const auto K = GridwiseGemm::CalculateAK0(arg.K) * AK1;
+            const auto K   = GridwiseGemm::CalculateAK0(arg.K) * AK1;
 #if 1
-            if(GridwiseGemm::CalculateKBlockLoopTailNum(K) == 3){
+            if(GridwiseGemm::CalculateKBlockLoopTailNum(K) == 3)
+            {
                 const auto kernel = kernel_gemm_xdl_cshuffle_v1<GridwiseGemm, true>;
-                ave_time = launch_and_time_kernel(
+                ave_time          = launch_and_time_kernel(
                     stream_config, kernel, dim3(gdx, gdy, gdz), dim3(BlockSize), 0, arg);
             }
-            else{
+            else
+            {
                 const auto kernel = kernel_gemm_xdl_cshuffle_v1<GridwiseGemm, true, 2>;
-                ave_time = launch_and_time_kernel(
+                ave_time          = launch_and_time_kernel(
                     stream_config, kernel, dim3(gdx, gdy, gdz), dim3(BlockSize), 0, arg);
             }
 #endif

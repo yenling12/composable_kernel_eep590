@@ -270,16 +270,18 @@ struct BlockToCTileMap_Grouped_M00_N0_M01Adapt<GroupNum, MPerBlock, NPerBlock, v
 
     __host__ __device__ BlockToCTileMap_Grouped_M00_N0_M01Adapt() = default;
 
-    __host__ __device__ BlockToCTileMap_Grouped_M00_N0_M01Adapt(const BlockToCTileMap_Grouped_M00_N0_M01Adapt&) =
-        default;
-    __host__ __device__ BlockToCTileMap_Grouped_M00_N0_M01Adapt(BlockToCTileMap_Grouped_M00_N0_M01Adapt&&) =
-        default;
+    __host__ __device__ BlockToCTileMap_Grouped_M00_N0_M01Adapt(
+        const BlockToCTileMap_Grouped_M00_N0_M01Adapt&) = default;
+    __host__ __device__
+    BlockToCTileMap_Grouped_M00_N0_M01Adapt(BlockToCTileMap_Grouped_M00_N0_M01Adapt&&) = default;
     __host__ __device__ BlockToCTileMap_Grouped_M00_N0_M01Adapt&
     operator=(const BlockToCTileMap_Grouped_M00_N0_M01Adapt&) = default;
     __host__ __device__ BlockToCTileMap_Grouped_M00_N0_M01Adapt&
     operator=(BlockToCTileMap_Grouped_M00_N0_M01Adapt&&) = default;
 
-    __host__ __device__ BlockToCTileMap_Grouped_M00_N0_M01Adapt(index_t M, index_t N, index_t M01 = 8)
+    __host__ __device__ BlockToCTileMap_Grouped_M00_N0_M01Adapt(index_t M,
+                                                                index_t N,
+                                                                index_t M01 = 8)
         : M_(M), N_(N), M01_(M01)
     {
 #if 0
@@ -290,8 +292,8 @@ struct BlockToCTileMap_Grouped_M00_N0_M01Adapt<GroupNum, MPerBlock, NPerBlock, v
     }
 
     template <typename CGridDesc_M_N>
-    __host__ __device__ BlockToCTileMap_Grouped_M00_N0_M01Adapt(const CGridDesc_M_N& c_grid_desc_m_n,
-                                                        index_t M01 = 8)
+    __host__ __device__
+    BlockToCTileMap_Grouped_M00_N0_M01Adapt(const CGridDesc_M_N& c_grid_desc_m_n, index_t M01 = 8)
         : BlockToCTileMap_Grouped_M00_N0_M01Adapt(
               c_grid_desc_m_n.GetLength(I0), c_grid_desc_m_n.GetLength(I1), M01)
     {
@@ -326,9 +328,9 @@ struct BlockToCTileMap_Grouped_M00_N0_M01Adapt<GroupNum, MPerBlock, NPerBlock, v
         const auto N0 = math::integer_divide_ceil(N_, NPerBlock);
 
         block_1d_id = block_1d_id % (M0 * N0); // swallow batch index
-        
-        const auto group_size = math::integer_divide_ceil(M0 * N0, GroupNum);
-        auto group_id = block_1d_id % GroupNum;
+
+        const auto group_size  = math::integer_divide_ceil(M0 * N0, GroupNum);
+        auto group_id          = block_1d_id % GroupNum;
         auto remap_block_1d_id = group_id * group_size + block_1d_id / GroupNum;
 
         index_t idx_N0 = remap_block_1d_id % N0;
@@ -403,7 +405,8 @@ struct BlockToCTileMap_Grouped_M00_N0_M01Adapt<GroupNum, MPerBlock, NPerBlock, v
 
 // keep the redundant type argument for backward compatibility
 template <index_t GroupNum, index_t MPerBlock, index_t NPerBlock, typename CGridDesc_M_N>
-struct BlockToCTileMap_Grouped_M00_N0_M01Adapt : BlockToCTileMap_Grouped_M00_N0_M01Adapt<GroupNum, MPerBlock, NPerBlock, void>
+struct BlockToCTileMap_Grouped_M00_N0_M01Adapt
+    : BlockToCTileMap_Grouped_M00_N0_M01Adapt<GroupNum, MPerBlock, NPerBlock, void>
 {
     using BlockToCTileMap_Grouped_M00_N0_M01Adapt<GroupNum, MPerBlock, NPerBlock, void>::
         BlockToCTileMap_Grouped_M00_N0_M01Adapt;
@@ -534,8 +537,7 @@ struct BlockToCTileMap_N00_M0_N01Adapt<MPerBlock, NPerBlock, void>
          */
 
         return make_tuple(idx_M0_N01_local / N01_adapt,
-                          idx_M0_N01_local % N01_adapt + idx_N00 * N01_
-                          );
+                          idx_M0_N01_local % N01_adapt + idx_N00 * N01_);
     }
 
     template <typename CTileIdx, typename CTileDim>
