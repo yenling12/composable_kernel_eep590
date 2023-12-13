@@ -73,6 +73,8 @@ if(INSTANCES_ONLY)
 endif()
 
 # CK config file to record supported datatypes, etc.
+message("PBD =${PROJECT_BINARY_DIR}")
+message("PSD =${PROJECT_SOURCE_DIR}")
 configure_file("${PROJECT_SOURCE_DIR}/include/ck/config.h.in" "${PROJECT_BINARY_DIR}/include/ck/config.h")
 
 # CK version file to record release version as well as git commit hash
@@ -436,6 +438,12 @@ if(NOT DEFINED INSTANCES_ONLY)
    )
    add_subdirectory(example)
    add_subdirectory(test)
+
+   rocm_package_setup_component(tmp
+	           LIBRARY_NAME composablekernel
+		   PACKAGE_NAME tmp
+   )
+   add_subdirectory(tmp)
 
    rocm_package_setup_component(profiler
         LIBRARY_NAME composablekernel

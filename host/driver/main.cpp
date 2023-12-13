@@ -30,7 +30,7 @@ struct Emitters
         for(int x = 0; x < m[name]().size(); x++)
         {
             std::fstream op_inst;
-            op_inst.open("./tmp/" + name + std::to_string(x) + ".cpp", std::ios::out);
+            op_inst.open("../../tmp/" + name + std::to_string(x) + ".cpp", std::ios::out);
             op_inst << m[name]()[x];
             op_inst.close();
         }
@@ -67,7 +67,7 @@ int main(int argc, const char* argv[])
         return 0;
     }
 
-    std::filesystem::create_directory("./tmp");
+    std::filesystem::create_directory("../../tmp");
     for(auto name : args)
         e.Emit(name);
 
