@@ -30,7 +30,7 @@ Kernel outputs:
 
 */
 
-#define USING_MASK 0
+#define USING_MASK 1
 #define DIM 64 // DIM should be a multiple of 8.
 
 #include <iostream>
