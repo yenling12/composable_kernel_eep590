@@ -143,7 +143,7 @@ bool profile_gemm_splitk_impl(int do_verification,
     // profile device GEMM instances
     for(auto& op_ptr : op_ptrs)
     {
-        std::vector<int> kbatch_list = {1, 2, 4, 8, 12, 16, 20, 32, 36, 40, 64, 96, 128};
+        std::vector<int> kbatch_list = {1, 2, 4, 8, 12, 16, 19, 20, 32, 36, 38, 40, 64, 96, 128};
 
         if(KBatch > 0)
         {
@@ -201,7 +201,7 @@ bool profile_gemm_splitk_impl(int do_verification,
                 std::string op_name = op_ptr->GetTypeString();
 
                 float ave_time =
-                    invoker_ptr->Run(argument_ptr.get(), StreamConfig{nullptr, time_kernel});
+                    invoker_ptr->Run(argument_ptr.get(), StreamConfig{nullptr, time_kernel, 0, 5, 50});
 
                 std::size_t flop = std::size_t(2) * M * N * K;
 
