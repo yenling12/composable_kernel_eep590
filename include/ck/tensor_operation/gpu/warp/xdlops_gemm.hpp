@@ -873,6 +873,11 @@ struct MfmaSelector
                selected_mfma.k_per_blk;
     }
 
+    static constexpr index_t GetKThreadPerXdlops()
+    {
+        return selected_mfma.is_k_reduction ? selected_mfma.num_input_blks : 1;
+    }
+
     static constexpr index_t GetK1PerXdlops() { return selected_mfma.k_per_blk; }
 };
 
@@ -1140,6 +1145,7 @@ struct XdlopsGemm
     static constexpr auto mfma_instr = mfma.selected_mfma;
 
     static constexpr auto KPerXdlops  = mfma.GetKPerXdlops();
+    static constexpr auto KThreadPerXdlops  = mfma.GetKThreadPerXdlops();
     static constexpr auto K1PerXdlops = mfma.GetK1PerXdlops();
     static constexpr auto K0PerXdlops = KPerXdlops / K1PerXdlops;
 

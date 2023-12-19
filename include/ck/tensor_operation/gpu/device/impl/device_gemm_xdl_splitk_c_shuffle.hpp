@@ -81,6 +81,19 @@ struct DeviceGemmXdlSplitKCShuffle : public DeviceGemmSplitK<ALayout,
     // TODO: should be exposed as Tparams.
     static constexpr index_t NumGemmKPrefetchStage = 1;
 
+    static constexpr auto MWaves = MPerBlock / (MXdlPerWave * MPerXDL);
+    static constexpr auto NWaves = NPerBlock / (NXdlPerWave * NPerXDL);
+
+    static constexpr auto AEnableLds_auto = NWaves == 1 ? false : true;
+    static constexpr auto BEnableLds_auto = MWaves == 1 ? false : true;
+
+    // If true, LDS is used unconditionally
+    static constexpr auto AEnableLds_manu = false;
+    static constexpr auto BEnableLds_manu = false;
+
+    static constexpr auto AEnableLds = AEnableLds_auto || AEnableLds_manu;
+    static constexpr auto BEnableLds = BEnableLds_auto || BEnableLds_manu;
+
     using GridwiseGemm = GridwiseGemm_bk0mk1_bk0nk1_mn_xdlops_v2r4r2<
         BlockSize,
         ADataType,
@@ -110,6 +123,7 @@ struct DeviceGemmXdlSplitKCShuffle : public DeviceGemmSplitK<ALayout,
         ABlockTransferSrcScalarPerVector,
         ABlockTransferDstScalarPerVector_K1,
         false, // AThreadTransferSrcResetCoordinateAfterRun,
+        AEnableLds,
         ABlockLdsAddExtraM,
         BBlockTransferThreadClusterLengths_K0_N_K1,
         BBlockTransferThreadClusterArrangeOrder,
@@ -118,6 +132,7 @@ struct DeviceGemmXdlSplitKCShuffle : public DeviceGemmSplitK<ALayout,
         BBlockTransferSrcScalarPerVector,
         BBlockTransferDstScalarPerVector_K1,
         false, // BThreadTransferSrcResetCoordinateAfterRun,
+        BEnableLds
         BBlockLdsAddExtraN,
         CShuffleMRepeatPerShuffle,
         CShuffleNRepeatPerShuffle,

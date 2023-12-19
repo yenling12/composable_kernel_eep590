@@ -31,8 +31,11 @@ template <index_t BlockSize,
           typename FloatA,
           typename FloatB,
           typename FloatAcc,
-          typename AK0MK1BlockDesc,
-          typename BK0NK1BlockDesc,
+          typename AWaveDesc,
+          typename BWaveDesc,
+          index_t MPerBlock,
+          index_t NPerBlock,
+          index_t KPerBlock,
           index_t MPerXDL,
           index_t NPerXDL,
           index_t MRepeat,
@@ -44,20 +47,15 @@ struct BlockwiseGemmXdlops_k0mk1_k0nk1_m0n0m1n1m2m3m4n2_v1
     static constexpr auto I1 = Number<1>{};
     static constexpr auto I2 = Number<2>{};
     static constexpr auto I3 = Number<3>{};
+    static constexpr auto I4 = Number<4>{};
+    static constexpr auto I5 = Number<5>{};
+    static constexpr auto I6 = Number<6>{};
 
     using ThisThreadBlock = ThisThreadBlock<BlockSize>;
 
     static constexpr index_t WaveSize = get_warp_size();
 
-    static constexpr index_t MPerBlock = AK0MK1BlockDesc{}.GetLength(I1);
-    static constexpr index_t NPerBlock = BK0NK1BlockDesc{}.GetLength(I1);
-    static constexpr index_t KPerBlock =
-        BK0NK1BlockDesc{}.GetLength(I0) * BK0NK1BlockDesc{}.GetLength(I2);
-
-    static constexpr index_t A_K0 = AK0MK1BlockDesc{}.GetLength(I0);
-    static constexpr index_t B_K0 = BK0NK1BlockDesc{}.GetLength(I0);
-    static constexpr index_t A_K1 = AK0MK1BlockDesc{}.GetLength(I2);
-    static constexpr index_t B_K1 = BK0NK1BlockDesc{}.GetLength(I2);
+    static constexpr index_t KRepeat = ABlockDesc{}.GetLength(I0);
 
     static constexpr auto xdlops_gemm = XdlopsGemm<FloatA, MPerXDL, NPerXDL, KPack, FloatB>{};
 
@@ -89,24 +87,38 @@ struct BlockwiseGemmXdlops_k0mk1_k0nk1_m0n0m1n1m2m3m4n2_v1
 
     __device__ static auto CalculateAThreadOriginDataIndex()
     {
+        if constexpr(AEnableLds)
+        {
         const auto wave_idx = GetWaveIdx();
 
         const auto waveId_m = wave_idx[I0];
 
         const auto xdlops_a_idx = xdlops_gemm.CalculateAThreadOriginDataIndex();
 
-        return make_tuple(0, waveId_m, xdlops_a_idx[I1], KPerThread * xdlops_a_idx[I0]);
+            return make_tuple(0, 0, waveId_m, xdlops_a_idx[I0], xdlops_a_idx[I1], 0);
+        }
+        else
+        {
+            return make_tuple(0, 0, 0, 0, 0, 0);
+        }
     }
 
     __device__ static auto CalculateBThreadOriginDataIndex()
     {
+        if constexpr(BEnableLds)
+        {
         const auto wave_idx = GetWaveIdx();
 
         const auto waveId_n = wave_idx[I1];
 
         const auto xdlops_b_idx = xdlops_gemm.CalculateBThreadOriginDataIndex();
 
-        return make_tuple(0, waveId_n, xdlops_b_idx[I1], KPerThread * xdlops_b_idx[I0]);
+            return make_tuple(0, 0, waveId_n, xdlops_b_idx[I0], xdlops_b_idx[I1], 0);
+        }
+        else
+        {
+            return make_tuple(0, 0, 0, 0, 0, 0);
+        }
     }
 
     template <index_t m0, index_t n0, index_t xdlops_i, index_t blk_i>
@@ -159,10 +171,13 @@ struct BlockwiseGemmXdlops_k0mk1_k0nk1_m0n0m1n1m2m3m4n2_v1
                           blk_idx[I3]);
     }
 
-    __host__ __device__ BlockwiseGemmXdlops_k0mk1_k0nk1_m0n0m1n1m2m3m4n2_v1()
+    using Tuple6 = decltype(CalculateAThreadOriginDataIndex());
+    __host__ __device__ BlockwiseGemmXdlops_k0mk1_k0nk1_m0n0m1n1m2m3m4n2_v1(Tuple6 a_origin = CalculateAThreadOriginDataIndex(),
+                                                                            Tuple6 b_origin = CalculateBThreadOriginDataIndex())
+                                                                            : a_thread_copy_(a_origin), b_thread_copy_(b_origin)
     {
-        static_assert(AK0MK1BlockDesc::IsKnownAtCompileTime() &&
-                          BK0NK1BlockDesc::IsKnownAtCompileTime(),
+        static_assert(ABlockDesc::IsKnownAtCompileTime() &&
+                          BBlockDesc::IsKnownAtCompileTime(),
                       "wrong! Desc should be known at compile-time");
 
         static_assert(ThisThreadBlock::GetNumOfThread() == MWaves * NWaves * WaveSize,
@@ -263,32 +278,8 @@ struct BlockwiseGemmXdlops_k0mk1_k0nk1_m0n0m1n1m2m3m4n2_v1
             c_grid_desc_g_m0_n0_m1_n1_m2_n2);
     }
 
-    __host__ __device__ static constexpr auto MakeABlockDescriptor_M0_M1_M2_K()
-    {
-        return transform_tensor_descriptor(
-            AK0MK1BlockDesc{},
-            make_tuple(
-                make_merge_transform_v3_division_mod(make_tuple(Number<A_K0>{}, Number<A_K1>{})),
-                make_unmerge_transform(
-                    make_tuple(Number<MRepeat>{}, Number<MWaves>{}, Number<MPerXDL>{}))),
-            make_tuple(Sequence<0, 2>{}, Sequence<1>{}),
-            make_tuple(Sequence<3>{}, Sequence<0, 1, 2>{}));
-    }
-
-    __host__ __device__ static constexpr auto MakeBBlockDescriptor_N0_N1_N2_K()
-    {
-        return transform_tensor_descriptor(
-            BK0NK1BlockDesc{},
-            make_tuple(
-                make_merge_transform_v3_division_mod(make_tuple(Number<B_K0>{}, Number<B_K1>{})),
-                make_unmerge_transform(
-                    make_tuple(Number<NRepeat>{}, Number<NWaves>{}, Number<NPerXDL>{}))),
-            make_tuple(Sequence<0, 2>{}, Sequence<1>{}),
-            make_tuple(Sequence<3>{}, Sequence<0, 1, 2>{}));
-    }
-
-    static constexpr auto a_block_desc_m0_m1_m2_k = MakeABlockDescriptor_M0_M1_M2_K();
-    static constexpr auto b_block_desc_n0_n1_n2_k = MakeBBlockDescriptor_N0_N1_N2_K();
+    static constexpr AWaveDesc a_wave_desc;
+    static constexpr BWaveDesc b_wave_desc;
 
     template <typename ABlockBuffer, typename BBlockBuffer, typename CThreadBuffer>
     __device__ void Run(const ABlockBuffer& a_block_buf,
@@ -299,34 +290,33 @@ struct BlockwiseGemmXdlops_k0mk1_k0nk1_m0n0m1n1m2m3m4n2_v1
             a_thread_desc_.GetElementSpaceSize());
         auto b_thread_buf = make_static_buffer<AddressSpaceEnum::Vgpr, FloatB>(
             b_thread_desc_.GetElementSpaceSize());
-
-        static_for<0, MRepeat, 1>{}([&](auto m0) {
+        static_for<0, KPerThread/KPack, 1>{}([&](auto ik) {
+            
+        static_for<0, MRepeat, 1>{}([&](auto im) {
             // read A
-            a_thread_copy_.Run(a_block_desc_m0_m1_m2_k,
-                               make_tuple(m0, I0, I0, I0),
+            a_thread_copy_.Run(a_wave_desc,
+                               make_tuple(ik, im, I0, I0, I0, I0),
                                a_block_buf,
                                a_thread_desc_,
-                               make_tuple(I0, I0, I0, I0),
+                               make_tuple(ik, im, I0, I0, I0, I0),
                                a_thread_buf);
 
-            static_for<0, NRepeat, 1>{}([&](auto n0) {
+            static_for<0, NRepeat, 1>{}([&](auto in) {
                 // read B
-                b_thread_copy_.Run(b_block_desc_n0_n1_n2_k,
-                                   make_tuple(n0, I0, I0, I0),
+                b_thread_copy_.Run(b_wave_desc,
+                                   make_tuple(ik, in, I0, I0, I0, I0),
                                    b_block_buf,
                                    b_thread_desc_,
-                                   make_tuple(I0, I0, I0, I0),
+                                   make_tuple(ik, in, I0, I0, I0, I0),
                                    b_thread_buf);
 
-                static_for<0, KPerThread, KPack>{}([&](auto k) {
                     vector_type<FloatA, KPack> a_thread_vec;
                     vector_type<FloatB, KPack> b_thread_vec;
-
                     static_for<0, KPack, 1>{}([&](auto i) {
                         a_thread_vec.template AsType<FloatA>()(i) = a_thread_buf
-                            [Number<a_thread_desc_.CalculateOffset(make_tuple(0, 0, 0, k + i))>{}];
+                            [Number<a_thread_desc_.CalculateOffset(make_tuple(ik, im, 0, 0, 0, i))>{}];
                         b_thread_vec.template AsType<FloatB>()(i) = b_thread_buf
-                            [Number<b_thread_desc_.CalculateOffset(make_tuple(0, 0, 0, k + i))>{}];
+                            [Number<b_thread_desc_.CalculateOffset(make_tuple(ik, in, 0, 0, 0, i))>{}];
                     });
 
                     using mfma_input_type_a =
@@ -335,7 +325,7 @@ struct BlockwiseGemmXdlops_k0mk1_k0nk1_m0n0m1n1m2m3m4n2_v1
                         typename vector_type<FloatB, xdlops_gemm.K1PerXdlops>::type;
 
                     constexpr index_t c_offset =
-                        c_thread_desc_.CalculateOffset(make_tuple(m0, n0, 0));
+                        c_thread_desc_.CalculateOffset(make_tuple(im, in, 0));
 
                     xdlops_gemm.template Run(
                         a_thread_vec.template AsType<mfma_input_type_a>(),
@@ -347,40 +337,84 @@ struct BlockwiseGemmXdlops_k0mk1_k0nk1_m0n0m1n1m2m3m4n2_v1
     }
 
     protected:
-    // A[M0, M1, M2, KPerThread]
     static constexpr auto a_thread_desc_ =
-        make_naive_tensor_descriptor_packed(make_tuple(I1, I1, I1, Number<KPerThread>{}));
+        make_naive_tensor_descriptor_packed(make_tuple(KRepeat, MRepeat, I1, I1, I1, KPack));
 
-    // B[N0, N1, N2, KPerThread]
     static constexpr auto b_thread_desc_ =
-        make_naive_tensor_descriptor_packed(make_tuple(I1, I1, I1, Number<KPerThread>{}));
+        make_naive_tensor_descriptor_packed(make_tuple(KRepeat, NRepeat, I1, I1, I1, KPack));
 
     // C[M, N, NumRegXdlops]
     static constexpr auto c_thread_desc_ = make_naive_tensor_descriptor_packed(
         make_tuple(Number<MRepeat>{}, Number<NRepeat>{}, xdlops_gemm.GetRegSizePerXdlops()));
 
-    using AThreadCopy = ThreadwiseTensorSliceTransfer_v4<FloatA,
-                                                         FloatA,
-                                                         decltype(a_block_desc_m0_m1_m2_k),
-                                                         decltype(a_thread_desc_),
-                                                         Sequence<1, 1, 1, KPerThread>,
-                                                         Sequence<0, 1, 2, 3>,
-                                                         3,
-                                                         A_K1,
-                                                         A_K1>;
+    template <bool EnableLds>
+    struct AThreadCopySelector;
 
-    using BThreadCopy = ThreadwiseTensorSliceTransfer_v4<FloatB,
-                                                         FloatB,
-                                                         decltype(b_block_desc_n0_n1_n2_k),
-                                                         decltype(b_thread_desc_),
-                                                         Sequence<1, 1, 1, KPerThread>,
-                                                         Sequence<0, 1, 2, 3>,
-                                                         3,
-                                                         B_K1,
-                                                         B_K1>;
+    template <>
+    struct AThreadCopySelector<true>
+    {
+        using type =
+            ThreadwiseTensorSliceTransfer_v4<FloatA,
+                                             FloatA,
+                                             decltype(a_wave_desc),
+                                             decltype(a_thread_desc_),
+                                             Sequence<1, 1, 1, 1, 1, KPack>,
+                                             Sequence<0, 1, 2, 3, 4, 5>,
+                                             5,
+                                             KPack,
+                                             KPack>;
+    };
 
-    AThreadCopy a_thread_copy_{CalculateAThreadOriginDataIndex()};
-    BThreadCopy b_thread_copy_{CalculateBThreadOriginDataIndex()};
+    template <>
+    struct AThreadCopySelector<false>
+    {
+        using type = ThreadwiseTensorSliceTransfer_StaticToStatic<
+            FloatA,
+            FloatA,
+            decltype(a_wave_desc),
+            decltype(a_thread_desc_),
+            tensor_operation::element_wise::PassThrough,
+            Sequence<1, 1, 1, 1, 1, KPack>,
+            Sequence<0, 1, 2, 3, 4, 5>,
+            5,
+            KPack>;
+    };
+
+    template <bool EnableLds>
+    struct BThreadCopySelector;
+
+    template <>
+    struct BThreadCopySelector<true>
+    {
+        using type =
+            ThreadwiseTensorSliceTransfer_v4<FloatB,
+                                             FloatB,
+                                             decltype(b_wave_desc),
+                                             decltype(b_thread_desc_),
+                                             Sequence<1, 1, 1, 1, 1, KPack>,
+                                             Sequence<0, 1, 2, 3, 4, 5>,
+                                             5,
+                                             KPack,
+                                             KPack>;
+    };
+
+    template <>
+    struct BThreadCopySelector<false>
+    {
+        using type = ThreadwiseTensorSliceTransfer_StaticToStatic<
+            FloatB,
+            FloatB,
+            decltype(b_wave_desc),
+            decltype(b_thread_desc_),
+            tensor_operation::element_wise::PassThrough,
+            Sequence<1, 1, 1, 1, 1, KPack>,
+            Sequence<0, 1, 2, 3, 4, 5>,
+            5,
+            KPack>;
+    };
+
+    typename AThreadCopySelector<AEnableLds>::type a_thread_copy_;
+    typename BThreadCopySelector<BEnableLds>::type b_thread_copy_;
 };
 
 // Note: To facilitate the inter-wave loop scheduler, we need to explicitly set the macro
@@ -391,8 +425,11 @@ template <index_t BlockSize,
           typename FloatA,
           typename FloatB,
           typename FloatAcc,
-          typename AK0MK1BlockDesc,
-          typename BK0NK1BlockDesc,
+          typename AWaveDesc,
+          typename BWaveDesc,
+          index_t MPerBlock,
+          index_t NPerBlock,
+          index_t KPerBlock,
           index_t MPerXDL,
           index_t NPerXDL,
           index_t MRepeat,
@@ -404,8 +441,11 @@ struct BlockwiseGemmXdlopsInterwave_k0mk1_k0nk1_m0n0m1n1m2m3m4n2_v1
                                                                  FloatA,
                                                                  FloatB,
                                                                  FloatAcc,
-                                                                 AK0MK1BlockDesc,
-                                                                 BK0NK1BlockDesc,
+                                                                 AWaveDesc,
+                                                                 BWaveDesc,
+                                                                 MPerBlock,
+                                                                 NPerBlock,
+                                                                 KPerBlock,
                                                                  MPerXDL,
                                                                  NPerXDL,
                                                                  MRepeat,
@@ -416,8 +456,11 @@ struct BlockwiseGemmXdlopsInterwave_k0mk1_k0nk1_m0n0m1n1m2m3m4n2_v1
                                                                      FloatA,
                                                                      FloatB,
                                                                      FloatAcc,
-                                                                     AK0MK1BlockDesc,
-                                                                     BK0NK1BlockDesc,
+                                                                     AWaveDesc,
+                                                                     BWaveDesc,
+                                                                     MPerBlock,
+                                                                     NPerBlock,
+                                                                     KPerBlock,
                                                                      MPerXDL,
                                                                      NPerXDL,
                                                                      MRepeat,
@@ -425,10 +468,8 @@ struct BlockwiseGemmXdlopsInterwave_k0mk1_k0nk1_m0n0m1n1m2m3m4n2_v1
                                                                      KPack>;
 
 #if CK_EXPERIMENTAL_INTER_WAVE_SCHEDULING
-    using Base::a_block_desc_m0_m1_m2_k;
-    using Base::A_K1;
-    using Base::b_block_desc_n0_n1_n2_k;
-    using Base::B_K1;
+    using Base::a_wave_desc;
+    using Base::b_wave_desc;
     using Base::c_thread_buf_;
     using Base::c_thread_desc_;
     using Base::CalculateAThreadOriginDataIndex;
@@ -451,23 +492,23 @@ struct BlockwiseGemmXdlopsInterwave_k0mk1_k0nk1_m0n0m1n1m2m3m4n2_v1
         auto b_thread_buf = make_static_buffer<AddressSpaceEnum::Vgpr, FloatB>(
             b_thread_desc_.GetElementSpaceSize());
 
-        static_for<0, KPerThread, KPerInnerLoop>{}([&](auto k) {
-            static_for<0, MRepeat, 1>{}([&](auto m0) {
+        static_for<0, KPerThread, KPerInnerLoop>{}([&](auto ik_read) {
+            static_for<0, MRepeat, 1>{}([&](auto im) {
                 // read A
-                a_thread_copy_.Run(a_block_desc_m0_m1_m2_k,
-                                   make_tuple(m0, I0, I0, k),
+                a_thread_copy_.Run(a_wave_desc,
+                                   make_tuple(ik_read, im, I0, I0, I0, I0),
                                    a_block_buf,
                                    a_thread_desc_,
-                                   make_tuple(m0, I0, I0, I0),
+                                   make_tuple(ik_read, im, I0, I0, I0, I0),
                                    a_thread_buf);
             });
-            static_for<0, NRepeat, 1>{}([&](auto n0) {
+            static_for<0, NRepeat, 1>{}([&](auto in) {
                 // read B
-                b_thread_copy_.Run(b_block_desc_n0_n1_n2_k,
-                                   make_tuple(n0, I0, I0, k),
+                b_thread_copy_.Run(b_wave_desc,
+                                   make_tuple(ik_read, in, I0, I0, I0, I0),
                                    b_block_buf,
                                    b_thread_desc_,
-                                   make_tuple(n0, I0, I0, I0),
+                                   make_tuple(ik_read, in, I0, I0, I0, I0),
                                    b_thread_buf);
             });
             __builtin_amdgcn_sched_barrier(0);
@@ -482,19 +523,19 @@ struct BlockwiseGemmXdlopsInterwave_k0mk1_k0nk1_m0n0m1n1m2m3m4n2_v1
                 asm volatile("s_barrier" ::);
                 __builtin_amdgcn_sched_barrier(0);
             }
-            static_for<0, KPerInnerLoop, KPack>{}([&](auto k_) {
-                static_for<0, MRepeat, 1>{}([&](auto m0) {
-                    static_for<0, NRepeat, 1>{}([&](auto n0) {
+            static_for<0, KPerInnerLoop/KPack, 1>{}([&](auto ik_compute) {
+                static_for<0, MRepeat, 1>{}([&](auto im) {
+                    static_for<0, NRepeat, 1>{}([&](auto in) {
                         vector_type<FloatA, KPack> a_thread_vec;
                         vector_type<FloatB, KPack> b_thread_vec;
 
                         static_for<0, KPack, 1>{}([&](auto i) {
                             a_thread_vec.template AsType<FloatA>()(i) =
                                 a_thread_buf[Number<a_thread_desc_.CalculateOffset(
-                                    make_tuple(m0, 0, 0, k_ + i))>{}];
+                                    make_tuple(ik_compute, im, 0, 0, 0, i))>{}];
                             b_thread_vec.template AsType<FloatB>()(i) =
                                 b_thread_buf[Number<b_thread_desc_.CalculateOffset(
-                                    make_tuple(n0, 0, 0, k_ + i))>{}];
+                                    make_tuple(ik_compute, in, 0, 0, 0, i))>{}];
                         });
 
                         using mfma_input_type_a =
@@ -503,16 +544,16 @@ struct BlockwiseGemmXdlopsInterwave_k0mk1_k0nk1_m0n0m1n1m2m3m4n2_v1
                             typename vector_type<FloatB, xdlops_gemm.K1PerXdlops>::type;
 
                         constexpr index_t c_offset =
-                            c_thread_desc_.CalculateOffset(make_tuple(m0, n0, 0));
+                            c_thread_desc_.CalculateOffset(make_tuple(im, in, 0));
 
                         // The block_sync_lds() here performs double duty:
                         // A) safeguard against data hazard because barrier from blockwise_gemm is
                         // moved here B) reduce VMEM FIFO congestion by applying small delays to
                         // different wavefronts It is performed near the end of MAC cluster to
                         // minimize lgkmcnt penalty
-                        if constexpr(k.value == KPerThread - KPerInnerLoop &&
-                                     k_.value == KPerInnerLoop - KPack && m0.value == MRepeat - 1 &&
-                                     n0.value == NRepeat - 1)
+                        if constexpr(ik_read.value == KPerThread - KPerInnerLoop &&
+                                     ik_compute.value == KPerInnerLoop - KPack && im.value == MRepeat - 1 &&
+                                     in.value == NRepeat - 1)
                         {
                             __builtin_amdgcn_sched_barrier(0);
                             block_sync_lds();
@@ -572,6 +613,86 @@ struct BlockwiseGemmXdlopsInterwave_k0mk1_k0nk1_m0n0m1n1m2m3m4n2_v1
     AThreadCopy a_thread_copy_{CalculateAThreadOriginDataIndex()};
     BThreadCopy b_thread_copy_{CalculateBThreadOriginDataIndex()};
 
+        protected:
+    static constexpr auto a_thread_desc_ =
+        make_naive_tensor_descriptor_packed(make_tuple(KRepeat, MRepeat, I1, I1, I1, KPack));
+
+    static constexpr auto b_thread_desc_ =
+        make_naive_tensor_descriptor_packed(make_tuple(KRepeat, NRepeat, I1, I1, I1, KPack));
+
+    // C[M, N, NumRegXdlops]
+    static constexpr auto c_thread_desc_ = make_naive_tensor_descriptor_packed(
+        make_tuple(Number<MRepeat>{}, Number<NRepeat>{}, xdlops_gemm.GetRegSizePerXdlops()));
+
+    template <bool EnableLds>
+    struct AThreadCopySelector;
+
+    template <>
+    struct AThreadCopySelector<true>
+    {
+        using type =
+            ThreadwiseTensorSliceTransfer_v4<FloatA,
+                                             FloatA,
+                                             decltype(a_wave_desc),
+                                             decltype(a_thread_desc_),
+                                             Sequence<1, 1, 1, 1, 1, KPack>,
+                                             Sequence<0, 1, 2, 3, 4, 5>,
+                                             5,
+                                             KPack,
+                                             KPack>;
+    };
+
+    template <>
+    struct AThreadCopySelector<false>
+    {
+        using type = ThreadwiseTensorSliceTransfer_StaticToStatic<
+            FloatA,
+            FloatA,
+            decltype(a_wave_desc),
+            decltype(a_thread_desc_),
+            tensor_operation::element_wise::PassThrough,
+            Sequence<1, 1, 1, 1, 1, KPack>,
+            Sequence<0, 1, 2, 3, 4, 5>,
+            5,
+            KPack>;
+    };
+
+    template <bool EnableLds>
+    struct BThreadCopySelector;
+
+    template <>
+    struct BThreadCopySelector<true>
+    {
+        using type =
+            ThreadwiseTensorSliceTransfer_v4<FloatB,
+                                             FloatB,
+                                             decltype(b_wave_desc),
+                                             decltype(b_thread_desc_),
+                                             Sequence<1, 1, 1, 1, 1, KPack>,
+                                             Sequence<0, 1, 2, 3, 4, 5>,
+                                             5,
+                                             KPack,
+                                             KPack>;
+    };
+
+    template <>
+    struct BThreadCopySelector<false>
+    {
+        using type = ThreadwiseTensorSliceTransfer_StaticToStatic<
+            FloatB,
+            FloatB,
+            decltype(b_wave_desc),
+            decltype(b_thread_desc_),
+            tensor_operation::element_wise::PassThrough,
+            Sequence<1, 1, 1, 1, 1, KPack>,
+            Sequence<0, 1, 2, 3, 4, 5>,
+            5,
+            KPack>;
+    };
+
+    typename AThreadCopySelector<AEnableLds>::type a_thread_copy_;
+    typename BThreadCopySelector<BEnableLds>::type b_thread_copy_;
+
 #endif // #if CK_EXPERIMENTAL_INTER_WAVE_SCHEDULING
 };
 
@@ -581,6 +702,9 @@ template <index_t BlockSize,
           typename FloatAcc,
           typename AK0MK1BlockDesc,
           typename BK0NK1BlockDesc,
+          index_t MPerBlock,
+          index_t NPerBlock,
+          index_t KPerBlock,
           index_t MPerXDL,
           index_t NPerXDL,
           index_t MRepeat,
@@ -597,6 +721,9 @@ constexpr auto BlockwiseGemmXdlops_k0mk1_k0nk1_m0n0m1n1m2m3m4n2_Selector()
                                                                    FloatAcc,
                                                                    AK0MK1BlockDesc,
                                                                    BK0NK1BlockDesc,
+                                                                   MPerBlock,
+                                                                   NPerBlock,
+                                                                   KPerBlock,
                                                                    MPerXDL,
                                                                    NPerXDL,
                                                                    MRepeat,
@@ -611,6 +738,9 @@ constexpr auto BlockwiseGemmXdlops_k0mk1_k0nk1_m0n0m1n1m2m3m4n2_Selector()
                                                                             FloatAcc,
                                                                             AK0MK1BlockDesc,
                                                                             BK0NK1BlockDesc,
+                                                                            MPerBlock,
+                                                                            NPerBlock,
+                                                                            KPerBlock,
                                                                             MPerXDL,
                                                                             NPerXDL,
                                                                             MRepeat,
