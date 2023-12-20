@@ -65,6 +65,10 @@ bool run_splitK_gemm(const ProblemSize& problem_size, const ExecutionConfig& con
         a_m_k.GenerateTensorValue(GeneratorTensor_3<ADataType>{0.0, 1.0});
         b_k_n.GenerateTensorValue(GeneratorTensor_3<BDataType>{-0.5, 0.5});
         break;
+    case 3:
+        a_m_k.GenerateTensorValue(GeneratorTensor_1<ADataType>{});
+        b_k_n.GenerateTensorValue(GeneratorTensor_1<BDataType>{});
+        break;
     default:
         a_m_k.GenerateTensorValue(GeneratorTensor_Sequential<0>{});
         b_k_n.GenerateTensorValue(GeneratorTensor_Sequential<1>{});
@@ -157,7 +161,7 @@ bool run_splitK_gemm(const ProblemSize& problem_size, const ExecutionConfig& con
 
     if(config.time_kernel)
     {
-        float ave_time = invoker.Run(argument, StreamConfig{nullptr, config.time_kernel});
+        float ave_time = invoker.Run(argument, StreamConfig{nullptr, config.time_kernel, 1});
 
         std::size_t flop = std::size_t(2) * M * N * K;
         std::size_t num_btype =

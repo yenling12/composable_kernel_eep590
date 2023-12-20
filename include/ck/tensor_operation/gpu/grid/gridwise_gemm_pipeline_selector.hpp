@@ -21,6 +21,8 @@ enum struct PipelineVersion
 
 template <PipelineVersion PipelineVer,
           index_t NumPrefetch     = 1,
+          bool AEnableLds         = true,
+          bool BEnableLds         = true,
           LoopScheduler LoopSched = LoopScheduler::Default>
 constexpr auto GridwiseGemmPipeline_Selector()
 {
@@ -28,11 +30,11 @@ constexpr auto GridwiseGemmPipeline_Selector()
     {
         if constexpr(LoopSched == LoopScheduler::Default)
         {
-            return GridwiseGemmPipeline_v1<NumPrefetch>{};
+            return GridwiseGemmPipeline_v1<NumPrefetch, AEnableLds, BEnableLds>{};
         }
         else if constexpr(LoopSched == LoopScheduler::Interwave)
         {
-            return GridwiseGemmPipelineInterwave_v1<NumPrefetch>{};
+            return GridwiseGemmPipelineInterwave_v1<NumPrefetch, AEnableLds, BEnableLds>{};
         }
     }
     else if constexpr(PipelineVer == PipelineVersion::v2)

@@ -1234,6 +1234,17 @@ struct ThreadwiseTensorSliceTransfer_StaticToStatic
                       "wrong! Not divisible");
     }
 
+    __device__ constexpr ThreadwiseTensorSliceTransfer_StaticToStatic(const Index& src_idx)
+    {
+        // for compatibility
+        ignore = src_idx;
+        static_assert(SrcDesc::IsKnownAtCompileTime() && DstDesc::IsKnownAtCompileTime(),
+                      "wrong! Desc need to known at compile-time");
+
+        static_assert(SliceLengths::At(Number<DstVectorDim>{}) % DstScalarPerVector == 0,
+                      "wrong! Not divisible");
+    }
+
     template <typename SrcSliceOriginIdx,
               typename DstSliceOriginIdx,
               typename SrcBuffer,
@@ -1243,7 +1254,7 @@ struct ThreadwiseTensorSliceTransfer_StaticToStatic
                         const SrcBuffer& src_buf,
                         const DstDesc&,
                         const DstSliceOriginIdx&,
-                        DstBuffer& dst_buf)
+                        DstBuffer& dst_buf) const
     {
         static_assert(SrcDesc::IsKnownAtCompileTime() && DstDesc::IsKnownAtCompileTime(),
                       "wrong! Desc need to known at compile-time");

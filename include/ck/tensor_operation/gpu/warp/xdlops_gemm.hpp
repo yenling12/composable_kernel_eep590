@@ -1144,10 +1144,10 @@ struct XdlopsGemm
 
     static constexpr auto mfma_instr = mfma.selected_mfma;
 
-    static constexpr auto KPerXdlops  = mfma.GetKPerXdlops();
-    static constexpr auto KThreadPerXdlops  = mfma.GetKThreadPerXdlops();
-    static constexpr auto K1PerXdlops = mfma.GetK1PerXdlops();
-    static constexpr auto K0PerXdlops = KPerXdlops / K1PerXdlops;
+    static constexpr auto KPerXdlops       = mfma.GetKPerXdlops();
+    static constexpr auto KThreadPerXdlops = mfma.GetKThreadPerXdlops();
+    static constexpr auto K1PerXdlops      = mfma.GetK1PerXdlops();
+    static constexpr auto K0PerXdlops      = KPerXdlops / K1PerXdlops;
 
     __host__ __device__ static constexpr auto GetCM0M1M2NThreadBlkLengths()
     {

@@ -96,7 +96,9 @@ using device_gemm_xdl_splitk_f16_f16_f16_mk_nk_mn_instances = std::tuple<
     // clang-format on
     >;
 
-template <ck::tensor_operation::device::GemmSpecialization GemmSpec, ck::PipelineVersion PipVer, ck::LoopScheduler LoopSche>
+template <ck::tensor_operation::device::GemmSpecialization GemmSpec,
+          ck::PipelineVersion PipVer,
+          ck::LoopScheduler LoopSche>
 using device_gemm_xdl_splitk_f16_f16_f16_mk_nk_mn_irregular_instances = std::tuple<
     // clang-format off
         //#########################|AData| BData| CData| AccData| ALayout| BLayout| CLayout|           A|           B|           C|          GEMM| Block|  MPer|  NPer| K0Per| K1| MPer| NPer| MXdl| NXdl|  ABlockTransfer| ABlockTransfer| ABlockTransfer| ABlockTransfer| ABlockTransfer| ABlockTransfer| ABlockLds|  BBlockTransfer| BBlockTransfer| BBlockTransfer| BlockTransfer| BBlockTransfer| BBlockTransfer| BBlockLds|    CShuffle|    CShuffle|     CBlockTransferClusterLengths|  CBlockTransfer|
@@ -157,33 +159,51 @@ void add_device_gemm_xdl_splitk_f16_f16_f16_mk_nk_mn_instances(
     add_device_operation_instances(
         instances, device_gemm_xdl_splitk_f16_f16_f16_mk_nk_mn_instances<GemmMNKPadding>{});
 #endif
-        add_device_operation_instances(
-        instances,
-        device_gemm_xdl_splitk_f16_f16_f16_mk_nk_mn_irregular_instances<GemmDefault, ck::PipelineVersion::v1, ck::LoopScheduler::Default>{});
-    add_device_operation_instances(
-        instances,
-        device_gemm_xdl_splitk_f16_f16_f16_mk_nk_mn_irregular_instances<GemmDefault, ck::PipelineVersion::v2, ck::LoopScheduler::Default>{});
-    add_device_operation_instances(
-        instances,
-        device_gemm_xdl_splitk_f16_f16_f16_mk_nk_mn_irregular_instances<GemmDefault, ck::PipelineVersion::v1, ck::LoopScheduler::Interwave>{});
-    add_device_operation_instances(
-        instances,
-        device_gemm_xdl_splitk_f16_f16_f16_mk_nk_mn_irregular_instances<GemmMNPadding, ck::PipelineVersion::v1, ck::LoopScheduler::Default>{});
-    add_device_operation_instances(
-        instances,
-        device_gemm_xdl_splitk_f16_f16_f16_mk_nk_mn_irregular_instances<GemmMNPadding, ck::PipelineVersion::v2, ck::LoopScheduler::Default>{});
-    add_device_operation_instances(
-        instances,
-        device_gemm_xdl_splitk_f16_f16_f16_mk_nk_mn_irregular_instances<GemmMNPadding, ck::PipelineVersion::v1, ck::LoopScheduler::Interwave>{});
-    add_device_operation_instances(
-        instances,
-        device_gemm_xdl_splitk_f16_f16_f16_mk_nk_mn_irregular_instances<GemmMNKPadding, ck::PipelineVersion::v1, ck::LoopScheduler::Default>{});
-    add_device_operation_instances(
-        instances,
-        device_gemm_xdl_splitk_f16_f16_f16_mk_nk_mn_irregular_instances<GemmMNKPadding, ck::PipelineVersion::v2, ck::LoopScheduler::Default>{});
-    add_device_operation_instances(
-        instances,
-        device_gemm_xdl_splitk_f16_f16_f16_mk_nk_mn_irregular_instances<GemmMNKPadding, ck::PipelineVersion::v1, ck::LoopScheduler::Interwave>{});
+    add_device_operation_instances(instances,
+                                   device_gemm_xdl_splitk_f16_f16_f16_mk_nk_mn_irregular_instances<
+                                       GemmDefault,
+                                       ck::PipelineVersion::v1,
+                                       ck::LoopScheduler::Default>{});
+    add_device_operation_instances(instances,
+                                   device_gemm_xdl_splitk_f16_f16_f16_mk_nk_mn_irregular_instances<
+                                       GemmDefault,
+                                       ck::PipelineVersion::v2,
+                                       ck::LoopScheduler::Default>{});
+    add_device_operation_instances(instances,
+                                   device_gemm_xdl_splitk_f16_f16_f16_mk_nk_mn_irregular_instances<
+                                       GemmDefault,
+                                       ck::PipelineVersion::v1,
+                                       ck::LoopScheduler::Interwave>{});
+    add_device_operation_instances(instances,
+                                   device_gemm_xdl_splitk_f16_f16_f16_mk_nk_mn_irregular_instances<
+                                       GemmMNPadding,
+                                       ck::PipelineVersion::v1,
+                                       ck::LoopScheduler::Default>{});
+    add_device_operation_instances(instances,
+                                   device_gemm_xdl_splitk_f16_f16_f16_mk_nk_mn_irregular_instances<
+                                       GemmMNPadding,
+                                       ck::PipelineVersion::v2,
+                                       ck::LoopScheduler::Default>{});
+    add_device_operation_instances(instances,
+                                   device_gemm_xdl_splitk_f16_f16_f16_mk_nk_mn_irregular_instances<
+                                       GemmMNPadding,
+                                       ck::PipelineVersion::v1,
+                                       ck::LoopScheduler::Interwave>{});
+    add_device_operation_instances(instances,
+                                   device_gemm_xdl_splitk_f16_f16_f16_mk_nk_mn_irregular_instances<
+                                       GemmMNKPadding,
+                                       ck::PipelineVersion::v1,
+                                       ck::LoopScheduler::Default>{});
+    add_device_operation_instances(instances,
+                                   device_gemm_xdl_splitk_f16_f16_f16_mk_nk_mn_irregular_instances<
+                                       GemmMNKPadding,
+                                       ck::PipelineVersion::v2,
+                                       ck::LoopScheduler::Default>{});
+    add_device_operation_instances(instances,
+                                   device_gemm_xdl_splitk_f16_f16_f16_mk_nk_mn_irregular_instances<
+                                       GemmMNKPadding,
+                                       ck::PipelineVersion::v1,
+                                       ck::LoopScheduler::Interwave>{});
 }
 
 } // namespace instance

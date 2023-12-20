@@ -298,7 +298,7 @@ struct GridwiseGemmPipeline_v1<1, false, true>
                                CThreadBuffer& c_thread_buf,
                                index_t num_loop)
     {
-        constexpr auto a_block_origin_idx = make_tuple(I0, I0, I0, I0, I0, I0, I0);
+        constexpr auto a_block_origin_idx = make_tuple(I0, I0, I0, I0, I0, I0, I0, I0, I0);
         auto a_block_buf_switch           = a_block_buf;
 
         // preload data into LDS
@@ -397,7 +397,7 @@ struct GridwiseGemmPipeline_v1<1, true, false>
                                CThreadBuffer& c_thread_buf,
                                index_t num_loop)
     {
-        constexpr auto b_block_origin_idx = make_tuple(I0, I0, I0, I0, I0, I0, I0);
+        constexpr auto b_block_origin_idx = make_tuple(I0, I0, I0, I0, I0, I0, I0, I0, I0);
         auto b_block_buf_switch           = b_block_buf;
 
         // preload data into LDS
@@ -496,8 +496,8 @@ struct GridwiseGemmPipeline_v1<1, false, false>
                                CThreadBuffer& c_thread_buf,
                                index_t num_loop)
     {
-        constexpr auto b_block_origin_idx = make_tuple(I0, I0, I0, I0, I0, I0, I0);
-        constexpr auto a_block_origin_idx = make_tuple(I0, I0, I0, I0, I0, I0, I0);
+        constexpr auto b_block_origin_idx = make_tuple(I0, I0, I0, I0, I0, I0, I0, I0, I0);
+        constexpr auto a_block_origin_idx = make_tuple(I0, I0, I0, I0, I0, I0, I0, I0, I0);
         auto b_block_buf_switch           = b_block_buf;
         auto a_block_buf_switch           = a_block_buf;
 
@@ -557,6 +557,9 @@ struct GridwiseGemmPipelineInterwave_v1;
 template <>
 struct GridwiseGemmPipelineInterwave_v1<1, false, true>
 {
+    static constexpr auto I0 = Number<0>{};
+    static constexpr auto I1 = Number<1>{};
+
     __host__ __device__ static constexpr bool IsSupported(index_t /* num_loop */) { return true; }
 
     __host__ __device__ static constexpr bool CalculateHasMainLoop(index_t num_loop)
@@ -595,7 +598,7 @@ struct GridwiseGemmPipelineInterwave_v1<1, false, true>
                                CThreadBuffer& c_thread_buf,
                                index_t num_loop)
     {
-        constexpr auto a_block_origin_idx = make_tuple(I0, I0, I0, I0, I0, I0, I0);
+        constexpr auto a_block_origin_idx = make_tuple(I0, I0, I0, I0, I0, I0, I0, I0, I0);
         auto a_block_buf_switch           = a_block_buf;
 
         // preload data into LDS
@@ -649,6 +652,9 @@ struct GridwiseGemmPipelineInterwave_v1<1, false, true>
 template <>
 struct GridwiseGemmPipelineInterwave_v1<1, true, false>
 {
+    static constexpr auto I0 = Number<0>{};
+    static constexpr auto I1 = Number<1>{};
+
     __host__ __device__ static constexpr bool IsSupported(index_t /* num_loop */) { return true; }
 
     __host__ __device__ static constexpr bool CalculateHasMainLoop(index_t num_loop)
@@ -687,8 +693,8 @@ struct GridwiseGemmPipelineInterwave_v1<1, true, false>
                                CThreadBuffer& c_thread_buf,
                                index_t num_loop)
     {
-        
-        constexpr auto b_block_origin_idx = make_tuple(I0, I0, I0, I0, I0, I0, I0);
+
+        constexpr auto b_block_origin_idx = make_tuple(I0, I0, I0, I0, I0, I0, I0, I0, I0);
         auto b_block_buf_switch           = b_block_buf;
 
         // preload data into LDS
@@ -783,8 +789,8 @@ struct GridwiseGemmPipelineInterwave_v1<1, false, false>
                                CThreadBuffer& c_thread_buf,
                                index_t num_loop)
     {
-        constexpr auto b_block_origin_idx = make_tuple(I0, I0, I0, I0, I0, I0, I0);
-        constexpr auto a_block_origin_idx = make_tuple(I0, I0, I0, I0, I0, I0, I0);
+        constexpr auto b_block_origin_idx = make_tuple(I0, I0, I0, I0, I0, I0, I0, I0, I0);
+        constexpr auto a_block_origin_idx = make_tuple(I0, I0, I0, I0, I0, I0, I0, I0, I0);
         auto b_block_buf_switch           = b_block_buf;
         auto a_block_buf_switch           = a_block_buf;
 
@@ -930,12 +936,16 @@ struct GridwiseGemmPipelineInterwave_v1<1, true, true>
 
 // Note: 2 stage prefetch not optimized for inter-wave loop scheduler
 template <>
-struct GridwiseGemmPipelineInterwave_v1<2, true, true> : public GridwiseGemmPipeline_v1<2, true, true>
+struct GridwiseGemmPipelineInterwave_v1<2, true, true>
+    : public GridwiseGemmPipeline_v1<2, true, true>
 {
 };
 
 // TODO: deprecate as GridwiseGemmPipeline_Selector covers the functionality
-template <index_t NumPrefetch, LoopScheduler LoopSched, bool AEnableLds = true, bool BEnableLds = true>
+template <index_t NumPrefetch,
+          LoopScheduler LoopSched,
+          bool AEnableLds = true,
+          bool BEnableLds = true>
 constexpr auto GridwiseGemmPipeline_v1_Selector()
 {
     if constexpr(LoopSched == LoopScheduler::Default)
