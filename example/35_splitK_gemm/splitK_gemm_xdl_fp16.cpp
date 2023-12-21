@@ -35,7 +35,7 @@ using AccDataType = F32;
 using CDataType   = F16;
 
 using ALayout = Row;
-using BLayout = Col;
+using BLayout = Row;
 using CLayout = Row;
 
 using AElementOp = PassThrough;
@@ -58,13 +58,13 @@ using DeviceGemmInstance =
                                                               GemmDefault,
                                                               256,
                                                               64,
-                                                              64,
+                                                              128,
                                                               8,
                                                               8,
                                                               16,
                                                               16,
-                                                              1,
                                                               4,
+                                                              2,
                                                               S<1, 8, 1, 32, 1>,
                                                               S<0, 3, 1, 2, 4>,
                                                               S<0, 3, 1, 2, 4>,
@@ -73,15 +73,15 @@ using DeviceGemmInstance =
                                                               8,
                                                               true,
                                                               S<1, 8, 1, 32, 1>,
-                                                              S<0, 3, 1, 2, 4>,
-                                                              S<0, 3, 1, 2, 4>,
-                                                              4,
-                                                              8,
+                                                              S<0, 2, 1, 4, 3>,
+                                                              S<0, 2, 1, 4, 3>,
+                                                              3,
+                                                              2,
                                                               8,
                                                               true,
                                                               1,
                                                               1,
-                                                              S<1, 64, 1, 4>,
+                                                              S<1, 16, 1, 16>,
                                                               4,
                                                               F16,
                                                               ck::PipelineVersion::v1,

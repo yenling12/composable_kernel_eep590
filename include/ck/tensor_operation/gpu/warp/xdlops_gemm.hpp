@@ -885,6 +885,8 @@ template <typename base_type,
           index_t MPerXdlops,
           index_t NPerXdlops,
           index_t KPack,
+          index_t MPack            = 1,
+          index_t NPack            = 1,
           typename additional_type = base_type,
           bool TransposeC          = false>
 struct XdlopsGemm
@@ -933,14 +935,15 @@ struct XdlopsGemm
 
         return transform_tensor_descriptor(
             c_desc_m0_n0_m1_n1_m2_n2,
-            make_tuple(make_pass_through_transform(M0),
-                       make_pass_through_transform(N0),
-                       make_pass_through_transform(M1),
-                       make_pass_through_transform(N1),
-                       make_unmerge_transform(make_tuple(Number<mfma_instr.num_groups_per_blk>{},
-                                                         Number<mfma_instr.num_input_blks>{},
-                                                         Number<mfma_instr.group_size>{})),
-                       make_pass_through_transform(Number<mfma_instr.num_threads_per_blk>{})),
+            make_tuple(
+                make_pass_through_transform(M0),
+                make_pass_through_transform(N0),
+                make_pass_through_transform(M1),
+                make_pass_through_transform(N1),
+                make_unmerge_transform(make_tuple(Number<mfma_instr.num_groups_per_blk>{},
+                                                  Number<mfma_instr.num_input_blks>{},
+                                                  Number<mfma_instr.group_size * MPack>{})),
+                make_pass_through_transform(Number<mfma_instr.num_threads_per_blk * NPack>{})),
             make_tuple(Sequence<0>{},
                        Sequence<1>{},
                        Sequence<2>{},
@@ -1029,7 +1032,7 @@ struct XdlopsGemm
 
     __device__ static constexpr index_t GetRegSizePerXdlops()
     {
-        return MPerXdlops * NPerXdlops / mfma_instr.wave_size;
+        return MPack * NPack * MPerXdlops * NPerXdlops / mfma_instr.wave_size;
     }
 
     __device__ static constexpr index_t GetWaveSize() { return mfma_instr.wave_size; }
@@ -1046,17 +1049,25 @@ struct XdlopsGemm
                 (is_same<base_type, bf8_t>::value && is_same<additional_type, f8_t>::value),
             "base base_type must be double, float, half, bfloat16, int8_t, f8_t or bf8_t!");
 
-        static_for<0, KPack / mfma_instr.k_per_blk, 1>{}([&](auto k) {
-            if constexpr(!TransposeC)
-            {
-                mfma_instr.template run<MPerXdlops, NPerXdlops>(
-                    p_a_wave[k], p_b_wave[k], p_c_thread);
-            }
-            else
-            {
-                mfma_instr.template run<MPerXdlops, NPerXdlops>(
-                    p_b_wave[k], p_a_wave[k], p_c_thread);
-            }
+        static_for<0, MPack, 1>{}([&](auto m) {
+            static_for<0, NPack, 1>{}([&](auto n) {
+                static_for<0, KPack / mfma_instr.k_per_blk, 1>{}([&](auto k) {
+                    if constexpr(!TransposeC)
+                    {
+                        mfma_instr.template run<MPerXdlops, NPerXdlops>(
+                            p_a_wave[Number<k + KPack / mfma_instr.k_per_blk * m>{}],
+                            p_b_wave[Number<k + KPack / mfma_instr.k_per_blk * n>{}],
+                            p_c_thread(Number<n + m * NPack>{}));
+                    }
+                    else
+                    {
+                        mfma_instr.template run<MPerXdlops, NPerXdlops>(
+                            p_b_wave[Number<k + KPack / mfma_instr.k_per_blk * n>{}],
+                            p_a_wave[Number<k + KPack / mfma_instr.k_per_blk * m>{}],
+                            p_c_thread(Number<n + m * NPack>{}));
+                    }
+                });
+            });
         });
     }
 
@@ -1151,8 +1162,10 @@ struct XdlopsGemm
 
     __host__ __device__ static constexpr auto GetCM0M1M2NThreadBlkLengths()
     {
-        return make_tuple(
-            Number<mfma_instr.num_groups_per_blk>{}, I1, Number<mfma_instr.group_size>{}, I1);
+        return make_tuple(Number<mfma_instr.num_groups_per_blk>{},
+                          I1,
+                          Number<mfma_instr.group_size * MPack>{},
+                          Number<NPack>{});
     }
 };
 
