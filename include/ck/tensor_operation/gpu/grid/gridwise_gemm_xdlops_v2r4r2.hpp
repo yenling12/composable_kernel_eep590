@@ -1738,12 +1738,34 @@ struct GridwiseGemm_bk0mk1_bk0nk1_mn_xdlops_v2r4r2
 
         // output: register to global memory
         {
+            // printf("acc0: %lf\n", c_thread_buf(I0));
             constexpr auto c_m0_n0_m1_n1_m2_m3_m4_n2_block_desc =
                 blockwise_gemm.GetCBlockDescriptor_M0_N0_M1_N1_M2_M3_M4_N2();
 
             constexpr auto c_m0_n0_m1_n1_m2_m3_m4_n2_thread_desc =
                 blockwise_gemm.GetCThreadDescriptor_M0_N0_M1_N1_M2_M3_M4_N2();
-
+            
+            // Intra-thread permute
+            auto c_thread_buf_perm = blockwise_gemm.GetCThreadBuffer();
+            constexpr auto acc_size_xdl = blockwise_gemm.xdlops_gemm.GetRegSizePerXdlops();
+            constexpr auto AccPack = blockwise_gemm.xdlops_gemm.GetRegSizePerXdlops() / MPack / NPack;
+            static_for<0, MRepeat, 1>{}([&](auto im) {
+                static_for<0, NRepeat, 1>{}([&](auto in) {
+                    constexpr auto base_off = (im*NRepeat+in)*acc_size_xdl;
+                    static_for<0, AccPack, 1>{}([&](auto iacc) {
+                        static_for<0, MPack, 1>{}([&](auto iim) {
+                            static_for<0, NPack, 1>{}([&](auto iin) {
+                                //(iim + iacc*MPack)*NPack + iin
+                                c_thread_buf_perm(Number<base_off + (iim + iacc*MPack)*NPack + iin>{}) =
+                                c_thread_buf[Number<base_off+iim * NPack * AccPack  + iin*AccPack + iacc>{}];
+                            });
+                        });
+                    });
+                });
+            });
+            
+            c_thread_buf = c_thread_buf_perm;
+            
             constexpr auto M0 = c_m0_n0_m1_n1_m2_m3_m4_n2_block_desc.GetLength(I0);
             constexpr auto N0 = c_m0_n0_m1_n1_m2_m3_m4_n2_block_desc.GetLength(I1);
             constexpr auto M1 = c_m0_n0_m1_n1_m2_m3_m4_n2_block_desc.GetLength(I2);
@@ -1819,10 +1841,10 @@ struct GridwiseGemm_bk0mk1_bk0nk1_mn_xdlops_v2r4r2
                                                             M2,
                                                             I1,
                                                             M4,
-                                                            I1>,
+                                                            NPack>,
                                                    Sequence<0, 1, 2, 3, 4, 5, 6, 7>,
                                                    7,
-                                                   1,
+                                                   NPack,
                                                    InMemoryDataOperationEnum::Set,
                                                    1,
                                                    true>{
@@ -1843,9 +1865,9 @@ struct GridwiseGemm_bk0mk1_bk0nk1_mn_xdlops_v2r4r2
                 CElementwiseOperation,      // ElementwiseOperation,
                 CGlobalMemoryDataOperation, // DstInMemOp,
                 Sequence<1,
-                         CShuffleMRepeatPerShuffle * MWaves * MPerXDL,
+                         CShuffleMRepeatPerShuffle * MWaves * MPerXDL * MPack,
                          1,
-                         CShuffleNRepeatPerShuffle * NWaves * NPerXDL>, // BlockSliceLengths,
+                         CShuffleNRepeatPerShuffle * NWaves * NPerXDL * NPack>, // BlockSliceLengths,
                 CBlockTransferClusterLengths_MBlock_MPerBlock_NBlock_NPerBlock,
                 Sequence<0, 1, 2, 3>, // typename ThreadClusterArrangeOrder,
                 FloatC,               // typename SrcData,
@@ -1864,11 +1886,11 @@ struct GridwiseGemm_bk0mk1_bk0nk1_mn_xdlops_v2r4r2
                  c_element_op};
 
             constexpr auto mxdlperwave_forward_step =
-                make_multi_index(0, CShuffleMRepeatPerShuffle * MWaves * MPerXDL, 0, 0);
+                make_multi_index(0, CShuffleMRepeatPerShuffle * MWaves * MPerXDL *MPack, 0, 0);
             constexpr auto nxdlperwave_forward_step =
-                make_multi_index(0, 0, 0, CShuffleNRepeatPerShuffle * NWaves * NPerXDL);
+                make_multi_index(0, 0, 0, CShuffleNRepeatPerShuffle * NWaves * NPerXDL*NPack);
             constexpr auto nxdlperwave_backward_step =
-                make_multi_index(0, 0, 0, -CShuffleNRepeatPerShuffle * NWaves * NPerXDL);
+                make_multi_index(0, 0, 0, -CShuffleNRepeatPerShuffle * NWaves * NPerXDL*NPack);
 
             static_for<0, MRepeat, CShuffleMRepeatPerShuffle>{}([&](auto mxdlperwave_iter) {
                 constexpr auto mxdlperwave = mxdlperwave_iter;
