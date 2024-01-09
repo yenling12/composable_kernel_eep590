@@ -100,7 +100,7 @@ template <index_t BlockSize,
           LoopScheduler LoopSched     = make_default_loop_scheduler(),
           PipelineVersion PipelineVer = PipelineVersion::v1,
           typename ComputeType        = FloatC>
-struct GridwiseGemm_bk0mk1_bk0nk1_mn_xdlops_v2r4r2
+struct GridwiseGemm_bk0mk1_bk0nk1_mn_xdlops_v2r4r2_v2
 {
     static constexpr auto I0 = Number<0>{};
     static constexpr auto I1 = Number<1>{};

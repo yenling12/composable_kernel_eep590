@@ -12,7 +12,7 @@
 #include "ck/tensor_operation/gpu/device/tensor_layout.hpp"
 #include "ck/tensor_operation/gpu/device/device_gemm_splitk.hpp"
 #include "ck/tensor_operation/gpu/device/gemm_specialization.hpp"
-#include "ck/tensor_operation/gpu/grid/gridwise_gemm_xdlops_v2r4r2.hpp"
+#include "ck/tensor_operation/gpu/grid/gridwise_gemm_xdlops_v2r4r2_v2.hpp"
 #include "ck/host_utility/device_prop.hpp"
 #include "ck/host_utility/kernel_launch.hpp"
 
@@ -62,7 +62,7 @@ template <typename ADataType,
           PipelineVersion PipelineVer = PipelineVersion::v1,
           LoopScheduler LoopSched     = make_default_loop_scheduler()>
 
-struct DeviceGemmXdlSplitKCShuffle : public DeviceGemmSplitK<ALayout,
+struct DeviceGemmXdlSplitKCShuffleV2 : public DeviceGemmSplitK<ALayout,
                                                              BLayout,
                                                              CLayout,
                                                              ADataType,
@@ -94,7 +94,7 @@ struct DeviceGemmXdlSplitKCShuffle : public DeviceGemmSplitK<ALayout,
     static constexpr auto AEnableLds = AEnableLds_auto || AEnableLds_manu;
     static constexpr auto BEnableLds = BEnableLds_auto || BEnableLds_manu;
 
-    using GridwiseGemm = GridwiseGemm_bk0mk1_bk0nk1_mn_xdlops_v2r4r2<
+    using GridwiseGemm = GridwiseGemm_bk0mk1_bk0nk1_mn_xdlops_v2r4r2_v2<
         BlockSize,
         ADataType,
         BDataType,
