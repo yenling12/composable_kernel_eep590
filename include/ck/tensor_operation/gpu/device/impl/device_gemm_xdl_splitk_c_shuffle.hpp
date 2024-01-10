@@ -12,7 +12,7 @@
 #include "ck/tensor_operation/gpu/device/tensor_layout.hpp"
 #include "ck/tensor_operation/gpu/device/device_gemm_splitk.hpp"
 #include "ck/tensor_operation/gpu/device/gemm_specialization.hpp"
-#include "ck/tensor_operation/gpu/grid/gridwise_gemm_xdlops_v2r4r2_v2.hpp"
+#include "ck/tensor_operation/gpu/grid/gridwise_gemm_xdlops_v2r4r2.hpp"
 #include "ck/host_utility/device_prop.hpp"
 #include "ck/host_utility/kernel_launch.hpp"
 
@@ -62,7 +62,7 @@ template <typename ADataType,
           PipelineVersion PipelineVer = PipelineVersion::v1,
           LoopScheduler LoopSched     = make_default_loop_scheduler()>
 
-struct DeviceGemmXdlSplitKCShuffleV2 : public DeviceGemmSplitK<ALayout,
+struct DeviceGemmXdlSplitKCShuffle : public DeviceGemmSplitK<ALayout,
                                                              BLayout,
                                                              CLayout,
                                                              ADataType,
@@ -81,20 +81,7 @@ struct DeviceGemmXdlSplitKCShuffleV2 : public DeviceGemmSplitK<ALayout,
     // TODO: should be exposed as Tparams.
     static constexpr index_t NumGemmKPrefetchStage = 1;
 
-    static constexpr auto MWaves = MPerBlock / (MXdlPerWave * MPerXDL);
-    static constexpr auto NWaves = NPerBlock / (NXdlPerWave * NPerXDL);
-
-    static constexpr auto AEnableLds_auto = NWaves == 1 ? false : true;
-    static constexpr auto BEnableLds_auto = MWaves == 1 ? false : true;
-
-    // If true, LDS is used unconditionally
-    static constexpr auto AEnableLds_manu = false;
-    static constexpr auto BEnableLds_manu = false;
-
-    static constexpr auto AEnableLds = AEnableLds_auto || AEnableLds_manu;
-    static constexpr auto BEnableLds = BEnableLds_auto || BEnableLds_manu;
-
-    using GridwiseGemm = GridwiseGemm_bk0mk1_bk0nk1_mn_xdlops_v2r4r2_v2<
+    using GridwiseGemm = GridwiseGemm_bk0mk1_bk0nk1_mn_xdlops_v2r4r2<
         BlockSize,
         ADataType,
         BDataType,
@@ -123,7 +110,6 @@ struct DeviceGemmXdlSplitKCShuffleV2 : public DeviceGemmSplitK<ALayout,
         ABlockTransferSrcScalarPerVector,
         ABlockTransferDstScalarPerVector_K1,
         false, // AThreadTransferSrcResetCoordinateAfterRun,
-        AEnableLds,
         ABlockLdsAddExtraM,
         BBlockTransferThreadClusterLengths_K0_N_K1,
         BBlockTransferThreadClusterArrangeOrder,
@@ -132,7 +118,6 @@ struct DeviceGemmXdlSplitKCShuffleV2 : public DeviceGemmSplitK<ALayout,
         BBlockTransferSrcScalarPerVector,
         BBlockTransferDstScalarPerVector_K1,
         false, // BThreadTransferSrcResetCoordinateAfterRun,
-        BEnableLds,
         BBlockLdsAddExtraN,
         CShuffleMRepeatPerShuffle,
         CShuffleNRepeatPerShuffle,
@@ -244,7 +229,7 @@ struct DeviceGemmXdlSplitKCShuffleV2 : public DeviceGemmSplitK<ALayout,
                 if(kbatch == 1)
                 {
                     const auto kernel =
-                        kernel_gemm_xdlops_v2r4r2_v2_simplified<GridwiseGemm,
+                        kernel_gemm_xdlops_v2r4r2_simplified<GridwiseGemm,
                                                              true,
                                                              InMemoryDataOperationEnum::Set,
                                                              DefaultBlock2CTileMap,
@@ -257,7 +242,7 @@ struct DeviceGemmXdlSplitKCShuffleV2 : public DeviceGemmSplitK<ALayout,
                 else
                 {
                     const auto kernel =
-                        kernel_gemm_xdlops_v2r4r2_v2_simplified<GridwiseGemm,
+                        kernel_gemm_xdlops_v2r4r2_simplified<GridwiseGemm,
                                                              true,
                                                              InMemoryDataOperationEnum::AtomicAdd,
                                                              DefaultBlock2CTileMap,
@@ -273,7 +258,7 @@ struct DeviceGemmXdlSplitKCShuffleV2 : public DeviceGemmSplitK<ALayout,
                 if(kbatch == 1)
                 {
                     const auto kernel =
-                        kernel_gemm_xdlops_v2r4r2_v2_simplified<GridwiseGemm,
+                        kernel_gemm_xdlops_v2r4r2_simplified<GridwiseGemm,
                                                              false,
                                                              InMemoryDataOperationEnum::Set,
                                                              DefaultBlock2CTileMap,
@@ -286,7 +271,7 @@ struct DeviceGemmXdlSplitKCShuffleV2 : public DeviceGemmSplitK<ALayout,
                 else
                 {
                     const auto kernel =
-                        kernel_gemm_xdlops_v2r4r2_v2_simplified<GridwiseGemm,
+                        kernel_gemm_xdlops_v2r4r2_simplified<GridwiseGemm,
                                                              false,
                                                              InMemoryDataOperationEnum::AtomicAdd,
                                                              DefaultBlock2CTileMap,

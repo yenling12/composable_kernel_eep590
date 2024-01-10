@@ -10,7 +10,7 @@
 #include "ck/tensor_operation/gpu/grid/block_to_ctile_map.hpp"
 #include "ck/tensor_operation/gpu/grid/gridwise_gemm_pipeline_selector.hpp"
 #include "ck/tensor_operation/gpu/grid/gridwise_gemm_pipeline_v1.hpp"
-#include "ck/tensor_operation/gpu/block/blockwise_gemm_xdlops.hpp"
+#include "ck/tensor_operation/gpu/block/blockwise_gemm_xdlops_v2.hpp"
 #include "ck/tensor_operation/gpu/warp/xdlops_gemm.hpp"
 #include "ck/tensor_operation/gpu/block/thread_group_tensor_slice_transfer_v4r1.hpp"
 #include "ck/tensor_operation/gpu/block/thread_group_tensor_slice_transfer_v6r1.hpp"
@@ -31,7 +31,7 @@ __global__ void
 #if CK_USE_LAUNCH_BOUNDS
     __launch_bounds__(CK_MAX_THREAD_PER_BLOCK, CK_MIN_BLOCK_PER_CU)
 #endif
-        kernel_gemm_xdlops_v2r4r2_simplified(typename GridwiseGemm::Argument karg,
+        kernel_gemm_xdlops_v2r4r2_v2_simplified(typename GridwiseGemm::Argument karg,
                                              const Block2CTileMap& b2c_map,
                                              const AElementwiseOperation a_element_op,
                                              const BElementwiseOperation b_element_op,
@@ -129,9 +129,9 @@ struct GridwiseGemm_bk0mk1_bk0nk1_mn_xdlops_v2r4r2_v2
     using GridwiseGemmPipe =
         remove_cvref_t<decltype(GridwiseGemmPipeline_Selector<PipelineVer,
                                                               NumGemmKPrefetchStage,
+                                                              LoopSched,
                                                               AEnableLds,
-                                                              BEnableLds,
-                                                              LoopSched>())>;
+                                                              BEnableLds>())>;
 
     static constexpr index_t KPack = math::max(
         math::lcm(AK1, BK1), MfmaSelector<FloatA, MPerXDL, NPerXDL>::selected_mfma.k_per_blk);
@@ -143,7 +143,7 @@ struct GridwiseGemm_bk0mk1_bk0nk1_mn_xdlops_v2r4r2_v2
                                         : is_same<tensor_layout::gemm::RowMajor, BLayout>::value
                                             ? BBlockTransferSrcScalarPerVector
                                             : 1;
-    static constexpr auto xdlops_gemm = XdlopsGemm<FloatA, MPerXDL, NPerXDL, KPack, MPack, NPack>{};
+    static constexpr auto xdlops_gemm = XdlopsGemm<FloatA, MPerXDL, NPerXDL, KPack, FloatB, false, MPack, NPack>{};
     static constexpr auto K0PerXDL    = KPack / K1;
     static constexpr auto XDL_KIter   = KPack / xdlops_gemm.K1PerXdlops;
     static constexpr auto KPerXDL     = XDL_KIter * xdlops_gemm.KPerXdlops;
@@ -1672,7 +1672,7 @@ struct GridwiseGemm_bk0mk1_bk0nk1_mn_xdlops_v2r4r2_v2
         //       register
         // sanity check
 
-        auto blockwise_gemm = BlockwiseGemmXdlops_k0mk1_k0nk1_m0n0m1n1m2m3m4n2_Selector<
+        auto blockwise_gemm = BlockwiseGemmXdlops_Selector<
             BlockSize,
             ComputeType, // ComputeType A
             ComputeType, // ComputeType B

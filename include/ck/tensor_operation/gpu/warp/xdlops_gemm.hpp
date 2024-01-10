@@ -196,6 +196,12 @@ struct mfma_type<MfmaInstr::mfma_f32_32x32x8f16>
     {
         intrin_mfma_f32_32x32x8f16<MPerXdlops, NPerXdlops>::Run(a, b, reg_c);
     }
+
+    template <index_t MPerXdlops, index_t NPerXdlops, class FloatA, class FloatB, class FloatC>
+    __device__ void runv2(const FloatA& a, const FloatB& b, FloatC& reg_c) const
+    {
+        intrin_mfma_f32_32x32x8f16<MPerXdlops, NPerXdlops>::RunV2(a, b, reg_c);
+    }
 };
 
 template <>
@@ -217,6 +223,12 @@ struct mfma_type<MfmaInstr::mfma_f32_16x16x16f16>
     __device__ void run(const FloatA& a, const FloatB& b, FloatC& reg_c) const
     {
         intrin_mfma_f32_16x16x16f16<MPerXdlops, NPerXdlops>::Run(a, b, reg_c);
+    }
+
+    template <index_t MPerXdlops, index_t NPerXdlops, class FloatA, class FloatB, class FloatC>
+    __device__ void runv2(const FloatA& a, const FloatB& b, FloatC& reg_c) const
+    {
+        intrin_mfma_f32_16x16x16f16<MPerXdlops, NPerXdlops>::RunV2(a, b, reg_c);
     }
 };
 
@@ -885,10 +897,10 @@ template <typename base_type,
           index_t MPerXdlops,
           index_t NPerXdlops,
           index_t KPack,
-          index_t MPack            = 1,
-          index_t NPack            = 1,
           typename additional_type = base_type,
-          bool TransposeC          = false>
+          bool TransposeC          = false,
+          index_t MPack            = 1,
+          index_t NPack            = 1>
 struct XdlopsGemm
 {
     static constexpr auto I0 = Number<0>{};
@@ -1049,19 +1061,45 @@ struct XdlopsGemm
                 (is_same<base_type, bf8_t>::value && is_same<additional_type, f8_t>::value),
             "base base_type must be double, float, half, bfloat16, int8_t, f8_t or bf8_t!");
 
+        static_for<0, KPack / mfma_instr.k_per_blk, 1>{}([&](auto k) {
+            if constexpr(!TransposeC)
+            {
+                mfma_instr.template run<MPerXdlops, NPerXdlops>(
+                    p_a_wave[k], p_b_wave[k], p_c_thread);
+            }
+            else
+            {
+                mfma_instr.template run<MPerXdlops, NPerXdlops>(
+                    p_b_wave[k], p_a_wave[k], p_c_thread);
+            }
+        });
+    }
+
+    template <class FloatA, class FloatB, class FloatC>
+    __device__ void RunV2(const FloatA& p_a_wave, const FloatB& p_b_wave, FloatC& p_c_thread) const
+    {
+        static_assert(
+            is_same<base_type, double>::value || is_same<base_type, float>::value ||
+                is_same<base_type, half_t>::value || is_same<base_type, bhalf_t>::value ||
+                is_same<base_type, int8_t>::value || is_same<base_type, f8_t>::value ||
+                is_same<base_type, bf8_t>::value ||
+                (is_same<base_type, f8_t>::value && is_same<additional_type, bf8_t>::value) ||
+                (is_same<base_type, bf8_t>::value && is_same<additional_type, f8_t>::value),
+            "base base_type must be double, float, half, bfloat16, int8_t, f8_t or bf8_t!");
+
         static_for<0, MPack, 1>{}([&](auto m) {
             static_for<0, NPack, 1>{}([&](auto n) {
                 static_for<0, KPack / mfma_instr.k_per_blk, 1>{}([&](auto k) {
                     if constexpr(!TransposeC)
                     {
-                        mfma_instr.template run<MPerXdlops, NPerXdlops>(
+                        mfma_instr.template runv2<MPerXdlops, NPerXdlops>(
                             p_a_wave[Number<k + KPack / mfma_instr.k_per_blk * m>{}],
                             p_b_wave[Number<k + KPack / mfma_instr.k_per_blk * n>{}],
                             p_c_thread(Number<n + m * NPack>{}));
                     }
                     else
                     {
-                        mfma_instr.template run<MPerXdlops, NPerXdlops>(
+                        mfma_instr.template runv2<MPerXdlops, NPerXdlops>(
                             p_b_wave[Number<k + KPack / mfma_instr.k_per_blk * n>{}],
                             p_a_wave[Number<k + KPack / mfma_instr.k_per_blk * m>{}],
                             p_c_thread(Number<n + m * NPack>{}));

@@ -9,7 +9,7 @@
 
 namespace ck {
 
-template <index_t NumPrefetch, bool AEnableLds, bool BEnableLds>
+template <index_t NumPrefetch, bool AEnableLds = true, bool BEnableLds = true>
 struct GridwiseGemmPipeline_v1;
 
 // 1-stage prefetch
@@ -551,7 +551,7 @@ struct GridwiseGemmPipeline_v1<1, false, false>
     }
 };
 
-template <index_t NumPrefetch, bool AEnableLds, bool BEnableLds>
+template <index_t NumPrefetch, bool AEnableLds = true, bool BEnableLds = true>
 struct GridwiseGemmPipelineInterwave_v1;
 
 template <>
