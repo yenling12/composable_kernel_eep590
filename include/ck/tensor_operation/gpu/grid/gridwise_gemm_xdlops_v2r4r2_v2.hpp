@@ -1957,7 +1957,7 @@ struct GridwiseGemm_bk0mk1_bk0nk1_mn_xdlops_v2r4r2_v2
         auto str = std::stringstream();
 
         // clang-format off
-        str << "GemmXdlSplitKCShuffle_"
+        str << "GemmXdlSplitKCShuffleV2_"
             << getGemmSpecializationString(GemmSpec) << "_"
             << std::string(ALayout::name)[0]
             << std::string(BLayout::name)[0]
