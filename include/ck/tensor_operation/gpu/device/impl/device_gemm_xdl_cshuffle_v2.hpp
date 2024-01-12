@@ -69,14 +69,14 @@ template <typename ALayout,
           typename ComputeTypeA       = CDataType,
           typename ComputeTypeB       = ComputeTypeA>
 struct DeviceGemm_Xdl_CShuffleV2 : public DeviceGemm<ALayout,
-                                                   BLayout,
-                                                   CLayout,
-                                                   ADataType,
-                                                   BDataType,
-                                                   CDataType,
-                                                   AElementwiseOperation,
-                                                   BElementwiseOperation,
-                                                   CElementwiseOperation>
+                                                     BLayout,
+                                                     CLayout,
+                                                     ADataType,
+                                                     BDataType,
+                                                     CDataType,
+                                                     AElementwiseOperation,
+                                                     BElementwiseOperation,
+                                                     CElementwiseOperation>
 {
     using DeviceOp = DeviceGemm_Xdl_CShuffleV2;
 

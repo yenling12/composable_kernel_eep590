@@ -32,10 +32,10 @@ __global__ void
     __launch_bounds__(CK_MAX_THREAD_PER_BLOCK, CK_MIN_BLOCK_PER_CU)
 #endif
         kernel_gemm_xdlops_v2r4r2_v2_simplified(typename GridwiseGemm::Argument karg,
-                                             const Block2CTileMap& b2c_map,
-                                             const AElementwiseOperation a_element_op,
-                                             const BElementwiseOperation b_element_op,
-                                             const CElementwiseOperation c_element_op)
+                                                const Block2CTileMap& b2c_map,
+                                                const AElementwiseOperation a_element_op,
+                                                const BElementwiseOperation b_element_op,
+                                                const CElementwiseOperation c_element_op)
 {
 #if(!defined(__HIP_DEVICE_COMPILE__) || defined(__gfx908__) || defined(__gfx90a__) || \
     defined(__gfx940__) || defined(__gfx941__) || defined(__gfx942__))
@@ -135,22 +135,23 @@ struct GridwiseGemm_bk0mk1_bk0nk1_mn_xdlops_v2r4r2_v2
 
     static constexpr index_t KPack = math::max(
         math::lcm(AK1, BK1), MfmaSelector<FloatA, MPerXDL, NPerXDL>::selected_mfma.k_per_blk);
-    static constexpr index_t MPack    = AEnableLds ? 1
-                                        : is_same<tensor_layout::gemm::ColumnMajor, ALayout>::value
-                                            ? ABlockTransferSrcScalarPerVector
-                                            : 1;
-    static constexpr index_t NPack    = BEnableLds ? 1
-                                        : is_same<tensor_layout::gemm::RowMajor, BLayout>::value
-                                            ? BBlockTransferSrcScalarPerVector
-                                            : 1;
-    static constexpr auto xdlops_gemm = XdlopsGemm<FloatA, MPerXDL, NPerXDL, KPack, FloatB, false, MPack, NPack>{};
-    static constexpr auto K0PerXDL    = KPack / K1;
-    static constexpr auto XDL_KIter   = KPack / xdlops_gemm.K1PerXdlops;
-    static constexpr auto KPerXDL     = XDL_KIter * xdlops_gemm.KPerXdlops;
-    static constexpr auto KThread     = xdlops_gemm.KThreadPerXdlops;
-    static constexpr auto KRepeat     = KPerBlock / KPerXDL;
-    static constexpr auto MRepeat     = MRepeat_ / MPack;
-    static constexpr auto NRepeat     = NRepeat_ / NPack;
+    static constexpr index_t MPack = AEnableLds ? 1
+                                     : is_same<tensor_layout::gemm::ColumnMajor, ALayout>::value
+                                         ? ABlockTransferSrcScalarPerVector
+                                         : 1;
+    static constexpr index_t NPack = BEnableLds ? 1
+                                     : is_same<tensor_layout::gemm::RowMajor, BLayout>::value
+                                         ? BBlockTransferSrcScalarPerVector
+                                         : 1;
+    static constexpr auto xdlops_gemm =
+        XdlopsGemm<FloatA, MPerXDL, NPerXDL, KPack, FloatB, false, MPack, NPack>{};
+    static constexpr auto K0PerXDL  = KPack / K1;
+    static constexpr auto XDL_KIter = KPack / xdlops_gemm.K1PerXdlops;
+    static constexpr auto KPerXDL   = XDL_KIter * xdlops_gemm.KPerXdlops;
+    static constexpr auto KThread   = xdlops_gemm.KThreadPerXdlops;
+    static constexpr auto KRepeat   = KPerBlock / KPerXDL;
+    static constexpr auto MRepeat   = MRepeat_ / MPack;
+    static constexpr auto NRepeat   = NRepeat_ / NPack;
 
     static constexpr auto MWaves = MPerBlock / MRepeat / MPerXDL / MPack;
     static constexpr auto NWaves = NPerBlock / NRepeat / NPerXDL / NPack;
@@ -1672,26 +1673,26 @@ struct GridwiseGemm_bk0mk1_bk0nk1_mn_xdlops_v2r4r2_v2
         //       register
         // sanity check
 
-        auto blockwise_gemm = BlockwiseGemmXdlops_Selector<
-            BlockSize,
-            ComputeType, // ComputeType A
-            ComputeType, // ComputeType B
-            FloatAcc,
-            decltype(MakeAWaveDescriptor(a_block_desc)),
-            decltype(MakeBWaveDescriptor(b_block_desc)),
-            MPerBlock,
-            NPerBlock,
-            KPerBlock,
-            MPerXDL,
-            NPerXDL,
-            MRepeat,
-            NRepeat,
-            KPack,
-            LoopSched,
-            AEnableLds,
-            BEnableLds,
-            MPack,
-            NPack>();
+        auto blockwise_gemm =
+            BlockwiseGemmXdlops_Selector<BlockSize,
+                                         ComputeType, // ComputeType A
+                                         ComputeType, // ComputeType B
+                                         FloatAcc,
+                                         decltype(MakeAWaveDescriptor(a_block_desc)),
+                                         decltype(MakeBWaveDescriptor(b_block_desc)),
+                                         MPerBlock,
+                                         NPerBlock,
+                                         KPerBlock,
+                                         MPerXDL,
+                                         NPerXDL,
+                                         MRepeat,
+                                         NRepeat,
+                                         KPack,
+                                         LoopSched,
+                                         AEnableLds,
+                                         BEnableLds,
+                                         MPack,
+                                         NPack>();
 
         auto c_thread_buf = blockwise_gemm.GetCThreadBuffer();
 
@@ -1744,28 +1745,31 @@ struct GridwiseGemm_bk0mk1_bk0nk1_mn_xdlops_v2r4r2_v2
 
             constexpr auto c_m0_n0_m1_n1_m2_m3_m4_n2_thread_desc =
                 blockwise_gemm.GetCThreadDescriptor_M0_N0_M1_N1_M2_M3_M4_N2();
-            
+
             // Intra-thread permute
-            auto c_thread_buf_perm = blockwise_gemm.GetCThreadBuffer();
+            auto c_thread_buf_perm      = blockwise_gemm.GetCThreadBuffer();
             constexpr auto acc_size_xdl = blockwise_gemm.xdlops_gemm.GetRegSizePerXdlops();
-            constexpr auto AccPack = blockwise_gemm.xdlops_gemm.GetRegSizePerXdlops() / MPack / NPack;
+            constexpr auto AccPack =
+                blockwise_gemm.xdlops_gemm.GetRegSizePerXdlops() / MPack / NPack;
             static_for<0, MRepeat, 1>{}([&](auto im) {
                 static_for<0, NRepeat, 1>{}([&](auto in) {
-                    constexpr auto base_off = (im*NRepeat+in)*acc_size_xdl;
+                    constexpr auto base_off = (im * NRepeat + in) * acc_size_xdl;
                     static_for<0, AccPack, 1>{}([&](auto iacc) {
                         static_for<0, MPack, 1>{}([&](auto iim) {
                             static_for<0, NPack, 1>{}([&](auto iin) {
                                 //(iim + iacc*MPack)*NPack + iin
-                                c_thread_buf_perm(Number<base_off + (iim + iacc*MPack)*NPack + iin>{}) =
-                                c_thread_buf[Number<base_off+iim * NPack * AccPack  + iin*AccPack + iacc>{}];
+                                c_thread_buf_perm(
+                                    Number<base_off + (iim + iacc * MPack) * NPack + iin>{}) =
+                                    c_thread_buf[Number<base_off + iim * NPack * AccPack +
+                                                        iin * AccPack + iacc>{}];
                             });
                         });
                     });
                 });
             });
-            
+
             c_thread_buf = c_thread_buf_perm;
-            
+
             constexpr auto M0 = c_m0_n0_m1_n1_m2_m3_m4_n2_block_desc.GetLength(I0);
             constexpr auto N0 = c_m0_n0_m1_n1_m2_m3_m4_n2_block_desc.GetLength(I1);
             constexpr auto M1 = c_m0_n0_m1_n1_m2_m3_m4_n2_block_desc.GetLength(I2);
@@ -1867,7 +1871,8 @@ struct GridwiseGemm_bk0mk1_bk0nk1_mn_xdlops_v2r4r2_v2
                 Sequence<1,
                          CShuffleMRepeatPerShuffle * MWaves * MPerXDL * MPack,
                          1,
-                         CShuffleNRepeatPerShuffle * NWaves * NPerXDL * NPack>, // BlockSliceLengths,
+                         CShuffleNRepeatPerShuffle * NWaves * NPerXDL *
+                             NPack>, // BlockSliceLengths,
                 CBlockTransferClusterLengths_MBlock_MPerBlock_NBlock_NPerBlock,
                 Sequence<0, 1, 2, 3>, // typename ThreadClusterArrangeOrder,
                 FloatC,               // typename SrcData,
@@ -1886,11 +1891,11 @@ struct GridwiseGemm_bk0mk1_bk0nk1_mn_xdlops_v2r4r2_v2
                  c_element_op};
 
             constexpr auto mxdlperwave_forward_step =
-                make_multi_index(0, CShuffleMRepeatPerShuffle * MWaves * MPerXDL *MPack, 0, 0);
+                make_multi_index(0, CShuffleMRepeatPerShuffle * MWaves * MPerXDL * MPack, 0, 0);
             constexpr auto nxdlperwave_forward_step =
-                make_multi_index(0, 0, 0, CShuffleNRepeatPerShuffle * NWaves * NPerXDL*NPack);
+                make_multi_index(0, 0, 0, CShuffleNRepeatPerShuffle * NWaves * NPerXDL * NPack);
             constexpr auto nxdlperwave_backward_step =
-                make_multi_index(0, 0, 0, -CShuffleNRepeatPerShuffle * NWaves * NPerXDL*NPack);
+                make_multi_index(0, 0, 0, -CShuffleNRepeatPerShuffle * NWaves * NPerXDL * NPack);
 
             static_for<0, MRepeat, CShuffleMRepeatPerShuffle>{}([&](auto mxdlperwave_iter) {
                 constexpr auto mxdlperwave = mxdlperwave_iter;

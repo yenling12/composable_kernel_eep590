@@ -177,9 +177,8 @@ struct BlockwiseGemmXdlops
     }
 
     using Tuple7 = decltype(CalculateAThreadOriginDataIndex());
-    __host__ __device__ BlockwiseGemmXdlops(
-        Tuple7 a_origin = CalculateAThreadOriginDataIndex(),
-        Tuple7 b_origin = CalculateBThreadOriginDataIndex())
+    __host__ __device__ BlockwiseGemmXdlops(Tuple7 a_origin = CalculateAThreadOriginDataIndex(),
+                                            Tuple7 b_origin = CalculateBThreadOriginDataIndex())
         : a_thread_copy_(a_origin), b_thread_copy_(b_origin)
     {
         static_assert(AWaveDesc::IsKnownAtCompileTime() && BWaveDesc::IsKnownAtCompileTime(),
@@ -349,10 +348,11 @@ struct BlockwiseGemmXdlops
                     constexpr index_t c_offset =
                         c_thread_desc_.CalculateOffset(make_tuple(im, in, 0));
 
-                    xdlops_gemm.template RunV2(a_thread_vec.template AsType<mfma_input_type_a>(),
-                                             b_thread_vec.template AsType<mfma_input_type_b>(),
-                                             c_thread_buf.GetVectorTypeReference(Number<c_offset>{})
-                                                 .template AsType<mfma_output_type_c>());
+                    xdlops_gemm.template RunV2(
+                        a_thread_vec.template AsType<mfma_input_type_a>(),
+                        b_thread_vec.template AsType<mfma_input_type_b>(),
+                        c_thread_buf.GetVectorTypeReference(Number<c_offset>{})
+                            .template AsType<mfma_output_type_c>());
                 });
             });
         });
@@ -462,8 +462,7 @@ template <index_t BlockSize,
           bool AEnableLds        = true,
           bool BEnableLds        = true,
           index_t NumMacClusters = CK_EXPERIMENTAL_INTER_WAVE_SCHEDULING_MAC_CLUSTERS>
-struct BlockwiseGemmXdlopsInterwave
-    : public BlockwiseGemmXdlops<BlockSize,
+struct BlockwiseGemmXdlopsInterwave : public BlockwiseGemmXdlops<BlockSize,
                                                                  FloatA,
                                                                  FloatB,
                                                                  FloatAcc,
@@ -481,21 +480,21 @@ struct BlockwiseGemmXdlopsInterwave
                                                                  NPack>
 {
     using Base = BlockwiseGemmXdlops<BlockSize,
-                                                                     FloatA,
-                                                                     FloatB,
-                                                                     FloatAcc,
-                                                                     AWaveDesc,
-                                                                     BWaveDesc,
-                                                                     MPerBlock,
-                                                                     NPerBlock,
-                                                                     KPerBlock,
-                                                                     MPerXDL,
-                                                                     NPerXDL,
-                                                                     MRepeat,
-                                                                     NRepeat,
-                                                                     KPack,
-                                                                     MPack,
-                                                                     NPack>;
+                                     FloatA,
+                                     FloatB,
+                                     FloatAcc,
+                                     AWaveDesc,
+                                     BWaveDesc,
+                                     MPerBlock,
+                                     NPerBlock,
+                                     KPerBlock,
+                                     MPerXDL,
+                                     NPerXDL,
+                                     MRepeat,
+                                     NRepeat,
+                                     KPack,
+                                     MPack,
+                                     NPack>;
 
 #if CK_EXPERIMENTAL_INTER_WAVE_SCHEDULING
     using Base::a_wave_desc;
@@ -519,9 +518,9 @@ struct BlockwiseGemmXdlopsInterwave
     static constexpr index_t KPerInnerLoop = math::max(KPerThread / NumMacClusters, KPack);
 
     using Tuple7 = decltype(CalculateAThreadOriginDataIndex());
-    __host__ __device__ BlockwiseGemmXdlopsInterwave(
-        Tuple7 a_origin = CalculateAThreadOriginDataIndex(),
-        Tuple7 b_origin = CalculateBThreadOriginDataIndex())
+    __host__ __device__
+    BlockwiseGemmXdlopsInterwave(Tuple7 a_origin = CalculateAThreadOriginDataIndex(),
+                                 Tuple7 b_origin = CalculateBThreadOriginDataIndex())
         : a_thread_copy_(a_origin), b_thread_copy_(b_origin)
     {
         static_assert(AWaveDesc::IsKnownAtCompileTime() && BWaveDesc::IsKnownAtCompileTime(),
@@ -624,8 +623,8 @@ struct BlockwiseGemmXdlopsInterwave
                             typename vector_type<FloatB, xdlops_gemm.K1PerXdlops>::type;
                         using mfma_output_type_c =
                             typename vector_type<FloatAcc,
-                                             xdlops_gemm.GetRegSizePerXdlops() / MPack /
-                                                 NPack>::type;
+                                                 xdlops_gemm.GetRegSizePerXdlops() / MPack /
+                                                     NPack>::type;
 
                         constexpr index_t c_offset =
                             c_thread_desc_.CalculateOffset(make_tuple(im, in, 0));
@@ -649,7 +648,8 @@ struct BlockwiseGemmXdlopsInterwave
                         xdlops_gemm.template RunV2(
                             a_thread_vec.template AsType<mfma_input_type_a>(),
                             b_thread_vec.template AsType<mfma_input_type_b>(),
-                            c_thread_buf.GetVectorTypeReference(Number<c_offset>{}).template AsType<mfma_output_type_c>());
+                            c_thread_buf.GetVectorTypeReference(Number<c_offset>{})
+                                .template AsType<mfma_output_type_c>());
                         if constexpr(ik_compute.value == 0 && im.value == 0 && in.value == 0)
                         {
                             __builtin_amdgcn_sched_barrier(0);
@@ -790,44 +790,44 @@ constexpr auto BlockwiseGemmXdlops_Selector()
     if constexpr(LoopSched == LoopScheduler::Default)
     {
         return BlockwiseGemmXdlops<BlockSize,
-                                                                   FloatA,
-                                                                   FloatB,
-                                                                   FloatAcc,
-                                                                   AK0MK1BlockDesc,
-                                                                   BK0NK1BlockDesc,
-                                                                   MPerBlock,
-                                                                   NPerBlock,
-                                                                   KPerBlock,
-                                                                   MPerXDL,
-                                                                   NPerXDL,
-                                                                   MRepeat,
-                                                                   NRepeat,
-                                                                   KPack,
-                                                                   MPack,
-                                                                   NPack,
-                                                                   AEnableLds,
-                                                                   BEnableLds>{};
+                                   FloatA,
+                                   FloatB,
+                                   FloatAcc,
+                                   AK0MK1BlockDesc,
+                                   BK0NK1BlockDesc,
+                                   MPerBlock,
+                                   NPerBlock,
+                                   KPerBlock,
+                                   MPerXDL,
+                                   NPerXDL,
+                                   MRepeat,
+                                   NRepeat,
+                                   KPack,
+                                   MPack,
+                                   NPack,
+                                   AEnableLds,
+                                   BEnableLds>{};
     }
     else if constexpr(LoopSched == LoopScheduler::Interwave)
     {
         return BlockwiseGemmXdlopsInterwave<BlockSize,
-                                                                            FloatA,
-                                                                            FloatB,
-                                                                            FloatAcc,
-                                                                            AK0MK1BlockDesc,
-                                                                            BK0NK1BlockDesc,
-                                                                            MPerBlock,
-                                                                            NPerBlock,
-                                                                            KPerBlock,
-                                                                            MPerXDL,
-                                                                            NPerXDL,
-                                                                            MRepeat,
-                                                                            NRepeat,
-                                                                            KPack,
-                                                                            MPack,
-                                                                            NPack,
-                                                                            AEnableLds,
-                                                                            BEnableLds>{};
+                                            FloatA,
+                                            FloatB,
+                                            FloatAcc,
+                                            AK0MK1BlockDesc,
+                                            BK0NK1BlockDesc,
+                                            MPerBlock,
+                                            NPerBlock,
+                                            KPerBlock,
+                                            MPerXDL,
+                                            NPerXDL,
+                                            MRepeat,
+                                            NRepeat,
+                                            KPack,
+                                            MPack,
+                                            NPack,
+                                            AEnableLds,
+                                            BEnableLds>{};
     }
 };
 
@@ -982,8 +982,9 @@ struct BlockwiseGemmXdlops_v2r2
 
     using Tuple4 = decltype(CalculateAThreadOriginDataIndex());
 
-    __host__ __device__ BlockwiseGemmXdlops_v2r2(Tuple4 a_origin = CalculateAThreadOriginDataIndex(),
-                                               Tuple4 b_origin = CalculateBThreadOriginDataIndex())
+    __host__ __device__
+    BlockwiseGemmXdlops_v2r2(Tuple4 a_origin = CalculateAThreadOriginDataIndex(),
+                             Tuple4 b_origin = CalculateBThreadOriginDataIndex())
         : a_thread_copy_(a_origin), b_thread_copy_(b_origin)
     {
         static_assert(AMmaTileDesc::IsKnownAtCompileTime() && BMmaTileDesc::IsKnownAtCompileTime(),
@@ -1166,7 +1167,7 @@ struct BlockwiseGemmXdlops_v2r2
                     using mfma_input_type =
                         typename vector_type<FloatAB, xdlops_gemm.K1PerXdlops>::type;
                     using mfma_output_type =
-                            typename vector_type<FloatAcc,
+                        typename vector_type<FloatAcc,
                                              xdlops_gemm.GetRegSizePerXdlops() / MPack /
                                                  NPack>::type;
                     constexpr index_t c_offset =
@@ -1175,7 +1176,8 @@ struct BlockwiseGemmXdlops_v2r2
                     xdlops_gemm.template RunV2(
                         a_thread_vec.template AsType<mfma_input_type>(),
                         b_thread_vec.template AsType<mfma_input_type>(),
-                        c_thread_buf.GetVectorTypeReference(Number<c_offset>{}).template AsType<mfma_output_type>());
+                        c_thread_buf.GetVectorTypeReference(Number<c_offset>{})
+                            .template AsType<mfma_output_type>());
                 });
             });
         });

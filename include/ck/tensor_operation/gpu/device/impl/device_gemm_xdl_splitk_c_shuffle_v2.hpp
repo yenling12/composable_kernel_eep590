@@ -63,15 +63,15 @@ template <typename ADataType,
           LoopScheduler LoopSched     = make_default_loop_scheduler()>
 
 struct DeviceGemmXdlSplitKCShuffleV2 : public DeviceGemmSplitK<ALayout,
-                                                             BLayout,
-                                                             CLayout,
-                                                             ADataType,
-                                                             BDataType,
-                                                             CDataType,
-                                                             AElementwiseOperation,
-                                                             BElementwiseOperation,
-                                                             CElementwiseOperation,
-                                                             ComputeType>
+                                                               BLayout,
+                                                               CLayout,
+                                                               ADataType,
+                                                               BDataType,
+                                                               CDataType,
+                                                               AElementwiseOperation,
+                                                               BElementwiseOperation,
+                                                               CElementwiseOperation,
+                                                               ComputeType>
 {
     static constexpr auto I0 = Number<0>{};
     static constexpr auto I1 = Number<1>{};
@@ -245,25 +245,25 @@ struct DeviceGemmXdlSplitKCShuffleV2 : public DeviceGemmSplitK<ALayout,
                 {
                     const auto kernel =
                         kernel_gemm_xdlops_v2r4r2_v2_simplified<GridwiseGemm,
-                                                             true,
-                                                             InMemoryDataOperationEnum::Set,
-                                                             DefaultBlock2CTileMap,
-                                                             AElementwiseOperation,
-                                                             BElementwiseOperation,
-                                                             CElementwiseOperation>;
+                                                                true,
+                                                                InMemoryDataOperationEnum::Set,
+                                                                DefaultBlock2CTileMap,
+                                                                AElementwiseOperation,
+                                                                BElementwiseOperation,
+                                                                CElementwiseOperation>;
 
                     Run(kernel);
                 }
                 else
                 {
-                    const auto kernel =
-                        kernel_gemm_xdlops_v2r4r2_v2_simplified<GridwiseGemm,
-                                                             true,
-                                                             InMemoryDataOperationEnum::AtomicAdd,
-                                                             DefaultBlock2CTileMap,
-                                                             AElementwiseOperation,
-                                                             BElementwiseOperation,
-                                                             CElementwiseOperation>;
+                    const auto kernel = kernel_gemm_xdlops_v2r4r2_v2_simplified<
+                        GridwiseGemm,
+                        true,
+                        InMemoryDataOperationEnum::AtomicAdd,
+                        DefaultBlock2CTileMap,
+                        AElementwiseOperation,
+                        BElementwiseOperation,
+                        CElementwiseOperation>;
 
                     Run(kernel);
                 }
@@ -274,25 +274,25 @@ struct DeviceGemmXdlSplitKCShuffleV2 : public DeviceGemmSplitK<ALayout,
                 {
                     const auto kernel =
                         kernel_gemm_xdlops_v2r4r2_v2_simplified<GridwiseGemm,
-                                                             false,
-                                                             InMemoryDataOperationEnum::Set,
-                                                             DefaultBlock2CTileMap,
-                                                             AElementwiseOperation,
-                                                             BElementwiseOperation,
-                                                             CElementwiseOperation>;
+                                                                false,
+                                                                InMemoryDataOperationEnum::Set,
+                                                                DefaultBlock2CTileMap,
+                                                                AElementwiseOperation,
+                                                                BElementwiseOperation,
+                                                                CElementwiseOperation>;
 
                     Run(kernel);
                 }
                 else
                 {
-                    const auto kernel =
-                        kernel_gemm_xdlops_v2r4r2_v2_simplified<GridwiseGemm,
-                                                             false,
-                                                             InMemoryDataOperationEnum::AtomicAdd,
-                                                             DefaultBlock2CTileMap,
-                                                             AElementwiseOperation,
-                                                             BElementwiseOperation,
-                                                             CElementwiseOperation>;
+                    const auto kernel = kernel_gemm_xdlops_v2r4r2_v2_simplified<
+                        GridwiseGemm,
+                        false,
+                        InMemoryDataOperationEnum::AtomicAdd,
+                        DefaultBlock2CTileMap,
+                        AElementwiseOperation,
+                        BElementwiseOperation,
+                        CElementwiseOperation>;
 
                     Run(kernel);
                 }
