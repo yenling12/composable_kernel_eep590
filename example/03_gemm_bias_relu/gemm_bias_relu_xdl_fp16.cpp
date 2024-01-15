@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Copyright (c) 2018-2023, Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2018-2024, Advanced Micro Devices, Inc. All rights reserved.
 
 #include <iostream>
 #include <numeric>
@@ -30,25 +30,25 @@ using Col = ck::tensor_layout::gemm::ColumnMajor;
 
 using PassThrough = ck::tensor_operation::element_wise::PassThrough;
 
+using ADataType        = int8_t;
+using BDataType        = int8_t;
+using AccDataType      = int32_t;
+using CShuffleDataType = int32_t;
+using DDataType        = int8_t;
+using EDataType        = int8_t;
+
 // C = A * B
 // E = Relu(C + D);
 struct AddRelu
 {
     __host__ __device__ void
-    operator()(ck::half_t& e, const ck::half_t& c, const ck::half_t& d) const
+    operator()(EDataType& e, const CShuffleDataType& c, const DDataType& d) const
     {
-        const ck::half_t x = c + d;
+        const CShuffleDataType x = c + static_cast<CShuffleDataType>(d);
 
-        e = x > 0 ? x : 0;
+        e = x > 0 ? static_cast<EDataType>(x) : EDataType(0);
     }
 };
-
-using ADataType        = F16;
-using BDataType        = F16;
-using AccDataType      = F32;
-using CShuffleDataType = F16;
-using DDataType        = F16;
-using EDataType        = F16;
 
 using ALayout = Row;
 using BLayout = Col;
