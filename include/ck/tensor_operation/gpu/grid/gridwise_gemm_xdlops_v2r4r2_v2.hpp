@@ -1333,7 +1333,7 @@ struct GridwiseGemm_bk0mk1_bk0nk1_mn_xdlops_v2r4r2_v2
     // return block_id to C matrix tile idx (m0, n0, k_split) mapping
     __host__ __device__ static constexpr auto MakeDefaultBlock2CTileMap()
     {
-        return BlockToCTileMap_3DGrid_KSplit<MPerBlock, NPerBlock>();
+        return BlockToCTileMap_Grouped_3DGrid_KSplit<8, MPerBlock, NPerBlock>();
     }
 
     struct SharedMemTrait
@@ -1400,7 +1400,7 @@ struct GridwiseGemm_bk0mk1_bk0nk1_mn_xdlops_v2r4r2_v2
 
         // divide block work by [KBlock, M, N]
         const auto block_work_idx =
-            block_2_ctile_map.CalculateBottomIndex(make_multi_index(get_block_1d_id()));
+            block_2_ctile_map.CalculateBottomIndex(karg.M, karg.N, 4);
 
         if(!block_2_ctile_map.ValidCTileIndex(
                block_work_idx,

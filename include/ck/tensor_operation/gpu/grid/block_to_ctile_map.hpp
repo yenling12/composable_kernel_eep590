@@ -973,6 +973,70 @@ struct BlockToCTileMap_3DGrid_KSplit
     }
 };
 
+/**
+ * @brief      Batched - grouped 2D space-filling curve, construct 3D grid block mapping
+ *
+ * @paragraph  Description
+ *             This Block-to-C-tile-map creates a 3D grid (n_blocks, m_blocks, z_blocks) of thread
+ *             blocks. The first 2D are regular 2D tiles created by division of output GEMM
+ *             dimenions by corresponding tile size. The third dimension (Z) is a k-split dimension,
+ *             which denotes the number of blocks we use to divide work on GEMM K dimension onto.
+ *
+ * @tparam     MPerBlock  Output block tile size in M dimension.
+ * @tparam     NPerBlock  Output block tile size in N dimension.
+ */
+template <index_t GroupNum, index_t MPerBlock, index_t NPerBlock>
+struct BlockToCTileMap_Grouped_3DGrid_KSplit
+{
+
+    __host__ __device__ BlockToCTileMap_Grouped_3DGrid_KSplit() = default;
+
+    __host__ __device__ constexpr auto
+    CalculateGridSize(index_t M, index_t N, index_t k_split) const
+    {
+        // Create 3D grid
+        const auto M0 = math::integer_divide_ceil(M, MPerBlock);
+        const auto N0 = math::integer_divide_ceil(N, NPerBlock);
+
+        return std::make_tuple(N0, M0, k_split);
+    }
+
+    __device__ constexpr auto CalculateBottomIndex(index_t M, index_t N, index_t M01_) const
+    {
+        const auto M0 = math::integer_divide_ceil(M, MPerBlock);
+        const auto N0 = math::integer_divide_ceil(N, NPerBlock);
+
+        const auto block_1d_id = blockIdx.y * N0 + blockIdx.x; 
+        const auto group_size  = math::integer_divide_ceil(M0 * N0, GroupNum);
+        auto group_id          = block_1d_id % GroupNum;
+        auto remap_block_1d_id = group_id * group_size + block_1d_id / GroupNum;
+
+        index_t idx_N0 = remap_block_1d_id % N0;
+        index_t idx_M0 = remap_block_1d_id / N0;
+
+        const auto M01_adapt = (idx_M0 < M0 - M0 % M01_) ? M01_ : M0 % M01_;
+
+        index_t idx_M00          = idx_M0 / M01_;
+        index_t idx_M01          = idx_M0 % M01_;
+        index_t idx_N0_M01_local = idx_N0 + idx_M01 * N0;
+
+        return make_tuple(blockIdx.z, idx_N0_M01_local % M01_adapt + idx_M00 * M01_, idx_N0_M01_local / M01_adapt);
+    }
+
+    template <typename CTileIdx, typename CTileDim>
+    __host__ __device__ bool ValidCTileIndex(const CTileIdx& /* c_tile_idx */,
+                                             const CTileDim& /* c_tile_dim */) const
+    {
+        return true; // always valid provided that user gets grid size from CalculateGridSize()
+    }
+
+    template <typename CGridDesc_M_N>
+    __host__ bool CheckValidity(const CGridDesc_M_N& /* c_grid_desc_m_n */) const
+    {
+        return true;
+    }
+};
+
 enum StreamKReductionStrategy
 {
     Atomic = 0, // sk block use atomic to do reduction

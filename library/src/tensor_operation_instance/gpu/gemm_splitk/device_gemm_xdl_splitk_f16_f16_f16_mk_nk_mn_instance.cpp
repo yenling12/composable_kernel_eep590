@@ -28,7 +28,7 @@ using S = ck::Sequence<Is...>;
 using PassThrough = ck::tensor_operation::element_wise::PassThrough;
 
 static constexpr auto GemmDefault    = ck::tensor_operation::device::GemmSpecialization::Default;
-static constexpr auto GemmMNPadding  = ck::tensor_operation::device::GemmSpecialization::MNPadding;
+static constexpr auto GemmKPadding  = ck::tensor_operation::device::GemmSpecialization::KPadding;
 static constexpr auto GemmMNKPadding = ck::tensor_operation::device::GemmSpecialization::MNKPadding;
 
 using device_gemm_xdl_splitk_f16_f16_f16_mk_nk_mn_generic_instances = std::tuple<
@@ -194,7 +194,7 @@ void add_device_gemm_xdl_splitk_f16_f16_f16_mk_nk_mn_instances(
         instances, device_gemm_xdl_splitk_f16_f16_f16_mk_nk_mn_instances<GemmDefault>{});
 
     add_device_operation_instances(
-        instances, device_gemm_xdl_splitk_f16_f16_f16_mk_nk_mn_instances<GemmMNPadding>{});
+        instances, device_gemm_xdl_splitk_f16_f16_f16_mk_nk_mn_instances<GemmKPadding>{});
 
     add_device_operation_instances(
         instances, device_gemm_xdl_splitk_f16_f16_f16_mk_nk_mn_instances<GemmMNKPadding>{});
@@ -216,22 +216,28 @@ void add_device_gemm_xdl_splitk_f16_f16_f16_mk_nk_mn_instances(
                                        ck::LoopScheduler::Interwave>{});
     add_device_operation_instances(instances,
                                    device_gemm_xdl_splitk_f16_f16_f16_mk_nk_mn_irregular_instances<
-                                       GemmMNPadding,
+                                       GemmKPadding,
                                        ck::PipelineVersion::v1,
                                        ck::LoopScheduler::Default>{});
     add_device_operation_instances(instances,
                                    device_gemm_xdl_splitk_f16_f16_f16_mk_nk_mn_irregular_instances<
-                                       GemmMNPadding,
+                                       GemmKPadding,
                                        ck::PipelineVersion::v2,
                                        ck::LoopScheduler::Default>{});
     add_device_operation_instances(instances,
                                    device_gemm_xdl_splitk_f16_f16_f16_mk_nk_mn_irregular_instances<
-                                       GemmMNPadding,
+                                       GemmKPadding,
                                        ck::PipelineVersion::v1,
                                        ck::LoopScheduler::Interwave>{});
     add_device_operation_instances(instances,
                                    device_gemm_xdl_splitk_f16_f16_f16_mk_nk_mn_irregular_instances<
                                        GemmMNKPadding,
+                                       ck::PipelineVersion::v2,
+                                       ck::LoopScheduler::Default>{});
+#if 0
+    add_device_operation_instances(instances,
+                                   device_gemm_xdl_splitk_f16_f16_f16_mk_nk_mn_irregular_instances<
+                                       GemmMNKPadding,
                                        ck::PipelineVersion::v1,
                                        ck::LoopScheduler::Default>{});
     add_device_operation_instances(instances,
@@ -244,6 +250,7 @@ void add_device_gemm_xdl_splitk_f16_f16_f16_mk_nk_mn_instances(
                                        GemmMNKPadding,
                                        ck::PipelineVersion::v1,
                                        ck::LoopScheduler::Interwave>{});
+#endif
 
     add_device_operation_instances(
         instances,
@@ -260,15 +267,29 @@ void add_device_gemm_xdl_splitk_f16_f16_f16_mk_nk_mn_instances(
     add_device_operation_instances(
         instances,
         device_gemm_xdl_splitk_f16_f16_f16_mk_nk_mn_irregular_instances_v2<
-            GemmMNPadding,
+            GemmDefault,
+            ck::PipelineVersion::v2,
+            ck::LoopScheduler::Default>{});
+
+    add_device_operation_instances(
+        instances,
+        device_gemm_xdl_splitk_f16_f16_f16_mk_nk_mn_irregular_instances_v2<
+            GemmKPadding,
             ck::PipelineVersion::v1,
             ck::LoopScheduler::Default>{});
     add_device_operation_instances(
         instances,
         device_gemm_xdl_splitk_f16_f16_f16_mk_nk_mn_irregular_instances_v2<
-            GemmMNPadding,
+            GemmKPadding,
             ck::PipelineVersion::v1,
             ck::LoopScheduler::Interwave>{});
+    add_device_operation_instances(
+        instances,
+        device_gemm_xdl_splitk_f16_f16_f16_mk_nk_mn_irregular_instances_v2<
+            GemmKPadding,
+            ck::PipelineVersion::v2,
+            ck::LoopScheduler::Default>{});
+#if 0
     add_device_operation_instances(
         instances,
         device_gemm_xdl_splitk_f16_f16_f16_mk_nk_mn_irregular_instances_v2<
@@ -281,6 +302,13 @@ void add_device_gemm_xdl_splitk_f16_f16_f16_mk_nk_mn_instances(
             GemmMNKPadding,
             ck::PipelineVersion::v1,
             ck::LoopScheduler::Interwave>{});
+    add_device_operation_instances(
+        instances,
+        device_gemm_xdl_splitk_f16_f16_f16_mk_nk_mn_irregular_instances_v2<
+            GemmMNKPadding,
+            ck::PipelineVersion::v2,
+            ck::LoopScheduler::Default>{});
+#endif
 }
 
 } // namespace instance

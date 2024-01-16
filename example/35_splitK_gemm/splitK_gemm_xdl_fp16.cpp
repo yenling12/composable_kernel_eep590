@@ -36,69 +36,42 @@ using AccDataType = F32;
 using CDataType   = F16;
 
 using ALayout = Row;
-using BLayout = Row;
+using BLayout = Col;
 using CLayout = Row;
 
 using AElementOp = PassThrough;
 using BElementOp = PassThrough;
 using CElementOp = PassThrough;
 
-static constexpr auto GemmDefault = ck::tensor_operation::device::GemmSpecialization::MNKPadding;
+static constexpr auto GemmDefault = ck::tensor_operation::device::GemmSpecialization::Default;
 
 using DeviceGemmInstance =
-    ck::tensor_operation::device::DeviceGemmXdlSplitKCShuffleV2<ADataType,
-                                                                BDataType,
-                                                                CDataType,
-                                                                AccDataType,
-                                                                ALayout,
-                                                                BLayout,
-                                                                CLayout,
-                                                                AElementOp,
-                                                                BElementOp,
-                                                                CElementOp,
-                                                                GemmDefault,
-                                                                256,
-                                                                64,
-                                                                256,
-                                                                8,
-                                                                8,
-                                                                16,
-                                                                16,
-                                                                4,
-                                                                4,
-                                                                S<1, 8, 1, 32, 1>,
-                                                                S<0, 3, 1, 2, 4>,
-                                                                S<0, 3, 1, 2, 4>,
-                                                                4,
-                                                                8,
-                                                                8,
-                                                                true,
-                                                                S<1, 8, 1, 32, 1>,
-                                                                S<0, 2, 1, 4, 3>,
-                                                                S<0, 2, 1, 4, 3>,
-                                                                3,
-                                                                4,
-                                                                8,
-                                                                true,
-                                                                1,
-                                                                1,
-                                                                S<1, 16, 1, 16>,
-                                                                4,
-                                                                F16,
-                                                                ck::PipelineVersion::v1,
-                                                                ck::LoopScheduler::Default>;
-#if 0
-       < ADataType, BDataType, CDataType, AccDataType, 
+#if 1
+    ck::tensor_operation::device::DeviceGemmXdlSplitKCShuffleV2
+        < ADataType, BDataType, CDataType, AccDataType,
           ALayout, BLayout, CLayout,
-          AElementOp,  BElementOp,  CElementOp,
-          GemmDefault,   256,
-          16,    64,     8,  8,
-          16,   16,
-          1,    1,
-          S<1, 8, 16, 1>, S<0, 2, 1, 3>,  S<0, 2, 1, 3>,  3, 8, 8, true,
-          S<1, 8, 32, 1>, S<0, 1, 3, 2>,  S<0, 1, 3, 2>,  2, 2, 8, true, 
-          1, 1, S<1, 16, 1, 16>, 4,  F16, ck::PipelineVersion::v1>;
+          AElementOp, BElementOp, CElementOp,
+          GemmDefault, 128,
+          16, 128, 8, 8,
+          16,  16, 1, 4,
+          S<1, 8, 1, 16, 1>, S<0, 3, 1, 2, 4>, S<0, 3, 1, 2, 4>, 4, 8, 8, true,
+          S<1, 4, 1, 32, 1>, S<0, 3, 1, 2, 4>, S<0, 3, 1, 2, 4>, 4, 8, 8, true,
+          1, 1, S<1, 16, 1, 8>, 4, F16, ck::PipelineVersion::v2, ck::LoopScheduler::Default>;
 #endif
+#if 0
+    ck::tensor_operation::device::DeviceGemmXdlSplitKCShuffle
+    // clang-format off
+       < ADataType, BDataType, CDataType, AccDataType, 
+         ALayout, BLayout, CLayout,
+         AElementOp,  BElementOp,  CElementOp,
+         GemmDefault,   128,
+         16, 128,  8, 8,
+         16,  16,  1, 4,
+         S<1, 8, 16, 1>,  S<0, 2, 1, 3>,  S<0, 2, 1, 3>, 3, 8, 8, true,
+         S<1, 4, 32, 1>,  S<0, 2, 1, 3>,  S<0, 2, 1, 3>, 3, 8, 8, true,
+         1, 1, S<1, 16, 1, 8>, 4, F16, ck::PipelineVersion::v2, ck::LoopScheduler::Default>;
+#endif
+// clang-format on
 
 #include "run_splitK_gemm_example.inc"
 
