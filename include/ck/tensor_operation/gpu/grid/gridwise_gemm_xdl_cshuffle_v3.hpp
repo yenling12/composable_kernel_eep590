@@ -665,6 +665,8 @@ struct GridwiseGemm_xdl_cshuffle_v3
                                 MPerBlock,
                                 NPerBlock,
                                 KPerBlock,
+                                ABlockTransferSrcScalarPerVector,
+                                BBlockTransferSrcScalarPerVector,
                                 MPerXdl,
                                 NPerXdl,
                                 MXdlPerWave,
