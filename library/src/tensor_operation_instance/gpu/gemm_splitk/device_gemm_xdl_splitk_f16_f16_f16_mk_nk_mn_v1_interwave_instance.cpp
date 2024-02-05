@@ -105,7 +105,6 @@ void add_device_gemm_xdl_splitk_f16_f16_f16_mk_nk_mn_v1_interwave_instances(
     add_device_operation_instances(
         instances, device_gemm_xdl_splitk_f16_f16_f16_mk_nk_mn_v1_iw_instances<GemmMNKPadding>{});
 
-
     add_device_operation_instances(instances,
                                    device_gemm_xdl_splitk_f16_f16_f16_mk_nk_mn_irregular_instances<
                                        GemmDefault,
