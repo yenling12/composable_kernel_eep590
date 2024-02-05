@@ -168,7 +168,7 @@ bool run_gemm(const ProblemType& problem_size, const ExecutionConfig& config)
 
         ref_invoker.Run(ref_argument);
 
-        ave_time = invoker.Run(argument, StreamConfig{nullptr, false});
+        ave_time = invoker.Run(argument, StreamConfig{nullptr, false, 1});
 #ifdef BUILD_INT4_EXAMPLE
         Tensor<CDataType> c_m_n_device_result_converted(c_m_n_host_result.mDesc);
 
@@ -186,7 +186,7 @@ bool run_gemm(const ProblemType& problem_size, const ExecutionConfig& config)
 
     if(config.time_kernel)
     {
-        ave_time = invoker.Run(argument, StreamConfig{nullptr, config.time_kernel});
+        ave_time = invoker.Run(argument, StreamConfig{nullptr, config.time_kernel, 0, 20, 50});
 
         std::size_t flop = 2_uz * M * N * K;
         std::size_t num_btype =
