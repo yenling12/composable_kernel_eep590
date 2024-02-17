@@ -118,6 +118,53 @@ void add_device_gemm_xdl_universal_f16_f16_f16_mk_nk_mn_mem_v2_mnkpadding_instan
         instances);
 #endif
 
+#ifdef CK_ENABLE_FP8
+void add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_comp_default_instances(
+    std::vector<std::unique_ptr<
+        DeviceGemmV2<Row, Col, Row, F8, F8, F16, PassThrough, PassThrough, PassThrough>>>&
+        instances);
+
+// void add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_comp_kpadding_instances(
+//    std::vector<std::unique_ptr<
+//        DeviceGemmV2<Row, Col, Row, F8, F8, F16, PassThrough, PassThrough, PassThrough>>>&
+//        instances);
+//
+// void add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_comp_mnkpadding_instances(
+//    std::vector<std::unique_ptr<
+//        DeviceGemmV2<Row, Col, Row, F8, F8, F16, PassThrough, PassThrough, PassThrough>>>&
+//        instances);
+//
+// void add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_mem_v1_default_instances(
+//    std::vector<std::unique_ptr<
+//        DeviceGemmV2<Row, Col, Row, F8, F8, F16, PassThrough, PassThrough, PassThrough>>>&
+//        instances);
+//
+// void add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_mem_v1_kpadding_instances(
+//    std::vector<std::unique_ptr<
+//        DeviceGemmV2<Row, Col, Row, F8, F8, F16, PassThrough, PassThrough, PassThrough>>>&
+//        instances);
+//
+// void add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_mem_v1_mnkpadding_instances(
+//    std::vector<std::unique_ptr<
+//        DeviceGemmV2<Row, Col, Row, F8, F8, F16, PassThrough, PassThrough, PassThrough>>>&
+//        instances);
+//
+// void add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_mem_v2_default_instances(
+//    std::vector<std::unique_ptr<
+//        DeviceGemmV2<Row, Col, Row, F8, F8, F16, PassThrough, PassThrough, PassThrough>>>&
+//        instances);
+//
+// void add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_mem_v2_kpadding_instances(
+//    std::vector<std::unique_ptr<
+//        DeviceGemmV2<Row, Col, Row, F8, F8, F16, PassThrough, PassThrough, PassThrough>>>&
+//        instances);
+//
+// void add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_mem_v2_mnkpadding_instances(
+//    std::vector<std::unique_ptr<
+//        DeviceGemmV2<Row, Col, Row, F8, F8, F16, PassThrough, PassThrough, PassThrough>>>&
+//        instances);
+#endif
+
 template <typename ADataType,
           typename BDataType,
           typename CDataType,
@@ -207,6 +254,35 @@ struct DeviceOperationInstanceFactory<
             // {
             //     add_device_gemm_xdl_splitk_f16_f16_f16_km_nk_mn_instances(op_ptrs);
             // }
+        }
+#endif
+
+#ifdef CK_ENABLE_FP8
+        if constexpr(is_same_v<ADataType, f8_t> && is_same_v<BDataType, f8_t> &&
+                     is_same_v<CDataType, half_t>)
+        {
+            if constexpr(is_same_v<ALayout, Row> && is_same_v<BLayout, Col> &&
+                         is_same_v<CLayout, Row>)
+            {
+                add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_comp_default_instances(op_ptrs);
+                // add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_comp_kpadding_instances(op_ptrs);
+                // add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_comp_mnkpadding_instances(
+                //     op_ptrs);
+
+                // add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_mem_v1_default_instances(
+                //     op_ptrs);
+                // add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_mem_v1_kpadding_instances(
+                //     op_ptrs);
+                // add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_mem_v1_mnkpadding_instances(
+                //     op_ptrs);
+
+                // add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_mem_v2_default_instances(
+                //     op_ptrs);
+                // add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_mem_v2_kpadding_instances(
+                //     op_ptrs);
+                // add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_mem_v2_mnkpadding_instances(
+                //     op_ptrs);
+            }
         }
 #endif
         return op_ptrs;

@@ -26,7 +26,7 @@ using S = ck::Sequence<Is...>;
 
 using PassThrough = ck::tensor_operation::element_wise::PassThrough;
 
-static constexpr auto GemmDefault = ck::tensor_operation::device::GemmSpecialization::Default;
+static constexpr auto GemmMNKPadding = ck::tensor_operation::device::GemmSpecialization::MNKPadding;
 
 template <ck::tensor_operation::device::GemmSpecialization GemmSpec>
 using device_gemm_xdl_universal_f16_f16_f16_mk_nk_mn_instances = std::tuple<
@@ -50,13 +50,13 @@ using device_gemm_xdl_universal_f16_f16_f16_mk_nk_mn_instances = std::tuple<
     // clang-format on
     >;
 
-void add_device_gemm_xdl_universal_f16_f16_f16_mk_nk_mn_comp_default_instances(
+void add_device_gemm_xdl_universal_f16_f16_f16_mk_nk_mn_comp_mnkpadding_instances(
     std::vector<std::unique_ptr<
         DeviceGemmV2<Row, Col, Row, F16, F16, F16, PassThrough, PassThrough, PassThrough>>>&
         instances)
 {
     add_device_operation_instances(
-        instances, device_gemm_xdl_universal_f16_f16_f16_mk_nk_mn_instances<GemmDefault>{});
+        instances, device_gemm_xdl_universal_f16_f16_f16_mk_nk_mn_instances<GemmMNKPadding>{});
 }
 
 } // namespace instance
