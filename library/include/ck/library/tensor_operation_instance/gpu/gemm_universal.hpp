@@ -124,45 +124,45 @@ void add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_comp_default_instances(
         DeviceGemmV2<Row, Col, Row, F8, F8, F16, PassThrough, PassThrough, PassThrough>>>&
         instances);
 
-// void add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_comp_kpadding_instances(
-//    std::vector<std::unique_ptr<
-//        DeviceGemmV2<Row, Col, Row, F8, F8, F16, PassThrough, PassThrough, PassThrough>>>&
-//        instances);
-//
-// void add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_comp_mnkpadding_instances(
-//    std::vector<std::unique_ptr<
-//        DeviceGemmV2<Row, Col, Row, F8, F8, F16, PassThrough, PassThrough, PassThrough>>>&
-//        instances);
-//
-// void add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_mem_v1_default_instances(
-//    std::vector<std::unique_ptr<
-//        DeviceGemmV2<Row, Col, Row, F8, F8, F16, PassThrough, PassThrough, PassThrough>>>&
-//        instances);
-//
-// void add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_mem_v1_kpadding_instances(
-//    std::vector<std::unique_ptr<
-//        DeviceGemmV2<Row, Col, Row, F8, F8, F16, PassThrough, PassThrough, PassThrough>>>&
-//        instances);
-//
-// void add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_mem_v1_mnkpadding_instances(
-//    std::vector<std::unique_ptr<
-//        DeviceGemmV2<Row, Col, Row, F8, F8, F16, PassThrough, PassThrough, PassThrough>>>&
-//        instances);
-//
-// void add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_mem_v2_default_instances(
-//    std::vector<std::unique_ptr<
-//        DeviceGemmV2<Row, Col, Row, F8, F8, F16, PassThrough, PassThrough, PassThrough>>>&
-//        instances);
-//
-// void add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_mem_v2_kpadding_instances(
-//    std::vector<std::unique_ptr<
-//        DeviceGemmV2<Row, Col, Row, F8, F8, F16, PassThrough, PassThrough, PassThrough>>>&
-//        instances);
-//
-// void add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_mem_v2_mnkpadding_instances(
-//    std::vector<std::unique_ptr<
-//        DeviceGemmV2<Row, Col, Row, F8, F8, F16, PassThrough, PassThrough, PassThrough>>>&
-//        instances);
+void add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_comp_kpadding_instances(
+    std::vector<std::unique_ptr<
+        DeviceGemmV2<Row, Col, Row, F8, F8, F16, PassThrough, PassThrough, PassThrough>>>&
+        instances);
+
+void add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_comp_mnkpadding_instances(
+    std::vector<std::unique_ptr<
+        DeviceGemmV2<Row, Col, Row, F8, F8, F16, PassThrough, PassThrough, PassThrough>>>&
+        instances);
+
+void add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_mem_v1_default_instances(
+    std::vector<std::unique_ptr<
+        DeviceGemmV2<Row, Col, Row, F8, F8, F16, PassThrough, PassThrough, PassThrough>>>&
+        instances);
+
+void add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_mem_v1_kpadding_instances(
+    std::vector<std::unique_ptr<
+        DeviceGemmV2<Row, Col, Row, F8, F8, F16, PassThrough, PassThrough, PassThrough>>>&
+        instances);
+
+void add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_mem_v1_mnkpadding_instances(
+    std::vector<std::unique_ptr<
+        DeviceGemmV2<Row, Col, Row, F8, F8, F16, PassThrough, PassThrough, PassThrough>>>&
+        instances);
+
+void add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_mem_v2_default_instances(
+    std::vector<std::unique_ptr<
+        DeviceGemmV2<Row, Col, Row, F8, F8, F16, PassThrough, PassThrough, PassThrough>>>&
+        instances);
+
+void add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_mem_v2_kpadding_instances(
+    std::vector<std::unique_ptr<
+        DeviceGemmV2<Row, Col, Row, F8, F8, F16, PassThrough, PassThrough, PassThrough>>>&
+        instances);
+
+void add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_mem_v2_mnkpadding_instances(
+    std::vector<std::unique_ptr<
+        DeviceGemmV2<Row, Col, Row, F8, F8, F16, PassThrough, PassThrough, PassThrough>>>&
+        instances);
 #endif
 
 template <typename ADataType,
@@ -265,23 +265,18 @@ struct DeviceOperationInstanceFactory<
                          is_same_v<CLayout, Row>)
             {
                 add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_comp_default_instances(op_ptrs);
-                // add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_comp_kpadding_instances(op_ptrs);
-                // add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_comp_mnkpadding_instances(
-                //     op_ptrs);
+                add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_comp_kpadding_instances(op_ptrs);
+                add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_comp_mnkpadding_instances(op_ptrs);
 
-                // add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_mem_v1_default_instances(
-                //     op_ptrs);
-                // add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_mem_v1_kpadding_instances(
-                //     op_ptrs);
-                // add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_mem_v1_mnkpadding_instances(
-                //     op_ptrs);
+                add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_mem_v1_default_instances(op_ptrs);
+                add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_mem_v1_kpadding_instances(op_ptrs);
+                add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_mem_v1_mnkpadding_instances(
+                    op_ptrs);
 
-                // add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_mem_v2_default_instances(
-                //     op_ptrs);
-                // add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_mem_v2_kpadding_instances(
-                //     op_ptrs);
-                // add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_mem_v2_mnkpadding_instances(
-                //     op_ptrs);
+                add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_mem_v2_default_instances(op_ptrs);
+                add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_mem_v2_kpadding_instances(op_ptrs);
+                add_device_gemm_xdl_universal_f8_f8_f16_mk_nk_mn_mem_v2_mnkpadding_instances(
+                    op_ptrs);
             }
         }
 #endif
