@@ -58,6 +58,23 @@ struct TensorView
               typename enable_if<is_same_v<typename scalar_type<remove_cvref_t<X>>::type,
                                            typename scalar_type<remove_cvref_t<DataType>>::type>,
                                  bool>::type = false>
+    __host__ __device__ constexpr remove_cvref_t<X> GetVectorizedElements(
+        index_t origin_offset, const TensorCoord& coord, bool_constant<use_iline_asm> = {}) const
+    {
+        return buf_.template Get<X>(
+            origin_offset,
+            coord.GetOffset() - origin_offset,
+            coordinate_has_valid_offset_assuming_top_index_is_valid(desc_, coord),
+            bool_constant<use_iline_asm>{});
+    }
+
+    // X is vector of DataType.
+    // "coord" is coordinate of DataType, not X. "coord" should be aligned to X
+    template <typename X,
+              bool use_iline_asm             = false,
+              typename enable_if<is_same_v<typename scalar_type<remove_cvref_t<X>>::type,
+                                           typename scalar_type<remove_cvref_t<DataType>>::type>,
+                                 bool>::type = false>
     __host__ __device__ constexpr remove_cvref_t<X>
     GetVectorizedElements(const TensorCoord& coord, bool_constant<use_iline_asm> = {}) const
     {

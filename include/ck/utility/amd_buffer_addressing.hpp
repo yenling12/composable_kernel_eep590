@@ -1253,6 +1253,44 @@ template <typename T,
           bool use_inline_asm              = false>
 __device__ typename vector_type_maker<T, N>::type::type
 amd_buffer_load_invalid_element_return_zero(const T* p_src_wave,
+                                            index_t src_thread_element_base,
+                                            index_t src_thread_element_offset,
+                                            bool src_thread_element_valid,
+                                            index_t src_element_space_size)
+{
+    const int32x4_t src_wave_buffer_resource =
+        make_wave_buffer_resource(p_src_wave, src_element_space_size);
+
+    index_t src_thread_addr_offset = src_thread_element_offset * sizeof(T);
+
+    using vector_t = typename vector_type_maker<T, N>::type::type;
+    using scalar_t = typename scalar_type<vector_t>::type;
+
+    constexpr index_t vector_size = scalar_type<vector_t>::vector_size;
+
+#if CK_EXPERIMENTAL_USE_BUFFER_LOAD_OOB_CHECK_OFFSET_TRICK
+    uint32_t src_addr_shift = src_thread_element_valid ? 0 : 0x80000000;
+    return amd_buffer_load_impl<scalar_t, vector_size, coherence, use_inline_asm>(
+        src_wave_buffer_resource, src_addr_shift + src_thread_addr_offset, src_thread_element_base);
+
+#else
+
+    vector_t tmp = amd_buffer_load_impl<scalar_t, vector_size, coherence, use_inline_asm>(
+        src_wave_buffer_resource, src_thread_addr_offset, src_thread_element_base);
+    return src_thread_element_valid ? tmp : vector_t(0);
+#endif
+}
+
+// buffer_load requires:
+//   1) p_src_wave must point to global memory space
+//   2) p_src_wave must be a wavewise pointer.
+// It is user's responsibility to make sure that is true.
+template <typename T,
+          index_t N,
+          AmdBufferCoherenceEnum coherence = AmdBufferCoherenceEnum::DefaultCoherence,
+          bool use_inline_asm              = false>
+__device__ typename vector_type_maker<T, N>::type::type
+amd_buffer_load_invalid_element_return_zero(const T* p_src_wave,
                                             index_t src_thread_element_offset,
                                             bool src_thread_element_valid,
                                             index_t src_element_space_size)
@@ -1278,6 +1316,38 @@ amd_buffer_load_invalid_element_return_zero(const T* p_src_wave,
         src_wave_buffer_resource, src_thread_addr_offset, 0);
     return src_thread_element_valid ? tmp : vector_t(0);
 #endif
+}
+
+// buffer_load requires:
+//   1) p_src_wave must point to global memory space
+//   2) p_src_wave must be a wavewise pointer.
+// It is user's responsibility to make sure that is true.
+template <typename T,
+          index_t N,
+          AmdBufferCoherenceEnum coherence = AmdBufferCoherenceEnum::DefaultCoherence,
+          bool use_inline_asm>
+__device__ typename vector_type_maker<T, N>::type::type
+amd_buffer_load_invalid_element_return_customized_value(const T* p_src_wave,
+                                                        index_t src_thread_element_base,
+                                                        index_t src_thread_element_offset,
+                                                        bool src_thread_element_valid,
+                                                        index_t src_element_space_size,
+                                                        T customized_value)
+{
+    const int32x4_t src_wave_buffer_resource =
+        make_wave_buffer_resource(p_src_wave, src_element_space_size);
+
+    index_t src_thread_addr_offset = src_thread_element_offset * sizeof(T);
+
+    using vector_t = typename vector_type_maker<T, N>::type::type;
+    using scalar_t = typename scalar_type<vector_t>::type;
+
+    constexpr index_t vector_size = scalar_type<vector_t>::vector_size;
+
+    vector_t tmp = amd_buffer_load_impl<scalar_t, vector_size, coherence, use_inline_asm>(
+        src_wave_buffer_resource, src_thread_addr_offset, src_thread_element_base);
+
+    return src_thread_element_valid ? tmp : vector_t(customized_value);
 }
 
 // buffer_load requires:

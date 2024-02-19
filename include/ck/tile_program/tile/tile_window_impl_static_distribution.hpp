@@ -129,11 +129,11 @@ struct TileWindowWithStaticDistribution
     __device__ constexpr TileWindowWithStaticDistribution(
         const BottomTensorView& bottom_tensor_view,
         const WindowLengths& window_lengths,
-        const BottomTensorIndex& window_origin,
+        const BottomTensorIndex& window_origin_index,
         const TileDstr& tile_distribution)
         : bottom_tensor_view_{bottom_tensor_view},
           window_lengths_{window_lengths},
-          window_origin_{window_origin},
+          window_origin_index_{window_origin_index},
           tile_dstr_{tile_distribution},
           pre_computed_coords_{}
     {
@@ -166,10 +166,13 @@ struct TileWindowWithStaticDistribution
 #endif
 
         BottomTensorIndex bottom_tensor_thread_origin_idx_tmp =
-            window_origin + window_adaptor_thread_coord_tmp.GetBottomIndex();
+            window_origin_index + window_adaptor_thread_coord_tmp.GetBottomIndex();
 
         const auto bottom_tensor_thread_coord_tmp = make_tensor_coordinate(
             bottom_tensor_view_.GetTensorDescriptor(), bottom_tensor_thread_origin_idx_tmp);
+
+        window_origin_coord_  = bottom_tensor_thread_coord_tmp;
+        window_origin_offset_ = __builtin_amdgcn_readfirstlane(window_origin_coord_.GetOffset());
 
         // pre-compute NumCoord (WindowAdaptorCoord, BottomTensorCoord) bundles to speed up
         // future Load/Store() calls (might allocate more registers)
@@ -203,7 +206,7 @@ struct TileWindowWithStaticDistribution
 
     __device__ constexpr auto GetBottomTensorView() const { return bottom_tensor_view_; }
 
-    __device__ constexpr auto GetWindowOrigin() const { return window_origin_; }
+    __device__ constexpr auto GetWindowOrigin() const { return window_origin_index_; }
 
     // move thread's window adaptor coordinate and bottom tensor coordinate
     // [p0, p1, ..., y0, y1, ...] ==> [x0, x1, ...] ==> [x0', x1', ...] ==> [offset]
@@ -266,6 +269,10 @@ struct TileWindowWithStaticDistribution
     template <bool use_inline_asm = false>
     __device__ auto Load(bool_constant<use_inline_asm> = {}) const
     {
+        __builtin_amdgcn_sched_barrier(0);
+        asm volatile("; [POYENC] enter TileWindow::Load" ::);
+        __builtin_amdgcn_sched_barrier(0);
+
         using Traits = LoadStoreTraits;
 
         using vector_type_t = typename Traits::vector_type_t;
@@ -291,7 +298,9 @@ struct TileWindowWithStaticDistribution
                 // read from bottom tensor
                 const vector_t vec_value =
                     GetBottomTensorView().template GetVectorizedElements<vector_t>(
-                        bottom_tensor_thread_coord, bool_constant<use_inline_asm>{});
+                        window_origin_offset_,
+                        bottom_tensor_thread_coord,
+                        bool_constant<use_inline_asm>{});
 
                 const vector_type_t vec{vec_value};
 
@@ -323,6 +332,10 @@ struct TileWindowWithStaticDistribution
                 }
             });
         });
+
+        __builtin_amdgcn_sched_barrier(0);
+        asm volatile("; [POYENC] leave TileWindow::Load" ::);
+        __builtin_amdgcn_sched_barrier(0);
 
         return dst_tensor;
     }
@@ -462,12 +475,25 @@ struct TileWindowWithStaticDistribution
     // also move window-origin
     __device__ void Move(const BottomTensorIndex& step)
     {
-        window_origin_ += step;
+        __builtin_amdgcn_sched_barrier(0);
+        asm volatile("; [POYENC] enter TileWindow::Move" ::);
+        __builtin_amdgcn_sched_barrier(0);
+
+        window_origin_index_ += step;
+
+        move_tensor_coordinate(
+            bottom_tensor_view_.GetTensorDescriptor(), window_origin_coord_, step);
+
+        window_origin_offset_ = __builtin_amdgcn_readfirstlane(window_origin_coord_.GetOffset());
 
         static_for<0, NumCoord, 1>{}([&](auto iCoord) {
             move_tensor_coordinate(
                 bottom_tensor_view_.GetTensorDescriptor(), pre_computed_coords_(iCoord)(I1), step);
         });
+
+        __builtin_amdgcn_sched_barrier(0);
+        asm volatile("; [POYENC] leave TileWindow::Move" ::);
+        __builtin_amdgcn_sched_barrier(0);
     }
 
     // this is the bottom tensor view
@@ -478,7 +504,9 @@ struct TileWindowWithStaticDistribution
     WindowLengths window_lengths_;
 
     // origin ([x0', x1', ...]) of window on bottom tensor
-    BottomTensorIndex window_origin_;
+    BottomTensorIndex window_origin_index_;
+    BottomTensorCoord window_origin_coord_;
+    ck::index_t window_origin_offset_;
 
     // Tile tensor distribution, which contains:
     //   1. adaptor for window: [p0, p1, ..., y0, y1, ...] ==> [x0, x1, ...]
