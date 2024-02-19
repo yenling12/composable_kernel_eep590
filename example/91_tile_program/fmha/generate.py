@@ -321,7 +321,7 @@ def get_blobs() -> Tuple[FmhaFwdApiPool, List[FmhaFwdKernel]]:
             if hdim == 256:
                 return 'qr'
             else:
-                return 'qr_async'
+                return 'qr'
         elif dtype in ['fp8', 'bf8']:
             return 'qr_fp8'
         else:
