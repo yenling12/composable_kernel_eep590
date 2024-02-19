@@ -39,3 +39,7 @@ endif()
 list(APPEND EXAMPLE_FMHA_FWD_COMPILE_OPTIONS -Wno-float-equal)
 
 target_compile_options(${EXAMPLE_FMHA_FWD} PRIVATE ${EXAMPLE_FMHA_FWD_COMPILE_OPTIONS})
+
+set_source_files_properties(${FMHA_FWD_GEN_BLOBS} PROPERTIES
+  COMPILE_OPTIONS ";-save-temps;-Wno-gnu-line-marker"
+  COMPILE_DEFINITIONS "")
