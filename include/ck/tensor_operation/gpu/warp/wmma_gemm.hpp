@@ -96,8 +96,8 @@ struct wmma_type<WmmaInstr::wmma_f32_16x16x16_f16,
     // Wave mode dependent propety
     static constexpr index_t wave_size = Number<WaveSize>{};
     // * Fixed in Navi3x, Will be wave mode dependent on Navi4x
-    static constexpr index_t num_src_a_vgprs_per_wave = m_per_wmma * src_a_data_size / 4;
-    static constexpr index_t num_src_b_vgprs_per_wave = n_per_wmma * src_b_data_size / 4;
+    static constexpr index_t num_src_a_vgprs_per_wave = k_per_wmma/2 * src_a_data_size / 4;
+    static constexpr index_t num_src_b_vgprs_per_wave = k_per_wmma/2 * src_b_data_size / 4;
     // * num_acc_vgprs_per_wave alone M direction
     // * num_subgroups alone M direction
     static constexpr index_t num_acc_vgprs_per_wave =
@@ -514,12 +514,14 @@ struct WmmaGemm
 
     __host__ __device__ static auto CalculateAThreadOriginDataIndex()
     {
-        return TransposeC ? GetLaneIdUnderSubGroup() : GetSwizzledLaneIdLow();
+        // return TransposeC ? GetLaneIdUnderSubGroup() : GetSwizzledLaneIdLow();
+        return GetLaneIdUnderSubGroup();
     }
 
     __host__ __device__ static auto CalculateBThreadOriginDataIndex()
     {
-        return TransposeC ? GetSwizzledLaneIdLow() : GetLaneIdUnderSubGroup();
+        // return TransposeC ? GetSwizzledLaneIdLow() : GetLaneIdUnderSubGroup();
+        return GetLaneIdUnderSubGroup();
     }
 
     __device__ static CIndex GetBeginOfThreadBlk()

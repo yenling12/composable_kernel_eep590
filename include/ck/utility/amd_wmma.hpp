@@ -19,7 +19,7 @@ template <>
 struct intrin_wmma_f32_16x16x16_f16_w32<16, 16>
 {
     template <class FloatC>
-    __device__ static void Run(const half16_t& reg_a, const half16_t& reg_b, FloatC& reg_c)
+    __device__ static void Run(const half8_t& reg_a, const half8_t& reg_b, FloatC& reg_c)
     {
 #if defined(__gfx1100__) || defined(__gfx1101__) || defined(__gfx1102__)
         reg_c.template AsType<float8_t>()(Number<0>{}) = __builtin_amdgcn_wmma_f32_16x16x16_f16_w32(
