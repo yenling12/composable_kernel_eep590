@@ -209,7 +209,7 @@ struct BlockwiseGemmXdlops_pipeline_v5<BlockGemmPipelineScheduler::Intrawave,
 
         // IGLP COMPILER BUG:
         // If comment out following scheduler barrier would cause sanity fail.
-        __builtin_amdgcn_sched_barrier(0);
+        // __builtin_amdgcn_sched_barrier(0);
     }
 
     template <bool HasMainLoop,
