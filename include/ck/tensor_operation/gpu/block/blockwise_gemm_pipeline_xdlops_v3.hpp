@@ -168,20 +168,21 @@ struct BlockwiseGemmXdlops_pipeline_v3<BlockGemmPipelineScheduler::Intrawave,
         constexpr auto num_issue_less = num_buffer_load_inst - num_issue_more;
         static_for<0, num_issue_more, 1>{}([&](auto i) {
             ignore = i;
-            __builtin_amdgcn_sched_group_barrier(0x002, 4, 0);                     // VALU Padding
+            // IGLP control over VALU is quite unstable and cause agpr spill
+            // __builtin_amdgcn_sched_group_barrier(0x002, 4, 0);                     // VALU Padding
             __builtin_amdgcn_sched_group_barrier(0x200, num_dswrite_per_issue, 0); // DS write
             __builtin_amdgcn_sched_group_barrier(0x008, 1, 0);                     // MFMA
             __builtin_amdgcn_sched_group_barrier(0x020, 1, 0);                     // VMEM read
-            __builtin_amdgcn_sched_group_barrier(0x002, 2, 0);                     // VALU of SliceWindowMove
+            // __builtin_amdgcn_sched_group_barrier(0x002, 2, 0);                     // VALU of SliceWindowMove
             __builtin_amdgcn_sched_group_barrier(0x008, num_mfma_per_issue, 0);    // MFMA
         });
         static_for<0, num_issue_less, 1>{}([&](auto i) {
             ignore = i;
-            __builtin_amdgcn_sched_group_barrier(0x002, 4, 0);                      // VALU Padding
+            // __builtin_amdgcn_sched_group_barrier(0x002, 4, 0);                      // VALU Padding
             __builtin_amdgcn_sched_group_barrier(0x200, num_dswrite_per_issue, 0);  // DS write
             __builtin_amdgcn_sched_group_barrier(0x008, 1, 0);                      // MFMA
             __builtin_amdgcn_sched_group_barrier(0x020, 1, 0);                      // VMEM read
-            __builtin_amdgcn_sched_group_barrier(0x002, 2, 0);                      // VALU of SliceWindowMove
+            // __builtin_amdgcn_sched_group_barrier(0x002, 2, 0);                      // VALU of SliceWindowMove
             __builtin_amdgcn_sched_group_barrier(0x008, num_mfma_per_issue - 1, 0); // MFMA
         });
 
