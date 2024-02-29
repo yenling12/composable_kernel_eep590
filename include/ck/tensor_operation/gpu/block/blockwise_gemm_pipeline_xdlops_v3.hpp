@@ -169,6 +169,7 @@ struct BlockwiseGemmXdlops_pipeline_v3<BlockGemmPipelineScheduler::Intrawave,
         static_for<0, num_issue_more, 1>{}([&](auto i) {
             ignore = i;
             // IGLP control over VALU is quite unstable and cause agpr spill
+            // even with -mllvm -enable-post-misched=0
             // __builtin_amdgcn_sched_group_barrier(0x002, 4, 0);                     // VALU Padding
             __builtin_amdgcn_sched_group_barrier(0x200, num_dswrite_per_issue, 0); // DS write
             __builtin_amdgcn_sched_group_barrier(0x008, 1, 0);                     // MFMA
