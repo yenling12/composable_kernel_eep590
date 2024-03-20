@@ -237,6 +237,8 @@ struct BlockwiseGemmXdlops_pipeline_v3<BlockGemmPipelineScheduler::Intrawave,
             __builtin_amdgcn_sched_group_barrier(0x100, 1, 0); // DS read
             __builtin_amdgcn_sched_group_barrier(0x008, 1, 0); // MFMA
         });
+
+        __builtin_amdgcn_sched_barrier(0);
 #endif
     }
 
@@ -318,6 +320,42 @@ struct BlockwiseGemmXdlops_pipeline_v3<BlockGemmPipelineScheduler::Intrawave,
                                    b_thread_buf);
             });
         });
+
+        // printf("Tid: %03d, b: %04x %04x %04x %04x %04x %04x %04x %04x |%04x %04x %04x %04x %04x %04x %04x %04x |%04x %04x %04x %04x %04x %04x %04x %04x |%04x %04x %04x %04x %04x %04x %04x %04x |\n",
+        // get_thread_global_1d_id(), 
+        // *(reinterpret_cast<uint16_t*>(&b_thread_buf(Number<0>{}))),
+        // *(reinterpret_cast<uint16_t*>(&b_thread_buf(Number<1>{}))),
+        // *(reinterpret_cast<uint16_t*>(&b_thread_buf(Number<2>{}))),
+        // *(reinterpret_cast<uint16_t*>(&b_thread_buf(Number<3>{}))),
+        // *(reinterpret_cast<uint16_t*>(&b_thread_buf(Number<4>{}))),
+        // *(reinterpret_cast<uint16_t*>(&b_thread_buf(Number<5>{}))),
+        // *(reinterpret_cast<uint16_t*>(&b_thread_buf(Number<6>{}))),
+        // *(reinterpret_cast<uint16_t*>(&b_thread_buf(Number<7>{}))),
+        // *(reinterpret_cast<uint16_t*>(&b_thread_buf(Number<0+8>{}))),
+        // *(reinterpret_cast<uint16_t*>(&b_thread_buf(Number<1+8>{}))),
+        // *(reinterpret_cast<uint16_t*>(&b_thread_buf(Number<2+8>{}))),
+        // *(reinterpret_cast<uint16_t*>(&b_thread_buf(Number<3+8>{}))),
+        // *(reinterpret_cast<uint16_t*>(&b_thread_buf(Number<4+8>{}))),
+        // *(reinterpret_cast<uint16_t*>(&b_thread_buf(Number<5+8>{}))),
+        // *(reinterpret_cast<uint16_t*>(&b_thread_buf(Number<6+8>{}))),
+        // *(reinterpret_cast<uint16_t*>(&b_thread_buf(Number<7+8>{}))),
+        // *(reinterpret_cast<uint16_t*>(&b_thread_buf(Number<0+8+8>{}))),
+        // *(reinterpret_cast<uint16_t*>(&b_thread_buf(Number<1+8+8>{}))),
+        // *(reinterpret_cast<uint16_t*>(&b_thread_buf(Number<2+8+8>{}))),
+        // *(reinterpret_cast<uint16_t*>(&b_thread_buf(Number<3+8+8>{}))),
+        // *(reinterpret_cast<uint16_t*>(&b_thread_buf(Number<4+8+8>{}))),
+        // *(reinterpret_cast<uint16_t*>(&b_thread_buf(Number<5+8+8>{}))),
+        // *(reinterpret_cast<uint16_t*>(&b_thread_buf(Number<6+8+8>{}))),
+        // *(reinterpret_cast<uint16_t*>(&b_thread_buf(Number<7+8+8>{}))),
+        // *(reinterpret_cast<uint16_t*>(&b_thread_buf(Number<0+64>{}))),
+        // *(reinterpret_cast<uint16_t*>(&b_thread_buf(Number<1+64>{}))),
+        // *(reinterpret_cast<uint16_t*>(&b_thread_buf(Number<2+64>{}))),
+        // *(reinterpret_cast<uint16_t*>(&b_thread_buf(Number<3+64>{}))),
+        // *(reinterpret_cast<uint16_t*>(&b_thread_buf(Number<4+64>{}))),
+        // *(reinterpret_cast<uint16_t*>(&b_thread_buf(Number<5+64>{}))),
+        // *(reinterpret_cast<uint16_t*>(&b_thread_buf(Number<6+64>{}))),
+        // *(reinterpret_cast<uint16_t*>(&b_thread_buf(Number<7+64>{}))));
+        // asm volatile("s_endpgm");
 
         __builtin_amdgcn_sched_barrier(0);
 
@@ -425,7 +463,7 @@ struct BlockwiseGemmXdlops_pipeline_v3<BlockGemmPipelineScheduler::Intrawave,
                     });
                 });
             });
-            __builtin_amdgcn_sched_barrier(0);
+            // __builtin_amdgcn_sched_barrier(0);
         }
     }
 

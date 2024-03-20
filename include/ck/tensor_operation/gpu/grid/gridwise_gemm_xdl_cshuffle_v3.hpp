@@ -709,32 +709,40 @@ struct GridwiseGemm_xdl_cshuffle_v3
         }
         else // RowMajor B
         {
-            // N0LdsLayer * N1 as logical Bank
+            // N0LdsLayer * N1* KPack/BK1 as logical Bank
             constexpr auto N1         = Number<BBlockTransferSrcScalarPerVector>{};
             constexpr auto N0         = NPerBlock / N1;
-            constexpr auto N0LdsLayer = 32 * 4 / (N1 * BK1Number * sizeof(FloatB)) <= 1
+            constexpr auto N0LdsLayer = 32 * 4 / (N1 * KPack * sizeof(FloatB)) <= 1
                                             ? 1
-                                            : 32 * 4 / (N1 * BK1Number * sizeof(FloatB));
+                                            : 32 * 4 / (N1 * KPack * sizeof(FloatB));
 
             constexpr auto b_lds_block_desc = make_naive_tensor_descriptor_packed(make_tuple(
-                BK0Number, Number<N0 / N0LdsLayer>{}, Number<N0LdsLayer * N1>{}, BK1Number));
+                Number<KPerBlock/KPack>{}, Number<N0 / N0LdsLayer>{}, Number<N0LdsLayer * N1 * KPack/BK1Number>{}, BK1Number));
 
             constexpr auto b_lds_block_desc_permuted = transform_tensor_descriptor(
                 b_lds_block_desc,
                 make_tuple(make_xor_transform(
-                               make_tuple(Number<N0 / N0LdsLayer>{}, Number<N0LdsLayer * N1>{})),
-                           make_pass_through_transform(BK0Number),
+                               make_tuple(Number<N0 / N0LdsLayer>{}, Number<N0LdsLayer * N1 * KPack/BK1Number>{})),
+                           make_pass_through_transform(Number<KPerBlock/KPack>{}),
                            make_pass_through_transform(BK1Number)),
                 make_tuple(Sequence<1, 2>{}, Sequence<0>{}, Sequence<3>{}),
                 make_tuple(Sequence<1, 2>{}, Sequence<0>{}, Sequence<3>{}));
 
-            constexpr auto b_lds_block_desc_bk0_n_bk1 = transform_tensor_descriptor(
+            constexpr auto b_lds_block_desc_unmerged = transform_tensor_descriptor(
                 b_lds_block_desc_permuted,
-                make_tuple(make_pass_through_transform(BK0Number),
-                           make_merge_transform_v3_division_mod(
-                               make_tuple(Number<N0 / N0LdsLayer>{}, Number<N0LdsLayer * N1>{})),
+                make_tuple(make_pass_through_transform(Number<KPerBlock/KPack>{}),
+                           make_pass_through_transform(Number<N0 / N0LdsLayer>{}),
+                           make_unmerge_transform(make_tuple(Number<N0LdsLayer * N1>{}, Number<KPack/BK1Number>{})),
                            make_pass_through_transform(BK1Number)),
-                make_tuple(Sequence<0>{}, Sequence<1, 2>{}, Sequence<3>{}),
+                make_tuple(Sequence<0>{}, Sequence<1>{}, Sequence<2>{}, Sequence<3>{}),
+                make_tuple(Sequence<0>{}, Sequence<1>{}, Sequence<2, 3>{}, Sequence<4>{}));
+            
+            constexpr auto b_lds_block_desc_bk0_n_bk1 = transform_tensor_descriptor(
+                b_lds_block_desc_unmerged,
+                make_tuple(make_merge_transform_v3_division_mod(make_tuple(Number<KPerBlock/KPack>{}, Number<KPack/BK1Number>{})),
+                           make_merge_transform_v3_division_mod(make_tuple(Number<N0 / N0LdsLayer>{}, Number<N0LdsLayer * N1>{})),
+                           make_pass_through_transform(BK1Number)),
+                make_tuple(Sequence<0, 3>{}, Sequence<1, 2>{}, Sequence<4>{}),
                 make_tuple(Sequence<0>{}, Sequence<1>{}, Sequence<2>{}));
 
             return b_lds_block_desc_bk0_n_bk1;
@@ -1078,6 +1086,11 @@ struct GridwiseGemm_xdl_cshuffle_v3
 
         // B matrix in LDS memory, dst of blockwise copy
         constexpr auto b_block_desc_bk0_n_bk1 = GetBBlockDescriptor_BK0PerBlock_NPerBlock_BK1();
+        // if(get_thread_global_1d_id()==0)
+        // printf("bblockdesc: %d_%d_%d\n", 
+        // b_block_desc_bk0_n_bk1.GetLength(I0).value, 
+        // b_block_desc_bk0_n_bk1.GetLength(I1).value,
+        // b_block_desc_bk0_n_bk1.GetLength(I2).value);
 
         // A matrix blockwise copy
         auto a_blockwise_copy =

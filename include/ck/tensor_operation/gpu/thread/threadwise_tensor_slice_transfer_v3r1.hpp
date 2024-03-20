@@ -205,6 +205,8 @@ struct ThreadwiseTensorSliceTransfer_v3r1
             // maintain a container record is_src_valid, waiting for RunWrite use.
             const bool is_src_valid =
                 coordinate_has_valid_offset_assuming_visible_index_is_valid(src_desc, src_coord_);
+            // printf("Tid: %03d, GlbDesc: (%02d, %03d, %02d) \n",
+            //  get_thread_global_1d_id(), src_coord_.GetIndex().At(Number<0>{}), src_coord_.GetIndex().At(Number<1>{}),src_coord_.GetIndex().At(Number<2>{}));
             src_oob_thread_scratch_tuple_(thread_scratch_id)
                 .template SetAsType<bool>(src_data_idx_seq, is_src_valid);
 
@@ -562,7 +564,9 @@ struct ThreadwiseTensorSliceTransfer_v3r1
 
                 dst_vector_container.template AsType<DstData>()(i) = dst_v;
             });
-
+            
+            // printf("Tid: %03d, LDS offset: %05lu, LDS bank: %02lu\n",
+            //  get_thread_global_1d_id(), dst_coord_.GetOffset()*sizeof(DstData), (dst_coord_.GetOffset()*sizeof(DstData)/4)%32);
             // copy data from dst_vector_container to dst_buf
             dst_buf.template Set<dst_vector_t>(
                 dst_coord_.GetOffset(),

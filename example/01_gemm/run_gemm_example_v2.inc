@@ -80,12 +80,12 @@ bool run_gemm(const ProblemType& problem_size, const ExecutionConfig& config)
         ck::utils::FillUniformDistribution<BDataType>{-1.f, 1.f}(b_k_n);
     }
 #if 0
-    printf("A matrix:\n");
-    for (int im = 0; im < M; im++)
+    printf("B matrix:\n");
+    for (int in = 0; in < N; in++)
     {
         for (int ik = 0; ik < K; ik++)
         {
-            printf("%04x ", *(reinterpret_cast<uint16_t*>(&a_m_k(im,ik))));
+            printf("%04x ", *(reinterpret_cast<uint16_t*>(&b_k_n(ik,in))));
             if(ik%8==7) printf("|");
         }
         printf("\n");
