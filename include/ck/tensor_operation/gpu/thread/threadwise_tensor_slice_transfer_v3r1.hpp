@@ -566,13 +566,14 @@ struct ThreadwiseTensorSliceTransfer_v3r1
                 dst_vector_container.template AsType<DstData>()(i) = dst_v;
             });
 
-            printf("Tid: %03d, BlkDesc: (%02d, %03d, %02d), LDS offset: %05lu, LDS bank: %02lu\n",
-                   get_thread_global_1d_id(),
-                   dst_coord_.GetIndex().At(Number<0>{}),
-                   dst_coord_.GetIndex().At(Number<1>{}),
-                   dst_coord_.GetIndex().At(Number<2>{}),
-                   dst_coord_.GetOffset() * sizeof(DstData),
-                   (dst_coord_.GetOffset() * sizeof(DstData) / 4) % 32);
+            // printf("Tid: %03d, BlkDesc: (%02d, %03d, %02d), LDS offset: %05lu, LDS bank:
+            // %02lu\n",
+            //        get_thread_global_1d_id(),
+            //        dst_coord_.GetIndex().At(Number<0>{}),
+            //        dst_coord_.GetIndex().At(Number<1>{}),
+            //        dst_coord_.GetIndex().At(Number<2>{}),
+            //        dst_coord_.GetOffset() * sizeof(DstData),
+            //        (dst_coord_.GetOffset() * sizeof(DstData) / 4) % 32);
             // copy data from dst_vector_container to dst_buf
             dst_buf.template Set<dst_vector_t>(
                 dst_coord_.GetOffset(),

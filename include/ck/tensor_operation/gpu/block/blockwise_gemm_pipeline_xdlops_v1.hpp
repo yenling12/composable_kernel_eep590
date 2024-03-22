@@ -188,7 +188,7 @@ struct BlockwiseGemmXdlops_pipeline_v1<BlockGemmPipelineScheduler::Intrawave,
         b_blockwise_copy.MoveSrcSliceWindow(b_grid_desc, b_block_copy_step);
 
         // Local prefill 1
-        // a_blockwise_copy.RunWrite(a_block_desc, a_block_buf);
+        a_blockwise_copy.RunWrite(a_block_desc, a_block_buf);
         b_blockwise_copy.RunWrite(b_block_desc, b_block_buf);
 
         // Initialize C
@@ -242,25 +242,6 @@ struct BlockwiseGemmXdlops_pipeline_v1<BlockGemmPipelineScheduler::Intrawave,
                                         make_tuple(n0, I0, k0, ik))>{}];
                             });
 
-                            // printf("Tid: %03d, b: %04x %04x %04x %04x %04x %04x %04x %04x\n",
-                            //     get_thread_global_1d_id(),
-                            //     *(reinterpret_cast<uint16_t*>(&(b_thread_vec.template
-                            //     AsType<FloatAB>()(Number<0>{}) ))),
-                            //     *(reinterpret_cast<uint16_t*>(&(b_thread_vec.template
-                            //     AsType<FloatAB>()(Number<1>{}) ))),
-                            //     *(reinterpret_cast<uint16_t*>(&(b_thread_vec.template
-                            //     AsType<FloatAB>()(Number<2>{}) ))),
-                            //     *(reinterpret_cast<uint16_t*>(&(b_thread_vec.template
-                            //     AsType<FloatAB>()(Number<3>{}) ))),
-                            //     *(reinterpret_cast<uint16_t*>(&(b_thread_vec.template
-                            //     AsType<FloatAB>()(Number<4>{}) ))),
-                            //     *(reinterpret_cast<uint16_t*>(&(b_thread_vec.template
-                            //     AsType<FloatAB>()(Number<5>{}) ))),
-                            //     *(reinterpret_cast<uint16_t*>(&(b_thread_vec.template
-                            //     AsType<FloatAB>()(Number<6>{}) ))),
-                            //     *(reinterpret_cast<uint16_t*>(&(b_thread_vec.template
-                            //     AsType<FloatAB>()(Number<7>{}) ))));
-
                             using mfma_input_type =
                                 typename vector_type<FloatAB, xdlops_gemm.K1PerXdlops>::type;
 
@@ -295,14 +276,14 @@ struct BlockwiseGemmXdlops_pipeline_v1<BlockGemmPipelineScheduler::Intrawave,
                                        a_thread_desc_,
                                        make_tuple(m0, I0, k, I0),
                                        a_thread_buf);
-                static_for<0, NRepeat, 1>{}([&](auto n0) {
-                    b_thread_copy_.Run(b_block_desc_n0_n1_n2_k,
-                                       make_tuple(n0, I0, I0, Number<k * BMmaKStride>{}),
-                                       b_block_buf,
-                                       b_thread_desc_,
-                                       make_tuple(n0, I0, k, I0),
-                                       b_thread_buf);
-                });
+                    static_for<0, NRepeat, 1>{}([&](auto n0) {
+                        b_thread_copy_.Run(b_block_desc_n0_n1_n2_k,
+                                           make_tuple(n0, I0, I0, Number<k * BMmaKStride>{}),
+                                           b_block_buf,
+                                           b_thread_desc_,
+                                           make_tuple(n0, I0, k, I0),
+                                           b_thread_buf);
+                    });
                 });
             });
 
@@ -321,24 +302,6 @@ struct BlockwiseGemmXdlops_pipeline_v1<BlockGemmPipelineScheduler::Intrawave,
                                     make_tuple(n0, I0, k0, ik))>{}];
                         });
 
-                        // printf("Tid: %03d, b: %04x %04x %04x %04x %04x %04x %04x %04x\n",
-                        //                                 get_thread_global_1d_id(),
-                        //                                 *(reinterpret_cast<uint16_t*>(&(b_thread_vec.template
-                        //                                 AsType<FloatAB>()(Number<0>{}) ))),
-                        //                                 *(reinterpret_cast<uint16_t*>(&(b_thread_vec.template
-                        //                                 AsType<FloatAB>()(Number<1>{}) ))),
-                        //                                 *(reinterpret_cast<uint16_t*>(&(b_thread_vec.template
-                        //                                 AsType<FloatAB>()(Number<2>{}) ))),
-                        //                                 *(reinterpret_cast<uint16_t*>(&(b_thread_vec.template
-                        //                                 AsType<FloatAB>()(Number<3>{}) ))),
-                        //                                 *(reinterpret_cast<uint16_t*>(&(b_thread_vec.template
-                        //                                 AsType<FloatAB>()(Number<4>{}) ))),
-                        //                                 *(reinterpret_cast<uint16_t*>(&(b_thread_vec.template
-                        //                                 AsType<FloatAB>()(Number<5>{}) ))),
-                        //                                 *(reinterpret_cast<uint16_t*>(&(b_thread_vec.template
-                        //                                 AsType<FloatAB>()(Number<6>{}) ))),
-                        //                                 *(reinterpret_cast<uint16_t*>(&(b_thread_vec.template
-                        //                                 AsType<FloatAB>()(Number<7>{}) ))));
                         using mfma_input_type =
                             typename vector_type<FloatAB, xdlops_gemm.K1PerXdlops>::type;
 

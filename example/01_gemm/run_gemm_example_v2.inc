@@ -79,7 +79,7 @@ bool run_gemm(const ProblemType& problem_size, const ExecutionConfig& config)
         ck::utils::FillUniformDistribution<ADataType>{-1.f, 1.f}(a_m_k);
         ck::utils::FillUniformDistribution<BDataType>{-1.f, 1.f}(b_k_n);
     }
-#if 1
+#if 0
     printf("B matrix:\n");
     for(int in = 0; in < N; in++)
     {
