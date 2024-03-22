@@ -321,8 +321,9 @@ struct BlockwiseGemmXdlops_pipeline_v3<BlockGemmPipelineScheduler::Intrawave,
             });
         });
 
-        // printf("Tid: %03d, b: %04x %04x %04x %04x %04x %04x %04x %04x |%04x %04x %04x %04x %04x %04x %04x %04x |%04x %04x %04x %04x %04x %04x %04x %04x |%04x %04x %04x %04x %04x %04x %04x %04x |\n",
-        // get_thread_global_1d_id(), 
+        // printf("Tid: %03d, b: %04x %04x %04x %04x %04x %04x %04x %04x |%04x %04x %04x %04x %04x
+        // %04x %04x %04x |%04x %04x %04x %04x %04x %04x %04x %04x |%04x %04x %04x %04x %04x %04x
+        // %04x %04x |\n", get_thread_global_1d_id(),
         // *(reinterpret_cast<uint16_t*>(&b_thread_buf(Number<0>{}))),
         // *(reinterpret_cast<uint16_t*>(&b_thread_buf(Number<1>{}))),
         // *(reinterpret_cast<uint16_t*>(&b_thread_buf(Number<2>{}))),

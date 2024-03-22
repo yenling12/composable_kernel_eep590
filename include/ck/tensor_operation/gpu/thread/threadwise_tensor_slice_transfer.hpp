@@ -1145,6 +1145,14 @@ struct ThreadwiseTensorSliceTransfer_v4
             const bool is_src_valid = coordinate_has_valid_offset_assuming_visible_index_is_valid(
                 src_desc, src_data_coord);
 
+            // printf("Tid: %03d, BlkDesc: (%02d, %02d, %02d, %02d), Offset: %d, LdsBank: %lu\n",
+            //        get_thread_global_1d_id(),
+            //        src_data_coord.GetIndex().At(Number<0>{}),
+            //        src_data_coord.GetIndex().At(Number<1>{}),
+            //        src_data_coord.GetIndex().At(Number<2>{}),
+            //        src_data_coord.GetIndex().At(Number<3>{}),
+            //        src_data_coord.GetOffset(),
+            //        (src_data_coord.GetOffset() * sizeof(SrcData) / 4) % 32);
             // copy data from src_buf into src_tmp_vector
             if constexpr(SrcBuffer::IsDynamicBuffer())
             {
