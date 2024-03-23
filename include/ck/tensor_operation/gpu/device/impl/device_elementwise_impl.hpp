@@ -177,7 +177,7 @@ struct DeviceElementwiseImpl
     {
         float Run(const Argument& arg, const StreamConfig& stream_config = StreamConfig{})
         {
-            index_t gridSize = getAvailableComputeUnitCount(stream_config);
+            index_t gridSize = getAvailableComputeUnitCount(stream_config) * 2;
 
             auto in_grid_1d_desc_tuple = generate_tuple(
                 [&](auto I) {
@@ -209,7 +209,9 @@ struct DeviceElementwiseImpl
                                                         out_grid_1d_desc_tuple,
                                                         arg.in_dev_buffers_,
                                                         arg.out_dev_buffers_,
-                                                        arg.elementwise_op_);
+                                                        arg.elementwise_op_,
+                                                        gridSize,
+                                                        arg.blockSize_);
             return elapsed_time;
         }
 

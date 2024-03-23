@@ -41,13 +41,7 @@ template <typename Y, typename X, typename enable_if<sizeof(X) == sizeof(Y), boo
 __host__ __device__ constexpr Y bit_cast(const X& x)
 {
 #if CK_EXPERIMENTAL_USE_MEMCPY_FOR_BIT_CAST
-    Y y;
-
-    // auto t = reinterpret_cast<const Y*>(&x);
-    // y      = *t;
-    __builtin_memcpy(&y, &x, sizeof(X));
-
-    return y;
+    return __builtin_bit_cast(Y, x);
 #else
     union AsType
     {

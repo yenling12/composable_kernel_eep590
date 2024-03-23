@@ -150,6 +150,10 @@ bool run_gemm(const ProblemType& problem_size, const ExecutionConfig& config)
         b_element_op,
         c_element_op);
 
+    DeviceMem gemm_workspace_dev(gemm.GetWorkSpaceSize(&argument));
+
+    gemm.SetWorkSpacePointer(&argument, gemm_workspace_dev.GetDeviceBuffer());
+
     if(!gemm.IsSupportedArgument(argument))
     {
         std::cerr << gemm.GetTypeString() << " does not support this problem" << std::endl;
@@ -186,7 +190,7 @@ bool run_gemm(const ProblemType& problem_size, const ExecutionConfig& config)
 
     if(config.time_kernel)
     {
-        ave_time = invoker.Run(argument, StreamConfig{nullptr, config.time_kernel});
+        ave_time = invoker.Run(argument, StreamConfig{nullptr, config.time_kernel, 0, 20, 50});
 
         std::size_t flop = 2_uz * M * N * K;
         std::size_t num_btype =

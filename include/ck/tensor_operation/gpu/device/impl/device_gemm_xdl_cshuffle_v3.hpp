@@ -16,6 +16,8 @@
 #include "ck/host_utility/device_prop.hpp"
 #include "ck/host_utility/kernel_launch.hpp"
 
+#include "ck/tensor_operation/gpu/device/impl/device_elementwise_impl.hpp"
+
 namespace ck {
 namespace tensor_operation {
 namespace device {
@@ -62,7 +64,7 @@ template <typename ALayout,
           index_t CShuffleBlockTransferScalarPerVector_NPerBlock,
           BlockGemmPipelineScheduler BlkGemmPipeSched = BlockGemmPipelineScheduler::Intrawave,
           BlockGemmPipelineVersion BlkGemmPipelineVer = BlockGemmPipelineVersion::v4,
-          typename ComputeTypeA                       = CDataType,
+          typename ComputeTypeA                       = ADataType,
           typename ComputeTypeB                       = ComputeTypeA>
 struct DeviceGemm_Xdl_CShuffleV3 : public DeviceGemmV2<ALayout,
                                                        BLayout,
@@ -82,8 +84,8 @@ struct DeviceGemm_Xdl_CShuffleV3 : public DeviceGemmV2<ALayout,
         ADataType,
         BDataType,
         GemmAccDataType,
-        CShuffleDataType,
-        CDataType,
+        GemmAccDataType,
+        GemmAccDataType,
         AElementwiseOperation,
         BElementwiseOperation,
         CElementwiseOperation,
@@ -123,11 +125,87 @@ struct DeviceGemm_Xdl_CShuffleV3 : public DeviceGemmV2<ALayout,
         ComputeTypeA,
         ComputeTypeB>;
 
-    using Argument = typename GridwiseGemm::Argument;
+    using PassThrough = ck::tensor_operation::element_wise::PassThrough;
+
+    using DeviceElementwiseInstance = ck::tensor_operation::device::DeviceElementwiseImpl<
+        ck::Tuple<GemmAccDataType>, // InDataTypeTuple
+        ck::Tuple<CDataType>,       // OutDataTypeTuple
+        PassThrough,                // Elementwise op
+        1,                          // NumDim
+        8,                          // MPerThread
+        ck::Sequence<4>,            // InScalarPerVectorSeq
+        ck::Sequence<8>>;           // OutScalarPerVectorSeq
+
+    // Argument
+    struct Argument : public GridwiseGemm::Argument
+    {
+        __host__ Argument(const ADataType* p_a_grid_,
+                          const BDataType* p_b_grid_,
+                          CDataType* p_c_grid_,
+                          index_t M_,
+                          index_t N_,
+                          index_t K_,
+                          index_t StrideA_,
+                          index_t StrideB_,
+                          index_t StrideC_,
+                          index_t k_batch_)
+            : GridwiseGemm::Argument{p_a_grid_,
+                                     p_b_grid_,
+                                     nullptr,
+                                     M_,
+                                     N_,
+                                     K_,
+                                     StrideA_,
+                                     StrideB_,
+                                     StrideC_,
+                                     k_batch_},
+              p_a_grid{p_a_grid_},
+              p_b_grid{p_b_grid_},
+              p_c_grid{p_c_grid_}
+        {
+        }
+
+        const ADataType* p_a_grid;
+        const BDataType* p_b_grid;
+        CDataType* p_c_grid;
+    };
 
     // Invoker
     struct Invoker : public BaseInvoker
     {
+        float ElementwiseRun(const Argument& arg,
+                             const StreamConfig& stream_config = StreamConfig{})
+        {
+
+            std::array<const void*, 1> elem_input = {arg.p_workspace_};
+            std::array<void*, 1> elem_output      = {arg.p_c_grid};
+
+            std::array<ck::index_t, 1> elem_length = {arg.M * arg.N};
+            std::array<ck::index_t, 1> elem_stride = {1};
+
+            auto elem_op       = DeviceElementwiseInstance{};
+            auto elem_argument = elem_op.MakeArgumentPointer(
+                elem_length, {elem_stride}, {elem_stride}, elem_input, elem_output, PassThrough{});
+
+            if(!elem_op.IsSupportedArgument(elem_argument.get()))
+            {
+                throw std::runtime_error(
+                    "The runtime parameters seems not supported by the device instance, exiting!");
+            };
+
+            auto elem_invoker_ptr = elem_op.MakeInvokerPointer();
+            auto ave_time         = elem_invoker_ptr->Run(elem_argument.get(), stream_config);
+
+            std::size_t num_btype =
+                arg.M * arg.N * sizeof(GemmAccDataType) + arg.M * arg.N * sizeof(CDataType);
+
+            float gb_per_sec = num_btype / 1.E6 / ave_time;
+
+            std::cout << "Perf: " << ave_time << " ms, " << gb_per_sec << " GB/s" << std::endl;
+
+            return ave_time;
+        }
+
         float Run(const Argument& arg, const StreamConfig& stream_config = StreamConfig{})
         {
             if(stream_config.log_level_ > 0)
@@ -1005,6 +1083,8 @@ struct DeviceGemm_Xdl_CShuffleV3 : public DeviceGemmV2<ALayout,
                 }
             }
 
+            ave_time += ElementwiseRun(arg, stream_config);
+
             return ave_time;
         }
 
@@ -1143,6 +1223,27 @@ struct DeviceGemm_Xdl_CShuffleV3 : public DeviceGemmV2<ALayout,
         // clang-format on
 
         return str.str();
+    }
+
+    size_t GetWorkSpaceSize(const BaseArgument* p_arg) const override
+    {
+        auto arg = *dynamic_cast<const Argument*>(p_arg);
+
+        return arg.M * arg.N * sizeof(uint32_t);
+    }
+
+    void SetWorkSpacePointer(BaseArgument* p_arg,
+                             void* p_workspace,
+                             const StreamConfig& stream_config = StreamConfig{}) const override
+    {
+        auto p_arg_          = dynamic_cast<Argument*>(p_arg);
+        p_arg_->p_workspace_ = p_workspace;
+
+        hip_check_error(
+            hipMemsetAsync(p_workspace, 0, GetWorkSpaceSize(p_arg), stream_config.stream_id_));
+
+        auto p_gemm_arg_      = dynamic_cast<typename GridwiseGemm::Argument*>(p_arg);
+        p_gemm_arg_->p_c_grid = static_cast<GemmAccDataType*>(p_workspace);
     }
 };
 
