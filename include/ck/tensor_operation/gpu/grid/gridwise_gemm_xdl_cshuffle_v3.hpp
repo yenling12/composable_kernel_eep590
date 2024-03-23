@@ -32,7 +32,7 @@ __global__ void
     __launch_bounds__(CK_MAX_THREAD_PER_BLOCK, MinimumOccupancy)
 #endif
     // __attribute__((amdgpu_waves_per_eu(1, 1)))
-    kernel_gemm_xdl_cshuffle_v3(typename GridwiseGemm::Argument karg)
+    kernel_gemm_xdl_cshuffle_v3(typename GridwiseGemm::Argument karg, index_t buf_id)
 {
 #if(!defined(__HIP_DEVICE_COMPILE__) || defined(__gfx908__) || defined(__gfx90a__) || \
     defined(__gfx940__) || defined(__gfx941__) || defined(__gfx942__))
@@ -43,7 +43,8 @@ __global__ void
     GridwiseGemm::template Run<HasMainKBlockLoop, CGlobalMemoryDataOperation, TailNum>(
         karg.p_a_grid + splitk_batch_offset.a_k_split_offset,
         karg.p_b_grid + splitk_batch_offset.b_k_split_offset,
-        karg.p_c_grid,
+        karg.p_c_grid + karg.M * karg.N * (buf_id % 2),
+        karg.p_c_grid + karg.M * karg.N * ((buf_id + 1) % 2),
         p_shared,
         karg);
 #else
@@ -61,7 +62,7 @@ __global__ void
     __launch_bounds__(CK_MAX_THREAD_PER_BLOCK, MinimumOccupancy)
 #endif
     // __attribute__((amdgpu_waves_per_eu(1, 1)))
-    kernel_gemm_xdl_cshuffle_v3_2lds(typename GridwiseGemm::Argument karg)
+    kernel_gemm_xdl_cshuffle_v3_2lds(typename GridwiseGemm::Argument karg, index_t buf_id)
 {
 #if(!defined(__HIP_DEVICE_COMPILE__) || defined(__gfx908__) || defined(__gfx90a__) || \
     defined(__gfx940__) || defined(__gfx941__) || defined(__gfx942__))
@@ -75,7 +76,8 @@ __global__ void
     GridwiseGemm::template Run_2Lds<HasMainKBlockLoop, CGlobalMemoryDataOperation, TailNum>(
         karg.p_a_grid + splitk_batch_offset.a_k_split_offset,
         karg.p_b_grid + splitk_batch_offset.b_k_split_offset,
-        karg.p_c_grid,
+        karg.p_c_grid + karg.M * karg.N * (buf_id % 2),
+        karg.p_c_grid + karg.M * karg.N * ((buf_id + 1) % 2),
         p_shared_0,
         p_shared_1,
         karg);
@@ -1021,6 +1023,7 @@ struct GridwiseGemm_xdl_cshuffle_v3
     __device__ static void Run(const FloatA* p_a_grid,
                                const FloatB* p_b_grid,
                                FloatC* p_c_grid,
+                               FloatC* p_w_grid,
                                void* p_shared,
                                const Problem& problem)
     {
@@ -1041,6 +1044,8 @@ struct GridwiseGemm_xdl_cshuffle_v3
             p_b_grid, b_grid_desc_bk0_n_bk1.GetElementSpaceSize());
         auto c_grid_buf = make_dynamic_buffer<AddressSpaceEnum::Global>(
             p_c_grid, c_grid_desc_mblock_mperblock_nblock_nperblock.GetElementSpaceSize());
+        auto w_grid_buf = make_dynamic_buffer<AddressSpaceEnum::Global>(
+            p_w_grid, c_grid_desc_mblock_mperblock_nblock_nperblock.GetElementSpaceSize());
 
         const AElementwiseOperation a_element_op{};
         const BElementwiseOperation b_element_op{};
@@ -1375,6 +1380,58 @@ struct GridwiseGemm_xdl_cshuffle_v3
                 }
             });
         }
+
+#if 1
+        // clean workspace
+        {
+            if(blockIdx.z == 0)
+            {
+
+                const index_t nThreadSize = CShuffleBlockTransferScalarPerVector_NPerBlock;
+                const index_t numNThreads = NPerBlock / nThreadSize;
+                const index_t numMThreads = BlockSize / numNThreads;
+                const index_t mThreadSize = MPerBlock / numMThreads;
+
+                const index_t m_tid = get_thread_local_1d_id() / numNThreads;
+                const index_t n_tid = get_thread_local_1d_id() % numNThreads;
+
+                auto c_thread_desc_mblock_mperblock_nblock_nperblock =
+                    make_naive_tensor_descriptor_packed(
+                        make_tuple(I1, Number<mThreadSize>{}, I1, Number<nThreadSize>{}));
+
+                StaticBuffer<AddressSpaceEnum::Vgpr,
+                             FloatC,
+                             c_thread_desc_mblock_mperblock_nblock_nperblock.GetElementSpaceSize(),
+                             true>
+                    c_thread_zero_buf;
+
+                auto c_thread_copy = ThreadwiseTensorSliceTransfer_v1r3<
+                    FloatC,
+                    FloatC,
+                    decltype(c_thread_desc_mblock_mperblock_nblock_nperblock),
+                    decltype(c_grid_desc_mblock_mperblock_nblock_nperblock),
+                    ck::tensor_operation::element_wise::PassThrough,
+                    Sequence<1, mThreadSize, 1, nThreadSize>,
+                    Sequence<0, 1, 2, 3>,
+                    3,
+                    CShuffleBlockTransferScalarPerVector_NPerBlock,
+                    InMemoryDataOperationEnum::Set,
+                    1,
+                    true>{c_grid_desc_mblock_mperblock_nblock_nperblock,
+                          make_multi_index(block_work_idx[I0],
+                                           m_tid * mThreadSize,
+                                           block_work_idx[I1],
+                                           n_tid * nThreadSize),
+                          ck::tensor_operation::element_wise::PassThrough{}};
+
+                c_thread_copy.Run(c_thread_desc_mblock_mperblock_nblock_nperblock,
+                                  make_tuple(I0, I0, I0, I0),
+                                  c_thread_zero_buf,
+                                  c_grid_desc_mblock_mperblock_nblock_nperblock,
+                                  w_grid_buf);
+            }
+        }
+#endif
     }
 
     template <bool HasMainKBlockLoop,
@@ -1383,6 +1440,7 @@ struct GridwiseGemm_xdl_cshuffle_v3
     __device__ static void Run_2Lds(const FloatA* p_a_grid,
                                     const FloatB* p_b_grid,
                                     FloatC* p_c_grid,
+                                    FloatC* p_w_grid,
                                     void* p_shared_0,
                                     void* p_shared_1,
                                     const Problem& problem)
@@ -1404,6 +1462,8 @@ struct GridwiseGemm_xdl_cshuffle_v3
             p_b_grid, b_grid_desc_bk0_n_bk1.GetElementSpaceSize());
         auto c_grid_buf = make_dynamic_buffer<AddressSpaceEnum::Global>(
             p_c_grid, c_grid_desc_mblock_mperblock_nblock_nperblock.GetElementSpaceSize());
+        auto w_grid_buf = make_dynamic_buffer<AddressSpaceEnum::Global>(
+            p_w_grid, c_grid_desc_mblock_mperblock_nblock_nperblock.GetElementSpaceSize());
 
         const AElementwiseOperation a_element_op{};
         const BElementwiseOperation b_element_op{};
@@ -1748,6 +1808,58 @@ struct GridwiseGemm_xdl_cshuffle_v3
                 }
             });
         }
+
+#if 1
+        // clean workspace
+        {
+            if(blockIdx.z == 0)
+            {
+
+                const index_t nThreadSize = CShuffleBlockTransferScalarPerVector_NPerBlock;
+                const index_t numNThreads = NPerBlock / nThreadSize;
+                const index_t numMThreads = BlockSize / numNThreads;
+                const index_t mThreadSize = MPerBlock / numMThreads;
+
+                const index_t m_tid = get_thread_local_1d_id() / numNThreads;
+                const index_t n_tid = get_thread_local_1d_id() % numNThreads;
+
+                auto c_thread_desc_mblock_mperblock_nblock_nperblock =
+                    make_naive_tensor_descriptor_packed(
+                        make_tuple(I1, Number<mThreadSize>{}, I1, Number<nThreadSize>{}));
+
+                StaticBuffer<AddressSpaceEnum::Vgpr,
+                             FloatC,
+                             c_thread_desc_mblock_mperblock_nblock_nperblock.GetElementSpaceSize(),
+                             true>
+                    c_thread_zero_buf;
+
+                auto c_thread_copy = ThreadwiseTensorSliceTransfer_v1r3<
+                    FloatC,
+                    FloatC,
+                    decltype(c_thread_desc_mblock_mperblock_nblock_nperblock),
+                    decltype(c_grid_desc_mblock_mperblock_nblock_nperblock),
+                    ck::tensor_operation::element_wise::PassThrough,
+                    Sequence<1, mThreadSize, 1, nThreadSize>,
+                    Sequence<0, 1, 2, 3>,
+                    3,
+                    CShuffleBlockTransferScalarPerVector_NPerBlock,
+                    InMemoryDataOperationEnum::Set,
+                    1,
+                    true>{c_grid_desc_mblock_mperblock_nblock_nperblock,
+                          make_multi_index(block_work_idx[I0],
+                                           m_tid * mThreadSize,
+                                           block_work_idx[I1],
+                                           n_tid * nThreadSize),
+                          ck::tensor_operation::element_wise::PassThrough{}};
+
+                c_thread_copy.Run(c_thread_desc_mblock_mperblock_nblock_nperblock,
+                                  make_tuple(I0, I0, I0, I0),
+                                  c_thread_zero_buf,
+                                  c_grid_desc_mblock_mperblock_nblock_nperblock,
+                                  w_grid_buf);
+            }
+        }
+#endif
     }
 };
 

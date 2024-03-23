@@ -173,12 +173,15 @@ struct DeviceGemm_Xdl_CShuffleV3 : public DeviceGemmV2<ALayout,
     // Invoker
     struct Invoker : public BaseInvoker
     {
+        index_t rotate_id = 0;
         float ElementwiseRun(const Argument& arg,
+                             const index_t rotate_id_,
                              const StreamConfig& stream_config = StreamConfig{})
         {
 
-            std::array<const void*, 1> elem_input = {arg.p_workspace_};
-            std::array<void*, 1> elem_output      = {arg.p_c_grid};
+            std::array<const void*, 1> elem_input = {
+                static_cast<GemmAccDataType*>(arg.p_workspace_) + arg.M * arg.N * (rotate_id_ % 2)};
+            std::array<void*, 1> elem_output = {arg.p_c_grid};
 
             std::array<ck::index_t, 1> elem_length = {arg.M * arg.N};
             std::array<ck::index_t, 1> elem_stride = {1};
@@ -236,7 +239,7 @@ struct DeviceGemm_Xdl_CShuffleV3 : public DeviceGemmV2<ALayout,
                                                      stream_config.stream_id_));
 
                 ave_time = launch_and_time_kernel(
-                    stream_config, kernel, dim3(gdx, gdy, gdz), dim3(BlockSize), 0, arg);
+                    stream_config, kernel, dim3(gdx, gdy, gdz), dim3(BlockSize), 0, arg, rotate_id);
             };
 
             constexpr index_t minimum_occupancy =
@@ -1083,7 +1086,9 @@ struct DeviceGemm_Xdl_CShuffleV3 : public DeviceGemmV2<ALayout,
                 }
             }
 
-            ave_time += ElementwiseRun(arg, stream_config);
+            ave_time += ElementwiseRun(arg, rotate_id, stream_config);
+
+            rotate_id += 1;
 
             return ave_time;
         }
@@ -1229,7 +1234,7 @@ struct DeviceGemm_Xdl_CShuffleV3 : public DeviceGemmV2<ALayout,
     {
         auto arg = *dynamic_cast<const Argument*>(p_arg);
 
-        return arg.M * arg.N * sizeof(uint32_t);
+        return arg.M * arg.N * sizeof(uint32_t) * 2;
     }
 
     void SetWorkSpacePointer(BaseArgument* p_arg,
