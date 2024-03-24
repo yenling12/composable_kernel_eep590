@@ -18,6 +18,10 @@
 
 #include "ck/tensor_operation/gpu/device/impl/device_elementwise_impl.hpp"
 
+#include "ck/utility/reduction_enums.hpp"
+#include "ck/tensor_operation/gpu/device/reduction_operator_mapping.hpp"
+#include "ck/tensor_operation/gpu/device/impl/device_reduce_threadwise.hpp"
+
 namespace ck {
 namespace tensor_operation {
 namespace device {
@@ -136,6 +140,28 @@ struct DeviceGemm_Xdl_CShuffleV3 : public DeviceGemmV2<ALayout,
         ck::Sequence<4>,            // InScalarPerVectorSeq
         ck::Sequence<8>>;           // OutScalarPerVectorSeq
 
+    using ReduceAdd = ck::reduce::Add;
+
+    using DeviceReduceInstance = DeviceReduceThreadWise<GemmAccDataType, // InDataType,
+                                                        GemmAccDataType, // AccDataType,
+                                                        CDataType,       // OutDataType,
+                                                        5,               // Rank
+                                                        1,               // NumReduceDim
+                                                        ReduceAdd,
+                                                        PassThrough,
+                                                        PassThrough,
+                                                        false, // PropagateNan,
+                                                        false, // OutputIndex,
+                                                        false,
+                                                        false, // HaveIndexInputIfOutputIndex
+                                                        256,   // BlockSize_,
+                                                        8,     // MThreadSliceSize_,
+                                                        1,     // KThreadSliceSize_,
+                                                        0,     // InSrcVectorDim_,
+                                                        4,     // InSrcVectorSize_,
+                                                        8      // OutDstVectorSize_
+                                                        >;
+
     // Argument
     struct Argument : public GridwiseGemm::Argument
     {
@@ -173,7 +199,7 @@ struct DeviceGemm_Xdl_CShuffleV3 : public DeviceGemmV2<ALayout,
     // Invoker
     struct Invoker : public BaseInvoker
     {
-        float ElementwiseRun(const Argument& arg,
+        float RunElementwise(const Argument& arg,
                              const StreamConfig& stream_config = StreamConfig{})
         {
 
@@ -203,6 +229,65 @@ struct DeviceGemm_Xdl_CShuffleV3 : public DeviceGemmV2<ALayout,
             float gb_per_sec = num_btype / 1.E6 / ave_time;
 
             std::cout << "Perf: " << ave_time << " ms, " << gb_per_sec << " GB/s" << std::endl;
+
+            return ave_time;
+        }
+
+        float RunReduce(const Argument& arg, const StreamConfig& stream_config = StreamConfig{})
+        {
+
+            std::array<ck::index_t, 5> in_lengths = {
+                arg.MBlock, MPerBlock, arg.NBlock, arg.KBatch, NPerBlock};
+            std::array<ck::index_t, 5> in_strides = {MPerBlock * arg.NBlock * arg.KBatch *
+                                                         NPerBlock,
+                                                     arg.NBlock * arg.KBatch * NPerBlock,
+                                                     arg.KBatch * NPerBlock,
+                                                     NPerBlock,
+                                                     1};
+
+            std::array<ck::index_t, 4> out_lengths = {arg.MBlock, arg.NBlock, MPerBlock, NPerBlock};
+            std::array<ck::index_t, 4> out_strides = {
+                arg.NBlock * MPerBlock * NPerBlock, MPerBlock * NPerBlock, NPerBlock, 1};
+
+            std::array<int, 1> reduce_dims{3};
+
+            auto reduce = DeviceReduceInstance{};
+
+            auto argument_ptr = reduce.MakeArgumentPointer(in_lengths,
+                                                           in_strides,
+                                                           out_lengths,
+                                                           out_strides,
+                                                           reduce_dims,
+                                                           1.0,
+                                                           0,
+                                                           arg.p_workspace_,
+                                                           nullptr,
+                                                           arg.p_c_grid,
+                                                           nullptr,
+                                                           PassThrough{},
+                                                           PassThrough{});
+
+            auto invoker_ptr = reduce.MakeInvokerPointer();
+
+            float ave_time = 0;
+
+            if(reduce.IsSupportedArgument(argument_ptr.get()))
+            {
+                ave_time = invoker_ptr->Run(argument_ptr.get(), stream_config);
+            }
+            else
+            {
+                throw std::runtime_error(
+                    "The runtime parameters seems not supported by the device instance, exiting!");
+            }
+
+            std::size_t num_bytes = arg.M * arg.N * arg.KBatch * sizeof(GemmAccDataType) +
+                                    arg.M * arg.N * sizeof(CDataType);
+
+            float gb_per_sec = num_bytes / 1.E6 / ave_time;
+
+            std::cout << "Perf: " << std::setw(10) << ave_time << " ms, " << gb_per_sec << " GB/s"
+                      << std::endl;
 
             return ave_time;
         }
@@ -1084,7 +1169,8 @@ struct DeviceGemm_Xdl_CShuffleV3 : public DeviceGemmV2<ALayout,
                 }
             }
 
-            // ElementwiseRun(arg, stream_config);
+            ave_time += RunReduce(arg, stream_config);
+
             return ave_time;
         }
 
