@@ -20,17 +20,13 @@ __global__ void kernel_elementwise_1d(const InGrid1dDescTuple in_grid_1d_desc_tu
                                       const OutGrid1dDescTuple out_grid_1d_desc_tuple,
                                       const InDataTypePointerTuple p_in_global_tuple,
                                       const OutDataTypePointerTuple p_out_global_tuple,
-                                      const ElementwiseOperation elementwise_op,
-                                      const index_t grid_size,
-                                      const index_t block_size)
+                                      const ElementwiseOperation elementwise_op)
 {
     GridwiseElementwise1dFunctor::Run(in_grid_1d_desc_tuple,
                                       out_grid_1d_desc_tuple,
                                       p_in_global_tuple,
                                       p_out_global_tuple,
-                                      elementwise_op,
-                                      grid_size,
-                                      block_size);
+                                      elementwise_op);
 }
 
 template <typename InGrid1dDescTuple,
@@ -63,9 +59,7 @@ struct GridwiseElementwise_1D
                                const OutGrid1dDescTuple out_grid_1d_desc_tuple,
                                const InDataTypePointerTuple p_in_global_tuple,
                                const OutDataTypePointerTuple p_out_global_tuple,
-                               const ElementwiseOperation elementwise_op,
-                               const index_t blockPerGrid,
-                               const index_t blockSize)
+                               const ElementwiseOperation elementwise_op)
     {
         const index_t thread_global_id = get_thread_global_1d_id();
 
@@ -107,14 +101,11 @@ struct GridwiseElementwise_1D
 
         const auto thread_global_offset = make_multi_index(thread_global_id * MPerThread);
 
-        // const index_t blockSize    = get_block_size();
-        // const index_t blockPerGrid = get_grid_size();
+        const index_t blockSize    = get_block_size();
+        const index_t blockPerGrid = get_grid_size();
         const auto M               = in_grid_1d_desc_tuple[I0].GetLength(I0);
         const index_t loop_step    = blockPerGrid * blockSize * MPerThread;
         const auto loop_step_index = make_multi_index(loop_step);
-
-        if(thread_global_id * MPerThread > M)
-            return;
 
         auto in_global_load_tuple = generate_tuple(
             [&](auto I) {
@@ -171,7 +162,6 @@ struct GridwiseElementwise_1D
                                                            loop_step_index);
             });
 
-#if 1
             static_for<0, MPerThread, 1>{}([&](auto iM) {
                 // get reference to in data
                 const auto in_data_refs = generate_tie(
@@ -187,8 +177,6 @@ struct GridwiseElementwise_1D
 
                 unpack2(elementwise_op, out_data_refs, in_data_refs);
             });
-#endif
-            ignore = elementwise_op;
 
             static_for<0, NumOutput, 1>{}([&](auto I) {
                 out_global_store_tuple(I).Run(thread_buffer_desc_m,
