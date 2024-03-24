@@ -172,9 +172,13 @@ bool profile_gemm_universal_impl(int do_verification,
 
             if(op_ptr->IsSupportedArgument(argument_ptr.get()))
             {
+                DeviceMem gemm_workspace_dev(op_ptr->GetWorkSpaceSize(argument_ptr.get()));
+
+                op_ptr->SetWorkSpacePointer(argument_ptr.get(),
+                                            gemm_workspace_dev.GetDeviceBuffer());
 
                 // re-init C to zero before profiling next kernel
-                c_device_buf.SetZero();
+                // c_device_buf.SetZero();
 
                 invoker_ptr->Run(argument_ptr.get(),
                                  StreamConfig{nullptr, false, 0, n_warmup, n_iter});

@@ -130,17 +130,7 @@ struct DeviceGemm_Xdl_CShuffleV3 : public DeviceGemmV2<ALayout,
         ComputeTypeB>;
 
     using PassThrough = ck::tensor_operation::element_wise::PassThrough;
-
-    using DeviceElementwiseInstance = ck::tensor_operation::device::DeviceElementwiseImpl<
-        ck::Tuple<GemmAccDataType>, // InDataTypeTuple
-        ck::Tuple<CDataType>,       // OutDataTypeTuple
-        PassThrough,                // Elementwise op
-        1,                          // NumDim
-        8,                          // MPerThread
-        ck::Sequence<4>,            // InScalarPerVectorSeq
-        ck::Sequence<8>>;           // OutScalarPerVectorSeq
-
-    using ReduceAdd = ck::reduce::Add;
+    using ReduceAdd   = ck::reduce::Add;
 
     using DeviceReduceInstance = DeviceReduceThreadWise<GemmAccDataType, // InDataType,
                                                         GemmAccDataType, // AccDataType,
@@ -161,7 +151,6 @@ struct DeviceGemm_Xdl_CShuffleV3 : public DeviceGemmV2<ALayout,
                                                         4,     // InSrcVectorSize_,
                                                         8      // OutDstVectorSize_
                                                         >;
-
     // Argument
     struct Argument : public GridwiseGemm::Argument
     {
@@ -199,40 +188,6 @@ struct DeviceGemm_Xdl_CShuffleV3 : public DeviceGemmV2<ALayout,
     // Invoker
     struct Invoker : public BaseInvoker
     {
-        float RunElementwise(const Argument& arg,
-                             const StreamConfig& stream_config = StreamConfig{})
-        {
-
-            std::array<const void*, 1> elem_input = {
-                static_cast<GemmAccDataType*>(arg.p_workspace_) + arg.M * arg.N};
-            std::array<void*, 1> elem_output = {arg.p_c_grid};
-
-            std::array<ck::index_t, 1> elem_length = {arg.M * arg.N};
-            std::array<ck::index_t, 1> elem_stride = {1};
-
-            auto elem_op       = DeviceElementwiseInstance{};
-            auto elem_argument = elem_op.MakeArgumentPointer(
-                elem_length, {elem_stride}, {elem_stride}, elem_input, elem_output, PassThrough{});
-
-            if(!elem_op.IsSupportedArgument(elem_argument.get()))
-            {
-                throw std::runtime_error(
-                    "The runtime parameters seems not supported by the device instance, exiting!");
-            };
-
-            auto elem_invoker_ptr = elem_op.MakeInvokerPointer();
-            auto ave_time         = elem_invoker_ptr->Run(elem_argument.get(), stream_config);
-
-            std::size_t num_btype =
-                arg.M * arg.N * sizeof(GemmAccDataType) + arg.M * arg.N * sizeof(CDataType);
-
-            float gb_per_sec = num_btype / 1.E6 / ave_time;
-
-            std::cout << "Perf: " << ave_time << " ms, " << gb_per_sec << " GB/s" << std::endl;
-
-            return ave_time;
-        }
-
         float RunReduce(const Argument& arg, const StreamConfig& stream_config = StreamConfig{})
         {
 
@@ -286,8 +241,7 @@ struct DeviceGemm_Xdl_CShuffleV3 : public DeviceGemmV2<ALayout,
 
             float gb_per_sec = num_bytes / 1.E6 / ave_time;
 
-            std::cout << "Perf: " << std::setw(10) << ave_time << " ms, " << gb_per_sec << " GB/s"
-                      << std::endl;
+            std::cout << "Perf: " << ave_time << " ms, " << gb_per_sec << " GB/s" << std::endl;
 
             return ave_time;
         }
@@ -1170,6 +1124,7 @@ struct DeviceGemm_Xdl_CShuffleV3 : public DeviceGemmV2<ALayout,
             }
 
             ave_time += RunReduce(arg, stream_config);
+            // ave_time += RunElementwise(arg, stream_config);
 
             return ave_time;
         }
@@ -1191,6 +1146,11 @@ struct DeviceGemm_Xdl_CShuffleV3 : public DeviceGemmV2<ALayout,
     static bool IsSupportedArgument(const Argument& arg)
     {
         if(!ck::is_xdl_supported())
+        {
+            return false;
+        }
+
+        if(BlkGemmPipeSched == BlockGemmPipelineScheduler::Intrawave)
         {
             return false;
         }
@@ -1327,8 +1287,10 @@ struct DeviceGemm_Xdl_CShuffleV3 : public DeviceGemmV2<ALayout,
         auto p_arg_          = dynamic_cast<Argument*>(p_arg);
         p_arg_->p_workspace_ = p_workspace;
 
+#if 1
         hip_check_error(
             hipMemsetAsync(p_workspace, 0, GetWorkSpaceSize(p_arg), stream_config.stream_id_));
+#endif
 
         auto p_gemm_arg_      = dynamic_cast<typename GridwiseGemm::Argument*>(p_arg);
         p_gemm_arg_->p_c_grid = static_cast<GemmAccDataType*>(p_workspace);

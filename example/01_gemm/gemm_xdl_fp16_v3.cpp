@@ -62,7 +62,7 @@ using DeviceGemmV2Instance = ck::tensor_operation::device::DeviceGemm_Xdl_CShuff
     1,
     S<1, 32, 1, 8>,
     4,
-    ck::BlockGemmPipelineScheduler::Interwave,
+    ck::BlockGemmPipelineScheduler::Intrawave,
     ck::BlockGemmPipelineVersion::v1>;
 
 using ReferenceGemmInstance = ck::tensor_operation::host::
