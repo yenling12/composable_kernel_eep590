@@ -529,6 +529,13 @@ struct GridwiseGemm_xdl_cshuffle_v3
         }
     }
 
+    __device__ static constexpr auto MakeCGridDescriptor_MBlock_MPerBlock_NBlock_KBatch_NPerBlock(
+        index_t MBlock, index_t NBlock, index_t KBatch)
+    {
+        return make_naive_tensor_descriptor_packed(
+            make_tuple(MBlock, MPerBlock, NBlock, KBatch, NPerBlock));
+    }
+
     struct Problem
     {
         __host__ Problem(index_t M_,
@@ -1480,6 +1487,8 @@ struct GridwiseGemm_xdl_cshuffle_v3
             problem.M, problem.MPadded, problem.K, problem.KPadded, problem.StrideA, problem.AK0);
         const auto b_grid_desc_bk0_n_bk1 = MakeBGridDescriptor_BK0_N_BK1(
             problem.K, problem.KPadded, problem.N, problem.NPadded, problem.StrideB, problem.BK0);
+
+#if 0
         const auto c_grid_desc_m_n_kbatch = MakeCGridDescriptor_M_N_KBatch(problem.M,
                                                                            problem.MPadded,
                                                                            problem.N,
@@ -1490,6 +1499,11 @@ struct GridwiseGemm_xdl_cshuffle_v3
         const auto c_grid_desc_mblock_mperblock_nblock_nperblock_kbatch =
             MakeCGridDescriptor_MBlock_MPerBlock_NBlock_NPerBlock_KBatch(
                 c_grid_desc_m_n_kbatch, problem.MBlock, problem.NBlock, problem.KBatch);
+#endif
+
+        const auto c_grid_desc_mblock_mperblock_nblock_kbatch_nperblock =
+            MakeCGridDescriptor_MBlock_MPerBlock_NBlock_KBatch_NPerBlock(
+                problem.MBlock, problem.NBlock, problem.KBatch);
 
         const auto a_grid_buf = make_dynamic_buffer<AddressSpaceEnum::Global>(
             p_a_grid, a_grid_desc_ak0_m_ak1.GetElementSpaceSize());
@@ -1497,7 +1511,7 @@ struct GridwiseGemm_xdl_cshuffle_v3
             p_b_grid, b_grid_desc_bk0_n_bk1.GetElementSpaceSize());
         auto c_kbatch_grid_buf = make_dynamic_buffer<AddressSpaceEnum::Global>(
             p_c_kbatch_grid,
-            c_grid_desc_mblock_mperblock_nblock_nperblock_kbatch.GetElementSpaceSize());
+            c_grid_desc_mblock_mperblock_nblock_kbatch_nperblock.GetElementSpaceSize());
 
         const AElementwiseOperation a_element_op{};
         const BElementwiseOperation b_element_op{};
@@ -1511,8 +1525,8 @@ struct GridwiseGemm_xdl_cshuffle_v3
 
         if(!block_2_ctile_map.ValidCTileIndex(
                block_work_idx,
-               make_tuple(c_grid_desc_mblock_mperblock_nblock_nperblock_kbatch.GetLength(I0),
-                          c_grid_desc_mblock_mperblock_nblock_nperblock_kbatch.GetLength(I2))))
+               make_tuple(c_grid_desc_mblock_mperblock_nblock_kbatch_nperblock.GetLength(I0),
+                          c_grid_desc_mblock_mperblock_nblock_kbatch_nperblock.GetLength(I2))))
         {
             return;
         }
@@ -1752,16 +1766,16 @@ struct GridwiseGemm_xdl_cshuffle_v3
             const index_t k_batch_id = blockIdx.z;
 
             const auto c_grid_desc_mblock_mperblock_nblock_nperblock = transform_tensor_descriptor(
-                c_grid_desc_mblock_mperblock_nblock_nperblock_kbatch,
+                c_grid_desc_mblock_mperblock_nblock_kbatch_nperblock,
                 make_tuple(make_pass_through_transform(problem.MBlock),
                            make_pass_through_transform(MPerBlock),
                            make_pass_through_transform(problem.NBlock),
-                           make_pass_through_transform(NPerBlock),
-                           make_freeze_transform(k_batch_id)),
+                           make_freeze_transform(k_batch_id),
+                           make_pass_through_transform(NPerBlock)),
                 make_tuple(
                     Sequence<0>{}, Sequence<1>{}, Sequence<2>{}, Sequence<3>{}, Sequence<4>{}),
                 make_tuple(
-                    Sequence<0>{}, Sequence<1>{}, Sequence<2>{}, Sequence<3>{}, Sequence<>{}));
+                    Sequence<0>{}, Sequence<1>{}, Sequence<2>{}, Sequence<>{}, Sequence<3>{}));
 
             // shuffle: blockwise copy C from LDS to global
             auto c_shuffle_block_copy_lds_to_global = ThreadGroupTensorSliceTransfer_v6r1<

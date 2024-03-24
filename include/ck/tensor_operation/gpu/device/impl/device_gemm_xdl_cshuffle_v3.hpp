@@ -177,8 +177,9 @@ struct DeviceGemm_Xdl_CShuffleV3 : public DeviceGemmV2<ALayout,
                              const StreamConfig& stream_config = StreamConfig{})
         {
 
-            std::array<const void*, 1> elem_input = {arg.p_workspace_};
-            std::array<void*, 1> elem_output      = {arg.p_c_grid};
+            std::array<const void*, 1> elem_input = {
+                static_cast<GemmAccDataType*>(arg.p_workspace_) + arg.M * arg.N};
+            std::array<void*, 1> elem_output = {arg.p_c_grid};
 
             std::array<ck::index_t, 1> elem_length = {arg.M * arg.N};
             std::array<ck::index_t, 1> elem_stride = {1};
@@ -1083,8 +1084,7 @@ struct DeviceGemm_Xdl_CShuffleV3 : public DeviceGemmV2<ALayout,
                 }
             }
 
-            ElementwiseRun(arg, stream_config);
-
+            // ElementwiseRun(arg, stream_config);
             return ave_time;
         }
 

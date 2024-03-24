@@ -21,24 +21,49 @@ using CElementOp = PassThrough;
 
 static constexpr auto GemmDefault = ck::tensor_operation::device::GemmSpecialization::MNPadding;
 
-// clang-format off
-using DeviceGemmV2Instance = 
-    ck::tensor_operation::device::DeviceGemm_Xdl_CShuffleV3<
-        ALayout,   BLayout,  CLayout,   
-        ADataType,   BDataType,  CDataType,  AccDataType,  CShuffleDataType, 
-        PassThrough, PassThrough, PassThrough, GemmDefault, 
-        256,
-        224, 256, 
-        64, 8, 8,
-        16,   16,
-        7,    8,
-        S<8, 32, 1>,  S<1, 0, 2>,  S<1, 0, 2>, 
-        2, 8, 8, 0,
-        S<8, 32, 1>,  S<0, 2, 1>,  S<0, 2, 1>, 
-        1, 8, 8, 0,
-        1, 2, S<1, 32, 1, 8>, 1,
-        ck::BlockGemmPipelineScheduler::Intrawave,ck::BlockGemmPipelineVersion::v3>;
-// clang-format on
+using DeviceGemmV2Instance = ck::tensor_operation::device::DeviceGemm_Xdl_CShuffleV3<
+    ALayout,
+    BLayout,
+    CLayout,
+    ADataType,
+    BDataType,
+    CDataType,
+    AccDataType,
+    CShuffleDataType,
+    PassThrough,
+    PassThrough,
+    PassThrough,
+    GemmDefault,
+    256,
+    128,
+    128,
+    64,
+    8,
+    4,
+    32,
+    32,
+    2,
+    2,
+    S<8, 32, 1>,
+    S<1, 0, 2>,
+    S<1, 0, 2>,
+    2,
+    8,
+    8,
+    0,
+    S<16, 16, 1>,
+    S<0, 2, 1>,
+    S<0, 2, 1>,
+    1,
+    8,
+    4,
+    0,
+    1,
+    1,
+    S<1, 32, 1, 8>,
+    4,
+    ck::BlockGemmPipelineScheduler::Interwave,
+    ck::BlockGemmPipelineVersion::v1>;
 
 using ReferenceGemmInstance = ck::tensor_operation::host::
     ReferenceGemm<ADataType, BDataType, CDataType, AccDataType, AElementOp, BElementOp, CElementOp>;
