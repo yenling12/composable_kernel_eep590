@@ -36,7 +36,7 @@ using DeviceGemmV2Instance =
         2, 8, 8, 0,
         S<8, 32, 1>,  S<0, 2, 1>,  S<0, 2, 1>, 
         1, 8, 8, 0,
-        1, 2, S<1, 32, 1, 8>, 4,
+        1, 2, S<1, 32, 1, 8>, 1,
         ck::BlockGemmPipelineScheduler::Intrawave,ck::BlockGemmPipelineVersion::v3>;
 // clang-format on
 

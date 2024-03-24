@@ -1083,7 +1083,7 @@ struct DeviceGemm_Xdl_CShuffleV3 : public DeviceGemmV2<ALayout,
                 }
             }
 
-            ave_time += ElementwiseRun(arg, stream_config);
+            ElementwiseRun(arg, stream_config);
 
             return ave_time;
         }
@@ -1229,7 +1229,9 @@ struct DeviceGemm_Xdl_CShuffleV3 : public DeviceGemmV2<ALayout,
     {
         auto arg = *dynamic_cast<const Argument*>(p_arg);
 
-        return arg.M * arg.N * sizeof(uint32_t);
+        const index_t MAX_K_BATCH = 16;
+
+        return arg.M * arg.N * sizeof(GemmAccDataType) * MAX_K_BATCH;
     }
 
     void SetWorkSpacePointer(BaseArgument* p_arg,
