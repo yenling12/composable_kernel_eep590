@@ -671,6 +671,7 @@ struct GridwiseGemm_xdl_cshuffle_v3
         // in some cases.
         else if constexpr(is_same<tensor_layout::gemm::RowMajor, ALayout>::value)
         {
+#if 0
             constexpr auto MLdsLayer        = 32 * 4 / KPerBlock / sizeof(FloatA);
             constexpr auto a_lds_block_desc = make_naive_tensor_descriptor(
                 make_tuple(
@@ -701,6 +702,20 @@ struct GridwiseGemm_xdl_cshuffle_v3
                            make_pass_through_transform(AK1Number)),
                 make_tuple(Sequence<0>{}, Sequence<1, 2>{}, Sequence<3>{}),
                 make_tuple(Sequence<0>{}, Sequence<1>{}, Sequence<2>{}));
+#elif 1 
+            constexpr auto a_lds_block_desc = make_naive_tensor_descriptor(
+                make_tuple(
+                    AK0Number, Number<MPerBlock>{}, AK1Number),
+                make_tuple(AK1Number, Number<KPerBlock>{}, I1));
+
+            constexpr auto a_lds_block_desc_ak0_m_ak1 = transform_tensor_descriptor(
+                a_lds_block_desc,
+                make_tuple(make_xor_transform(make_tuple(Number<MPerBlock>{},
+                                                         Number<AK0Number>{})),
+                           make_pass_through_transform(AK1Number)),
+                make_tuple(Sequence<1, 0>{}, Sequence<2>{}),
+                make_tuple(Sequence<1, 0>{}, Sequence<2>{}));
+#endif 
 
             return a_lds_block_desc_ak0_m_ak1;
         }
@@ -749,6 +764,7 @@ struct GridwiseGemm_xdl_cshuffle_v3
         }
         else if constexpr(is_same<tensor_layout::gemm::ColumnMajor, BLayout>::value)
         {
+#if 0
             // NLdsLayer * K0 as logical Bank
             constexpr auto NLdsLayer        = 32 * 4 / KPerBlock / sizeof(FloatB);
             constexpr auto b_lds_block_desc = make_naive_tensor_descriptor(
@@ -780,7 +796,20 @@ struct GridwiseGemm_xdl_cshuffle_v3
                            make_pass_through_transform(BK1Number)),
                 make_tuple(Sequence<0>{}, Sequence<1, 2>{}, Sequence<3>{}),
                 make_tuple(Sequence<0>{}, Sequence<1>{}, Sequence<2>{}));
+#elif 1
+            constexpr auto b_lds_block_desc = make_naive_tensor_descriptor(
+                make_tuple(
+                    BK0Number, Number<NPerBlock>{}, BK1Number),
+                make_tuple(BK1Number, Number<KPerBlock>{}, I1));
 
+            constexpr auto b_lds_block_desc_bk0_n_bk1 = transform_tensor_descriptor(
+                b_lds_block_desc,
+                make_tuple(make_xor_transform(make_tuple(Number<NPerBlock>{},
+                                                         Number<BK0Number>{})),
+                           make_pass_through_transform(BK1Number)),
+                make_tuple(Sequence<1, 0>{}, Sequence<2>{}),
+                make_tuple(Sequence<1, 0>{}, Sequence<2>{}));
+#endif 
             return b_lds_block_desc_bk0_n_bk1;
         }
         else // RowMajor B
@@ -864,7 +893,7 @@ struct GridwiseGemm_xdl_cshuffle_v3
             //     make_tuple(Sequence<0, 1>{}, Sequence<2, 3>{}, Sequence<4>{}),
             //     make_tuple(Sequence<0>{}, Sequence<1>{}, Sequence<2>{}));
 
-#elif 1
+#elif 0
             // N0PerLdsLayer * N1 as logical Bank
             constexpr auto N0 = BBlockTransferThreadClusterLengths_BK0_N_BK1{}.At(I1);
             constexpr auto N1 = NPerBlock / N0;
@@ -968,8 +997,70 @@ struct GridwiseGemm_xdl_cshuffle_v3
 
                 return b_lds_block_desc_merged_2;
             }
-#endif
             else { return b_lds_block_desc_bk0_n_bk1; }
+#elif 1
+            // N0PerLdsLayer * N1 as logical Bank
+            constexpr auto N0 = BBlockTransferThreadClusterLengths_BK0_N_BK1{}.At(I1);
+            constexpr auto N1 = NPerBlock / N0;
+
+            if constexpr(BK1Number * NPerXdl * sizeof(FloatB) >= 128){
+                constexpr auto b_lds_block_desc = make_naive_tensor_descriptor_packed(
+                    make_tuple(BK0Number,
+                               Number<N1>{},
+                               Number<N0>{},
+                               BK1Number));
+
+                constexpr auto b_lds_block_desc_permuted = transform_tensor_descriptor(
+                    b_lds_block_desc,
+                    make_tuple(
+                        make_xor_transform(make_tuple(Number<N1>{}, Number<N0>{})),
+                        make_pass_through_transform(BK0Number),
+                        make_pass_through_transform(BK1Number)),
+                    make_tuple(Sequence<1, 2>{}, Sequence<0>{}, Sequence<3>{}),
+                    make_tuple(Sequence<1, 2>{}, Sequence<0>{}, Sequence<3>{}));
+
+                constexpr auto b_lds_block_desc_bk0_n_bk1 = transform_tensor_descriptor(
+                    b_lds_block_desc_permuted,
+                    make_tuple(
+                        make_pass_through_transform(BK0Number),
+                        make_merge_transform_v3_division_mod(make_tuple(Number<N1>{}, Number<N0>{})),
+                        make_pass_through_transform(BK1Number)),
+                    make_tuple(Sequence<0>{}, Sequence<1, 2>{}, Sequence<3>{}),
+                    make_tuple(Sequence<0>{}, Sequence<1>{}, Sequence<2>{}));
+    
+                return b_lds_block_desc_bk0_n_bk1;
+            }
+            else{
+                constexpr auto N2 = 128 / (BK1Number * NPerXdl * sizeof(FloatB));
+                constexpr auto b_lds_block_desc = make_naive_tensor_descriptor_packed(
+                    make_tuple(BK0Number,
+                               Number<N1>{},
+                               Number<N0/N2>{},
+                               Number<N2>{},
+                               BK1Number));
+                
+                constexpr auto b_lds_block_desc_permuted = transform_tensor_descriptor(
+                    b_lds_block_desc,
+                    make_tuple(
+                        make_xor_transform(make_tuple(Number<N1>{}, Number<N0/N2>{})),
+                        make_pass_through_transform(BK0Number),
+                        make_pass_through_transform(Number<N2>{}),
+                        make_pass_through_transform(BK1Number)),
+                    make_tuple(Sequence<1, 2>{}, Sequence<0>{}, Sequence<3>{}, Sequence<4>{}),
+                    make_tuple(Sequence<1, 2>{}, Sequence<0>{}, Sequence<3>{}, Sequence<4>{}));
+
+                constexpr auto b_lds_block_desc_bk0_n_bk1 = transform_tensor_descriptor(
+                    b_lds_block_desc_permuted,
+                    make_tuple(
+                        make_pass_through_transform(BK0Number),
+                        make_merge_transform_v3_division_mod(make_tuple(Number<N1>{}, Number<N0/N2>{}, Number<N2>{})),
+                        make_pass_through_transform(BK1Number)),
+                    make_tuple(Sequence<0>{}, Sequence<1, 2, 3>{}, Sequence<4>{}),
+                    make_tuple(Sequence<0>{}, Sequence<1>{}, Sequence<2>{}));
+    
+                return b_lds_block_desc_bk0_n_bk1;
+            }
+#endif
         }
     }
 
