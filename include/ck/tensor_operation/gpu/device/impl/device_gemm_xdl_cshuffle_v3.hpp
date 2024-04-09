@@ -768,16 +768,17 @@ struct DeviceGemm_Xdl_CShuffleV3 : public DeviceGemmV2<ALayout,
                                                         minimum_occupancy>;
                         Run(kernel);
                     }
+
                     else
                     {
+#endif
                         const auto kernel =
                             kernel_gemm_xdl_cshuffle_v3<GridwiseGemm,
                                                         false,
                                                         InMemoryDataOperationEnum::Set,
                                                         minimum_occupancy>;
                         Run(kernel);
-                    }
-#endif
+                    // }
                 }
                 // Tail number could be One to Seven
                 else if constexpr(BlkGemmPipelineVer == BlockGemmPipelineVersion::v2)
