@@ -638,16 +638,16 @@ struct mfma_type<MfmaInstr::mfma_f32_16x16x32bf8f8>
     }
 };
 
-template <typename base_type,
+template <typename ComputeTypeA,
           index_t MPerXdlops,
           index_t NPerXdlops,
-          typename additional_type = base_type>
+          typename ComputeTypeB = ComputeTypeA>
 struct MfmaSelector
 {
-    template <typename base_type_,
+    template <typename ComputeTypeA_,
               index_t MPerXdlops_,
               index_t NPerXdlops_,
-              typename additional_type_ = base_type_>
+              typename ComputeTypeB_ = ComputeTypeA_>
     static constexpr auto GetMfma();
 
     template <>
@@ -833,7 +833,7 @@ struct MfmaSelector
     }
 
     static constexpr auto selected_mfma =
-        mfma_type<GetMfma<base_type, MPerXdlops, NPerXdlops, additional_type>()>{};
+        mfma_type<GetMfma<ComputeTypeA, MPerXdlops, NPerXdlops, ComputeTypeB>()>{};
 
     __host__ __device__ constexpr MfmaSelector()
     {
@@ -876,12 +876,14 @@ struct MfmaSelector
     static constexpr index_t GetK1PerXdlops() { return selected_mfma.k_per_blk; }
 };
 
-template <typename base_type,
+template <typename ComputeTypeA,
           index_t MPerXdlops,
           index_t NPerXdlops,
           index_t KPack,
-          typename additional_type = base_type,
-          bool TransposeC          = false>
+          typename ComputeTypeB = ComputeTypeA,
+          bool TransposeC       = false,
+          typename ADataType    = ComputeTypeA,
+          typename BDataType    = ComputeTypeB>
 struct XdlopsGemm
 {
     static constexpr auto I0 = Number<0>{};
@@ -1033,19 +1035,112 @@ struct XdlopsGemm
     __device__ void Run(const FloatA& p_a_wave, const FloatB& p_b_wave, FloatC& p_c_thread) const
     {
         static_assert(
-            is_same<base_type, double>::value || is_same<base_type, float>::value ||
-                is_same<base_type, half_t>::value || is_same<base_type, bhalf_t>::value ||
-                is_same<base_type, int8_t>::value || is_same<base_type, f8_t>::value ||
-                is_same<base_type, bf8_t>::value ||
-                (is_same<base_type, f8_t>::value && is_same<additional_type, bf8_t>::value) ||
-                (is_same<base_type, bf8_t>::value && is_same<additional_type, f8_t>::value),
-            "base base_type must be double, float, half, bfloat16, int8_t, f8_t or bf8_t!");
+            is_same<ComputeTypeA, double>::value || is_same<ComputeTypeA, float>::value ||
+                is_same<ComputeTypeA, half_t>::value || is_same<ComputeTypeA, bhalf_t>::value ||
+                is_same<ComputeTypeA, int8_t>::value || is_same<ComputeTypeA, f8_t>::value ||
+                is_same<ComputeTypeA, bf8_t>::value ||
+                (is_same<ComputeTypeA, f8_t>::value && is_same<ComputeTypeB, bf8_t>::value) ||
+                (is_same<ComputeTypeA, bf8_t>::value && is_same<ComputeTypeB, f8_t>::value),
+            "base ComputeTypeA must be double, float, half, bfloat16, int8_t, f8_t or bf8_t!");
 
         static_for<0, KPack / mfma_instr.k_per_blk, 1>{}([&](auto k) {
             if constexpr(!TransposeC)
             {
                 mfma_instr.template run<MPerXdlops, NPerXdlops>(
                     p_a_wave[k], p_b_wave[k], p_c_thread);
+            }
+            else
+            {
+                mfma_instr.template run<MPerXdlops, NPerXdlops>(
+                    p_b_wave[k], p_a_wave[k], p_c_thread);
+            }
+        });
+    }
+
+    // Including data type cast
+    template <class FloatA, class FloatB, class FloatC>
+    __device__ void RunExt(const FloatA& p_a_wave, const FloatB& p_b_wave, FloatC& p_c_thread) const
+    {
+        static_assert(
+            is_same<ComputeTypeA, double>::value || is_same<ComputeTypeA, float>::value ||
+                is_same<ComputeTypeA, half_t>::value || is_same<ComputeTypeA, bhalf_t>::value ||
+                is_same<ComputeTypeA, int8_t>::value || is_same<ComputeTypeA, f8_t>::value ||
+                is_same<ComputeTypeA, bf8_t>::value ||
+                (is_same<ComputeTypeA, f8_t>::value && is_same<ComputeTypeB, bf8_t>::value) ||
+                (is_same<ComputeTypeA, bf8_t>::value && is_same<ComputeTypeB, f8_t>::value),
+            "base ComputeTypeA must be double, float, half, bfloat16, int8_t, f8_t or bf8_t!");
+
+        static_for<0, KPack / mfma_instr.k_per_blk, 1>{}([&](auto k) {
+            if constexpr(!TransposeC)
+            {
+                if constexpr((is_same<remove_cvref_t<ADataType>, f8_t>::value &&
+                              is_same<remove_cvref_t<ComputeTypeA>, half_t>::value) ||
+                             (is_same<remove_cvref_t<BDataType>, f8_t>::value &&
+                              is_same<remove_cvref_t<ComputeTypeA>, half_t>::value))
+                {
+                    if constexpr((is_same<remove_cvref_t<ADataType>, f8_t>::value &&
+                                  is_same<remove_cvref_t<ComputeTypeA>, half_t>::value))
+                    {
+                        vector_type_maker_t<ComputeTypeA, mfma_instr.k_per_blk> dst_tmp_vector;
+                        constexpr index_t pack_size = 2;
+
+                        using dst_v_t = typename vector_type_maker_t<ComputeTypeA, pack_size>::type;
+                        using src_v_t = typename vector_type_maker_t<ADataType, pack_size>::type;
+                        static_for<0, mfma_instr.k_per_blk / pack_size, 1>{}([&](auto i) {
+                            ck::tensor_operation::element_wise::PassThroughPack2{}(
+                                dst_tmp_vector.template AsType<dst_v_t>()(i),
+                                p_a_wave.template AsType<
+                                    src_v_t>()[Number<k * mfma_instr.k_per_blk / pack_size + i>{}]);
+                        });
+
+                        using mfma_input_a_type =
+                            typename vector_type<ComputeTypeA, mfma_instr.k_per_blk>::type;
+                        using mfma_input_b_type =
+                            typename vector_type<ComputeTypeB, mfma_instr.k_per_blk>::type;
+
+                        mfma_instr.template run<MPerXdlops, NPerXdlops>(
+                            dst_tmp_vector.template AsType<mfma_input_a_type>()[I0],
+                            p_b_wave.template AsType<mfma_input_b_type>()[k],
+                            p_c_thread);
+                    }
+                    else
+                    {
+                        vector_type_maker_t<ComputeTypeB, mfma_instr.k_per_blk> dst_tmp_vector;
+                        constexpr index_t pack_size = 2;
+
+                        using dst_v_t = typename vector_type_maker_t<ComputeTypeB, pack_size>::type;
+                        using src_v_t = typename vector_type_maker_t<BDataType, pack_size>::type;
+                        static_for<0, mfma_instr.k_per_blk / pack_size, 1>{}([&](auto i) {
+                            ck::tensor_operation::element_wise::PassThroughPack2{}(
+                                dst_tmp_vector.template AsType<dst_v_t>()(i),
+                                p_b_wave.template AsType<
+                                    src_v_t>()[Number<k * mfma_instr.k_per_blk / pack_size + i>{}]);
+                        });
+
+                        using mfma_input_a_type =
+                            typename vector_type<ComputeTypeA, mfma_instr.k_per_blk>::type;
+                        using mfma_input_b_type =
+                            typename vector_type<ComputeTypeB, mfma_instr.k_per_blk>::type;
+
+                        mfma_instr.template run<MPerXdlops, NPerXdlops>(
+                            p_a_wave.template AsType<mfma_input_a_type>()[k],
+                            dst_tmp_vector.template AsType<mfma_input_b_type>()[I0],
+                            p_c_thread);
+                    }
+                }
+                else
+                {
+                    using mfma_input_a_type =
+                        typename vector_type<ComputeTypeA, mfma_instr.k_per_blk>::type;
+
+                    using mfma_input_b_type =
+                        typename vector_type<ComputeTypeB, mfma_instr.k_per_blk>::type;
+
+                    mfma_instr.template run<MPerXdlops, NPerXdlops>(
+                        p_a_wave.template AsType<mfma_input_a_type>()[k],
+                        p_b_wave.template AsType<mfma_input_b_type>()[k],
+                        p_c_thread);
+                }
             }
             else
             {
@@ -1135,7 +1230,7 @@ struct XdlopsGemm
         return TransposeC ? CIndex4D{blk_td, I0, blk_id, I0} : CIndex4D{I0, blk_id, I0, blk_td};
     }
 
-    static constexpr auto mfma = MfmaSelector<base_type, MPerXdlops, NPerXdlops, additional_type>{};
+    static constexpr auto mfma = MfmaSelector<ComputeTypeA, MPerXdlops, NPerXdlops, ComputeTypeB>{};
 
     static constexpr auto mfma_instr = mfma.selected_mfma;
 
