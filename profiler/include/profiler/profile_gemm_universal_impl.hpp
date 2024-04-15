@@ -43,7 +43,8 @@ bool profile_gemm_universal_impl(int do_verification,
                                  int StrideC,
                                  int KBatch,
                                  int n_warmup,
-                                 int n_iter)
+                                 int n_iter,
+                                 uint64_t rotating = 0)
 {
     bool pass = true;
 
@@ -90,9 +91,18 @@ bool profile_gemm_universal_impl(int do_verification,
     const auto b_element_op = BElementOp{};
     const auto c_element_op = CElementOp{};
 
-    DeviceMem a_device_buf(sizeof(ADataType) * a_m_k.mDesc.GetElementSpaceSize());
-    DeviceMem b_device_buf(sizeof(BDataType) * b_k_n.mDesc.GetElementSpaceSize());
-    DeviceMem c_device_buf(sizeof(CDataType) * c_m_n_device_result.mDesc.GetElementSpaceSize());
+    int total_gemm_needed = a_m_k.GetElementSpaceSizeInBytes() +
+                            b_k_n.GetElementSpaceSizeInBytes() +
+                            c_m_n_device_result.GetElementSpaceSizeInBytes();
+    int rotating_count = std::max(
+        1,
+        std::min(n_iter,
+                 static_cast<int>(std::ceil(static_cast<double>(rotating) / total_gemm_needed))));
+    std::cout << "rotating count: " << rotating_count << std::endl;
+
+    DeviceMem a_device_buf(a_m_k.GetElementSpaceSizeInBytes());
+    DeviceMem b_device_buf(b_k_n.GetElementSpaceSizeInBytes());
+    DeviceMem c_device_buf(c_m_n_device_result.GetElementSpaceSizeInBytes());
 
     a_device_buf.ToDevice(a_m_k.mData.data());
     b_device_buf.ToDevice(b_k_n.mData.data());
@@ -200,8 +210,14 @@ bool profile_gemm_universal_impl(int do_verification,
 
                 std::string op_name = op_ptr->GetTypeString();
 
-                float ave_time = invoker_ptr->Run(
-                    argument_ptr.get(), StreamConfig{nullptr, time_kernel, 0, n_warmup, n_iter});
+                float ave_time = invoker_ptr->Run(argument_ptr.get(),
+                                                  StreamConfig{nullptr,
+                                                               time_kernel,
+                                                               0,
+                                                               n_warmup,
+                                                               n_iter,
+                                                               rotating_count > 1,
+                                                               rotating_count});
 
                 std::size_t flop = std::size_t(2) * M * N * K;
 
