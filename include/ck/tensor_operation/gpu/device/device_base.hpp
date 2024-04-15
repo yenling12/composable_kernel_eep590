@@ -21,6 +21,8 @@ struct BaseArgument
     virtual ~BaseArgument() {}
 
     void* p_workspace_ = nullptr;
+
+    std::size_t workspace_size_ = 0;
 };
 
 struct BaseInvoker
@@ -65,6 +67,11 @@ struct BaseOperator
     {
         assert(p_arg);
         p_arg->p_workspace_ = p_workspace;
+    }
+
+    virtual void SetWorkSpaceSize(BaseArgument* p_arg, const std::size_t workspace_size) const
+    {
+        p_arg->workspace_size_ = workspace_size;
     }
 
     virtual ~BaseOperator() {}

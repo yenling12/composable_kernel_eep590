@@ -17,6 +17,8 @@
 #include "ck/host_utility/device_prop.hpp"
 #include "ck/host_utility/kernel_launch.hpp"
 
+#include "ck/tensor_operation/gpu/device/impl/device_reduce_threadwise.hpp"
+
 namespace ck {
 
 template <typename GridwiseGemm,
@@ -82,6 +84,96 @@ __global__ void
     ignore = bs_grid_desc_bk0_n_bk1;
     ignore = ds_grid_desc_mblock_mperblock_nblock_nperblock;
     ignore = e_grid_desc_mblock_mperblock_nblock_nperblock;
+    ignore = block_2_etile_map;
+#endif
+}
+
+template <typename GridwiseGemm,
+          tensor_operation::device::GemmSpecialization GemmSpec,
+          InMemoryDataOperationEnum EGlobalMemoryDataOperation,
+          typename AsLayout,
+          typename BsLayout,
+          typename DsLayout,
+          typename ELayout,
+          typename AsPointer,
+          typename BsPointer,
+          typename DsPointer,
+          typename EDataType,
+          typename AElementwiseOperation,
+          typename BElementwiseOperation,
+          typename CDEElementwiseOperation,
+          typename AsStrideArr,
+          typename BsStrideArr,
+          typename DsStrideArr,
+          typename Block2ETileMap,
+          bool HasMainKBlockLoop>
+__global__ void
+#if CK_USE_LAUNCH_BOUNDS
+    __launch_bounds__(CK_MAX_THREAD_PER_BLOCK, CK_MIN_BLOCK_PER_CU)
+#endif
+        kernel_gemm_multiple_abd_xdl_cshuffle_simple(AsPointer p_as_grid,
+                                                     BsPointer p_bs_grid,
+                                                     DsPointer p_ds_grid,
+                                                     EDataType* __restrict__ p_e_grid,
+                                                     const AElementwiseOperation a_element_op,
+                                                     const BElementwiseOperation b_element_op,
+                                                     const CDEElementwiseOperation cde_element_op,
+                                                     const index_t M,
+                                                     const index_t N,
+                                                     const index_t K,
+                                                     const AsStrideArr StrideAs,
+                                                     const BsStrideArr StrideBs,
+                                                     const DsStrideArr StrideDs,
+                                                     const index_t StrideE,
+                                                     const Block2ETileMap block_2_etile_map,
+                                                     const index_t KBatch)
+{
+#if(!defined(__HIP_DEVICE_COMPILE__) || defined(__gfx908__) || defined(__gfx90a__) || \
+    defined(__gfx94__))
+    __shared__ char p_shared[GridwiseGemm::GetSharedMemoryNumberOfByte()];
+
+    using SplitKBatchOffset = typename GridwiseGemm::template SplitKBatchOffset<AsLayout, BsLayout>;
+    const auto splitk_batch_offset =
+        SplitKBatchOffset(p_as_grid, p_bs_grid, p_e_grid, M, N, K, StrideAs, StrideBs, KBatch);
+
+    GridwiseGemm::template Run<HasMainKBlockLoop,
+                               GemmSpec,
+                               EGlobalMemoryDataOperation,
+                               AsLayout,
+                               BsLayout,
+                               DsLayout,
+                               ELayout,
+                               Block2ETileMap>(splitk_batch_offset.p_as_grid_,
+                                               splitk_batch_offset.p_bs_grid_,
+                                               p_ds_grid,
+                                               splitk_batch_offset.p_e_grid_,
+                                               p_shared,
+                                               a_element_op,
+                                               b_element_op,
+                                               cde_element_op,
+                                               M,
+                                               N,
+                                               splitk_batch_offset.KLoop_,
+                                               StrideAs,
+                                               StrideBs,
+                                               StrideDs,
+                                               StrideE,
+                                               block_2_etile_map);
+#else
+    ignore = p_as_grid;
+    ignore = p_bs_grid;
+    ignore = p_ds_grid;
+    ignore = p_e_grid;
+    ignore = a_element_op;
+    ignore = b_element_op;
+    ignore = cde_element_op;
+    ignore = M;
+    ignore = N;
+    ignore = K;
+    igore  = StrideAs;
+    igore  = StrideBs;
+    igore  = StrideDs;
+    igore  = StrideE;
     ignore = block_2_etile_map;
 #endif
 }
@@ -171,6 +263,8 @@ struct DeviceGemmMultipleABD_Xdl_CShuffle : public DeviceGemmMultipleABD<AsLayou
 
     using ComputeDataType = EDataType;
 
+    static constexpr index_t MAX_K_BATCH = 32;
+
     // GridwiseGemm
     using GridwiseGemm = GridwiseGemmMultipleABD_xdl_cshuffle<
         AsDataType,
@@ -183,7 +277,6 @@ struct DeviceGemmMultipleABD_Xdl_CShuffle : public DeviceGemmMultipleABD<AsLayou
         AElementwiseOperation,
         BElementwiseOperation,
         CDEElementwiseOperation,
-        InMemoryDataOperationEnum::Set,
         NumGemmKPrefetchStage,
         BlockSize,
         MPerBlock,
@@ -217,6 +310,30 @@ struct DeviceGemmMultipleABD_Xdl_CShuffle : public DeviceGemmMultipleABD<AsLayou
         CDEBlockTransferScalarPerVector_NPerBlock,
         LoopSched,
         PipelineVer>;
+
+    using PassThrough = ck::tensor_operation::element_wise::PassThrough;
+    using ReduceAdd   = ck::reduce::Add;
+
+    using DeviceReduceInstance =
+        DeviceReduceThreadWise<EDataType,   // InDataType,
+                               AccDataType, // AccDataType,
+                               EDataType,   // OutDataType,
+                               3,           // Rank
+                               1,           // NumReduceDim
+                               ReduceAdd,
+                               PassThrough,
+                               PassThrough,
+                               false, // PropagateNan,
+                               false, // OutputIndex,
+                               false,
+                               false, // HaveIndexInputIfOutputIndex
+                               64,    // BlockSize_,
+                               CDEBlockTransferScalarPerVector_NPerBlock, // MThreadSliceSize_,
+                               1,                                         // KThreadSliceSize_,
+                               0,                                         // InSrcVectorDim_,
+                               CDEBlockTransferScalarPerVector_NPerBlock, // InSrcVectorSize_,
+                               CDEBlockTransferScalarPerVector_NPerBlock  // OutDstVectorSize_
+                               >;
 
     // desc for problem definition
     using AsGridDesc_M_K =
@@ -285,7 +402,11 @@ struct DeviceGemmMultipleABD_Xdl_CShuffle : public DeviceGemmMultipleABD<AsLayou
               cde_element_op_{cde_element_op},
               MRaw_{MRaw},
               NRaw_{NRaw},
-              KRaw_{KRaw}
+              KRaw_{KRaw},
+              StrideAs_{StrideAs},
+              StrideBs_{StrideBs},
+              StrideDs_{StrideDs},
+              StrideE_{StrideE}
         {
             // populate pointer, desc for As
             static_for<0, NumATensor, 1>{}([&](auto i) {
@@ -384,12 +505,70 @@ struct DeviceGemmMultipleABD_Xdl_CShuffle : public DeviceGemmMultipleABD<AsLayou
         index_t MRaw_;
         index_t NRaw_;
         index_t KRaw_;
+
+        std::array<index_t, NumATensor> StrideAs_;
+        std::array<index_t, NumBTensor> StrideBs_;
+        std::array<index_t, NumDTensor> StrideDs_;
+        index_t StrideE_;
+        index_t KBatch = 4;
     };
 
     // Invoker
     struct Invoker : public BaseInvoker
     {
         using Argument = DeviceOp::Argument;
+
+        float RunReduce(const Argument& arg, const StreamConfig& stream_config = StreamConfig{})
+        {
+
+            const index_t KBatch                  = arg.KBatch;
+            std::array<ck::index_t, 3> in_lengths = {KBatch, arg.MRaw_, arg.NRaw_};
+            std::array<ck::index_t, 3> in_strides = {arg.MRaw_ * arg.NRaw_, arg.NRaw_, 1};
+
+            std::array<ck::index_t, 2> out_lengths = {arg.MRaw_, arg.NRaw_};
+            std::array<ck::index_t, 2> out_strides = {arg.NRaw_, 1};
+
+            std::array<int, 1> reduce_dims{0};
+
+            auto reduce = DeviceReduceInstance{};
+
+            auto argument_ptr = reduce.MakeArgumentPointer(in_lengths,
+                                                           in_strides,
+                                                           out_lengths,
+                                                           out_strides,
+                                                           reduce_dims,
+                                                           1.0,
+                                                           0,
+                                                           arg.p_workspace_,
+                                                           nullptr,
+                                                           arg.p_e_grid_,
+                                                           nullptr,
+                                                           PassThrough{},
+                                                           PassThrough{});
+
+            auto invoker_ptr = reduce.MakeInvokerPointer();
+
+            float ave_time = 0;
+
+            if(reduce.IsSupportedArgument(argument_ptr.get()))
+            {
+                ave_time = invoker_ptr->Run(argument_ptr.get(), stream_config);
+            }
+            else
+            {
+                throw std::runtime_error(
+                    "The runtime parameters seems not supported by the device instance, exiting!");
+            }
+
+            std::size_t num_bytes = arg.MRaw_ * arg.NRaw_ * KBatch * sizeof(EDataType) +
+                                    arg.MRaw_ * arg.NRaw_ * sizeof(EDataType);
+
+            float gb_per_sec = num_bytes / 1.E6 / ave_time;
+
+            std::cout << "Perf: " << ave_time << " ms, " << gb_per_sec << " GB/s" << std::endl;
+
+            return ave_time;
+        }
 
         float Run(const Argument& arg, const StreamConfig& stream_config = StreamConfig{})
         {
@@ -408,6 +587,7 @@ struct DeviceGemmMultipleABD_Xdl_CShuffle : public DeviceGemmMultipleABD<AsLayou
             auto launch_kernel = [&](auto has_main_k_block_loop) {
                 constexpr bool has_main_loop = has_main_k_block_loop.value;
 
+#if 0
                 const auto kernel = kernel_gemm_multiple_abd_xdl_cshuffle<
                     GridwiseGemm,
                     typename GridwiseGemm::AsGridPointer,
@@ -441,18 +621,68 @@ struct DeviceGemmMultipleABD_Xdl_CShuffle : public DeviceGemmMultipleABD<AsLayou
                                               arg.ds_grid_desc_mblock_mperblock_nblock_nperblock_,
                                               arg.e_grid_desc_mblock_mperblock_nblock_nperblock_,
                                               arg.block_2_etile_map_);
+#else
+                const auto kernel = kernel_gemm_multiple_abd_xdl_cshuffle_simple<
+                    GridwiseGemm,
+                    GemmSpec,
+                    InMemoryDataOperationEnum::Set,
+                    AsLayout,
+                    BsLayout,
+                    DsLayout,
+                    ELayout,
+                    typename GridwiseGemm::AsGridPointer,
+                    typename GridwiseGemm::BsGridPointer,
+                    typename GridwiseGemm::DsGridPointer,
+                    EDataType,
+                    AElementwiseOperation,
+                    BElementwiseOperation,
+                    CDEElementwiseOperation,
+                    std::array<index_t, NumATensor>,
+                    std::array<index_t, NumBTensor>,
+                    std::array<index_t, NumDTensor>,
+                    DeviceOp::Block2ETileMap,
+                    has_main_loop>;
+
+                return launch_and_time_kernel(stream_config,
+                                              kernel,
+                                              dim3(grid_size, 1, arg.KBatch),
+                                              dim3(BlockSize),
+                                              0,
+                                              arg.p_as_grid_,
+                                              arg.p_bs_grid_,
+                                              arg.p_ds_grid_,
+                                              static_cast<EDataType*>(arg.p_workspace_),
+                                              arg.a_element_op_,
+                                              arg.b_element_op_,
+                                              arg.cde_element_op_,
+                                              arg.MRaw_,
+                                              arg.NRaw_,
+                                              arg.KRaw_,
+                                              arg.StrideAs_,
+                                              arg.StrideBs_,
+                                              arg.StrideDs_,
+                                              arg.StrideE_,
+                                              arg.block_2_etile_map_,
+                                              arg.KBatch);
+#endif
             };
 
             const auto K = arg.as_grid_desc_m_k_[I0].GetLength(I1);
 
+            float ave_time = 0;
+
             if(GridwiseGemm::CalculateHasMainKBlockLoop(K))
             {
-                return launch_kernel(integral_constant<bool, true>{});
+                ave_time = launch_kernel(integral_constant<bool, true>{});
             }
             else
             {
-                return launch_kernel(integral_constant<bool, false>{});
+                ave_time = launch_kernel(integral_constant<bool, false>{});
             }
+
+            ave_time += RunReduce(arg, stream_config);
+
+            return ave_time;
         }
 
         // polymorphic
@@ -684,6 +914,27 @@ struct DeviceGemmMultipleABD_Xdl_CShuffle : public DeviceGemmMultipleABD<AsLayou
         // clang-format on
 
         return str.str();
+    }
+
+    size_t GetWorkSpaceSize(const BaseArgument* p_arg) const override
+    {
+        auto arg = *dynamic_cast<const Argument*>(p_arg);
+
+        return arg.MRaw_ * arg.NRaw_ * sizeof(AccDataType) * MAX_K_BATCH;
+    }
+
+    void SetWorkSpaceSize(BaseArgument* p_arg, const std::size_t workspace_size) const override
+    {
+        auto p_arg_             = dynamic_cast<Argument*>(p_arg);
+        p_arg_->workspace_size_ = workspace_size;
+    }
+
+    void SetWorkSpacePointer(BaseArgument* p_arg,
+                             void* p_workspace,
+                             const StreamConfig& = StreamConfig{}) const override
+    {
+        auto p_arg_          = dynamic_cast<Argument*>(p_arg);
+        p_arg_->p_workspace_ = p_workspace;
     }
 };
 

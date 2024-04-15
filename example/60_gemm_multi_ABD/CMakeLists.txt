@@ -1,2 +1,3 @@
 add_example_executable(example_gemm_multi_ABD_xdl_fp16 gemm_multi_ABD_xdl_fp16.cpp)
+add_example_executable(example_gemm_multi_ABD_xdl_splitk_fp16 gemm_multi_ABD_xdl_splitk_fp16.cpp)
 add_example_executable(example_gemm_multi_ABD_xdl_bf16_i8 gemm_multi_ABD_xdl_bf16_i8.cpp)

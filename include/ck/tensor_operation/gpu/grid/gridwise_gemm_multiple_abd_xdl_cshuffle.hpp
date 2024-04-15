@@ -38,7 +38,6 @@ template <typename AsDataType,
           typename AElementwiseOperation,
           typename BElementwiseOperation,
           typename CDEElementwiseOperation,
-          InMemoryDataOperationEnum EGlobalMemoryDataOperation,
           index_t NumGemmKPrefetchStage,
           index_t BlockSize,
           index_t MPerBlock,
@@ -514,9 +513,83 @@ struct GridwiseGemmMultipleABD_xdl_cshuffle
             Number<NumDTensor>{});
     }
 
+    __host__ __device__ static auto CalculateKPadded(index_t K, index_t K_Batch = 1)
+    {
+        auto K_t = K_Batch * KPerBlock;
+        return (K + K_t - 1) / K_t * KPerBlock;
+    }
+
+    template <typename AsLayout, typename BsLayout>
+    struct SplitKBatchOffset
+    {
+        __device__ SplitKBatchOffset(AsGridPointer& p_as_grid,
+                                     BsGridPointer& p_bs_grid,
+                                     EDataType* p_e_grid,
+                                     const index_t M,
+                                     const index_t N,
+                                     const index_t K,
+                                     const std::array<index_t, NumATensor>& StrideAs,
+                                     const std::array<index_t, NumBTensor>& StrideBs,
+                                     const index_t KBatch)
+        {
+            const index_t KPadded = CalculateKPadded(K, KBatch);
+            const index_t KLoop   = KPadded / KBatch;
+
+            static_for<0, NumATensor, 1>{}([&](auto i) {
+                using ALayout = remove_cvref_t<tuple_element_t<i.value, AsLayout>>;
+                if constexpr(is_same_v<tensor_layout::gemm::RowMajor, ALayout>)
+                {
+                    as_k_split_offset[i] = blockIdx.z * KLoop;
+                }
+                else if constexpr(is_same_v<tensor_layout::gemm::ColumnMajor, ALayout>)
+                {
+                    as_k_split_offset[i] = blockIdx.z * KLoop * StrideAs[i];
+                }
+
+                p_as_grid_(i) = p_as_grid[i] + as_k_split_offset[i];
+            });
+
+            static_for<0, NumBTensor, 1>{}([&](auto i) {
+                using BLayout = remove_cvref_t<tuple_element_t<i.value, BsLayout>>;
+                if constexpr(is_same_v<tensor_layout::gemm::RowMajor, BLayout>)
+                {
+                    bs_k_split_offset[i] = blockIdx.z * KLoop * StrideBs[i];
+                }
+                else if constexpr(is_same_v<tensor_layout::gemm::ColumnMajor, BLayout>)
+                {
+                    bs_k_split_offset[i] = blockIdx.z * KLoop;
+                }
+
+                p_bs_grid_(i) = p_bs_grid[i] + bs_k_split_offset[i];
+            });
+
+            e_k_split_offset = blockIdx.z * M * N;
+
+            p_e_grid_ = p_e_grid + e_k_split_offset;
+
+            if(blockIdx.z < static_cast<uint32_t>(KBatch - 1))
+            {
+                KLoop_ = KLoop;
+            }
+            else
+            {
+                KLoop_ = K - KLoop * (KBatch - 1);
+            }
+        }
+
+        index_t KLoop_;
+        AsGridPointer p_as_grid_;
+        BsGridPointer p_bs_grid_;
+        EDataType* p_e_grid_;
+        std::array<index_t, NumATensor> as_k_split_offset;
+        std::array<index_t, NumBTensor> bs_k_split_offset;
+        index_t e_k_split_offset;
+    };
+
     __device__ __host__ static constexpr auto GetMPerBlock() { return MPerBlock; }
 
     template <bool HasMainKBlockLoop,
+              InMemoryDataOperationEnum EGlobalMemoryDataOperation,
               typename AsGridDesc_AK0_M_AK1,
               typename BsGridDesc_BK0_N_BK1,
               typename DsGridDesc_MBlock_MPerBlock_NBlock_NPerBlock,
@@ -963,6 +1036,7 @@ struct GridwiseGemmMultipleABD_xdl_cshuffle
 
     template <bool HasMainKBlockLoop,
               GemmSpecialization GemmSpec,
+              InMemoryDataOperationEnum EGlobalMemoryDataOperation,
               typename AsLayout,
               typename BsLayout,
               typename DsLayout,
@@ -1029,19 +1103,20 @@ struct GridwiseGemmMultipleABD_xdl_cshuffle
         const auto e_grid_desc_mblock_mperblock_nblock_nperblock =
             MakeEGridDescriptor_MBlock_MPerBlock_NBlock_NPerBlock(e_grid_desc_m_n);
 
-        Run<HasMainKBlockLoop>(p_as_grid,
-                               p_bs_grid,
-                               p_ds_grid,
-                               p_e_grid,
-                               p_shared,
-                               a_element_op,
-                               b_element_op,
-                               cde_element_op,
-                               as_grid_desc_ak0_m_ak1,
-                               bs_grid_desc_bk0_n_bk1,
-                               ds_grid_desc_mblock_mperblock_nblock_nperblock,
-                               e_grid_desc_mblock_mperblock_nblock_nperblock,
-                               block_2_etile_map);
+        Run<HasMainKBlockLoop, EGlobalMemoryDataOperation>(
+            p_as_grid,
+            p_bs_grid,
+            p_ds_grid,
+            p_e_grid,
+            p_shared,
+            a_element_op,
+            b_element_op,
+            cde_element_op,
+            as_grid_desc_ak0_m_ak1,
+            bs_grid_desc_bk0_n_bk1,
+            ds_grid_desc_mblock_mperblock_nblock_nperblock,
+            e_grid_desc_mblock_mperblock_nblock_nperblock,
+            block_2_etile_map);
     }
 };
 
