@@ -556,86 +556,95 @@ bool run(const ck_tile::ArgParser& arg_parser)
         // clang-format on
 
         // reference
-        ck_tile::reference_batched_gemm<QDataType, KDataType, SaccDataType, SMPLComputeDataType>(
+        ck_tile::reference_batched_gemm<QDataType, KDataType, SaccDataType, ODataType>(
             q_host_ref,
             k_host_ref,
-            s_host_ref,
-            ck_tile::identity{},
-            ck_tile::identity{},
-            ck_tile::scales(scale_s));
+            o_host_ref);
 
-        if(use_bias)
-        {
-            ck_tile::HostTensor<BiasDataType> bias_host_ref({1, real_seqlen_q, real_seqlen_k});
-            // clang-format off
-            if(i_perm)
-                bias_host_ref.ForEach([&](auto& self, auto i) { self(i) = bias_host(0, 0, i[1] + query_offset, i[2] + key_offset); });
-            else
-                bias_host_ref.ForEach([&](auto& self, auto i) { self(i) = bias_host(0, i[1] + query_offset, 0, i[2] + key_offset); });
-            // clang-format on
+        // ck_tile::reference_batched_gemm<QDataType, KDataType, SaccDataType, SMPLComputeDataType>(
+        //     q_host_ref,
+        //     k_host_ref,
+        //     s_host_ref,
+        //     ck_tile::identity{},
+        //     ck_tile::identity{},
+        //     ck_tile::scales(scale_s));
 
-            // broadcast from [1, real_seqlen_q, real_seqlen_k] to [nhead, real_seqlen_q,
-            // real_seqlen_k]
-            ck_tile::reference_batched_elementwise<SMPLComputeDataType,
-                                                   BiasDataType,
-                                                   SMPLComputeDataType,
-                                                   SMPLComputeDataType>(
-                s_host_ref, bias_host_ref, s_host_ref);
-        }
+        // if(use_bias)
+        // {
+        //     ck_tile::HostTensor<BiasDataType> bias_host_ref({1, real_seqlen_q, real_seqlen_k});
+        //     // clang-format off
+        //     if(i_perm)
+        //         bias_host_ref.ForEach([&](auto& self, auto i) { self(i) = bias_host(0, 0, i[1] +
+        //         query_offset, i[2] + key_offset); });
+        //     else
+        //         bias_host_ref.ForEach([&](auto& self, auto i) { self(i) = bias_host(0, i[1] +
+        //         query_offset, 0, i[2] + key_offset); });
+        //     // clang-format on
 
-        if(mask.type == mask_enum::no_mask)
-        {
-            ck_tile::reference_batched_masking<SaccDataType>(
-                s_host_ref, FmhaMasks::NoMask{real_seqlen_q, real_seqlen_k});
-        }
-        else if(mask.type == mask_enum::window_generic)
-        {
-            ck_tile::reference_batched_masking<SaccDataType>(
-                s_host_ref,
-                ck_tile::make_generic_attention_mask_from_lr_window<FmhaMasks::GenericMask>(
-                    mask.left, mask.right, real_seqlen_q, real_seqlen_k));
-        }
-        else
-        {
-            // if left window size is negative, means causal
-            // else means generic (for current batch)
-            if(mask.left < 0)
-                ck_tile::reference_batched_masking<SaccDataType>(
-                    s_host_ref,
-                    ck_tile::make_generic_attention_mask_from_lr_window<FmhaMasks::CausalMask>(
-                        mask.left,
-                        mask.right,
-                        real_seqlen_q,
-                        real_seqlen_k,
-                        mask.type == mask_enum::mask_top_left));
-            else
-                ck_tile::reference_batched_masking<SaccDataType>(
-                    s_host_ref,
-                    ck_tile::make_generic_attention_mask_from_lr_window<FmhaMasks::GenericMask>(
-                        mask.left,
-                        mask.right,
-                        real_seqlen_q,
-                        real_seqlen_k,
-                        mask.type == mask_enum::mask_top_left));
-        }
-        if(lse)
-        {
-            ck_tile::reference_batched_softmax<SMPLComputeDataType, SMPLComputeDataType, PDataType>(
-                s_host_ref, p_host_ref, p_compute_element_func, lse_host_ref);
-        }
-        else
-        {
-            ck_tile::reference_batched_softmax<SMPLComputeDataType, SMPLComputeDataType, PDataType>(
-                s_host_ref, p_host_ref, p_compute_element_func);
-        }
+        //     // broadcast from [1, real_seqlen_q, real_seqlen_k] to [nhead, real_seqlen_q,
+        //     // real_seqlen_k]
+        //     ck_tile::reference_batched_elementwise<SMPLComputeDataType,
+        //                                            BiasDataType,
+        //                                            SMPLComputeDataType,
+        //                                            SMPLComputeDataType>(
+        //         s_host_ref, bias_host_ref, s_host_ref);
+        // }
 
-        ck_tile::reference_batched_gemm<PDataType, VDataType, OaccDataType, ODataType>(
-            p_host_ref,
-            v_host_ref,
-            o_host_ref,
-            ck_tile::identity{},
-            ck_tile::identity{},
-            oacc_element_func);
+        // if(mask.type == mask_enum::no_mask)
+        // {
+        //     ck_tile::reference_batched_masking<SaccDataType>(
+        //         s_host_ref, FmhaMasks::NoMask{real_seqlen_q, real_seqlen_k});
+        // }
+        // else if(mask.type == mask_enum::window_generic)
+        // {
+        //     ck_tile::reference_batched_masking<SaccDataType>(
+        //         s_host_ref,
+        //         ck_tile::make_generic_attention_mask_from_lr_window<FmhaMasks::GenericMask>(
+        //             mask.left, mask.right, real_seqlen_q, real_seqlen_k));
+        // }
+        // else
+        // {
+        //     // if left window size is negative, means causal
+        //     // else means generic (for current batch)
+        //     if(mask.left < 0)
+        //         ck_tile::reference_batched_masking<SaccDataType>(
+        //             s_host_ref,
+        //             ck_tile::make_generic_attention_mask_from_lr_window<FmhaMasks::CausalMask>(
+        //                 mask.left,
+        //                 mask.right,
+        //                 real_seqlen_q,
+        //                 real_seqlen_k,
+        //                 mask.type == mask_enum::mask_top_left));
+        //     else
+        //         ck_tile::reference_batched_masking<SaccDataType>(
+        //             s_host_ref,
+        //             ck_tile::make_generic_attention_mask_from_lr_window<FmhaMasks::GenericMask>(
+        //                 mask.left,
+        //                 mask.right,
+        //                 real_seqlen_q,
+        //                 real_seqlen_k,
+        //                 mask.type == mask_enum::mask_top_left));
+        // }
+        // if(lse)
+        // {
+        //     ck_tile::reference_batched_softmax<SMPLComputeDataType, SMPLComputeDataType,
+        //     PDataType>(
+        //         s_host_ref, p_host_ref, p_compute_element_func, lse_host_ref);
+        // }
+        // else
+        // {
+        //     ck_tile::reference_batched_softmax<SMPLComputeDataType, SMPLComputeDataType,
+        //     PDataType>(
+        //         s_host_ref, p_host_ref, p_compute_element_func);
+        // }
+
+        // ck_tile::reference_batched_gemm<PDataType, VDataType, OaccDataType, ODataType>(
+        //     p_host_ref,
+        //     v_host_ref,
+        //     o_host_ref,
+        //     ck_tile::identity{},
+        //     ck_tile::identity{},
+        //     oacc_element_func);
 
         ck_tile::HostTensor<ODataType> o_host_result({nhead, real_seqlen_q, hdim_v});
         // clang-format off
@@ -643,6 +652,20 @@ bool run(const ck_tile::ArgParser& arg_parser)
         if(o_perm) o_host_result.ForEach([&](auto& self, auto idx) { self(idx) = o_host(b, idx[0], idx[1] + query_offset, idx[2]); });
         else       o_host_result.ForEach([&](auto& self, auto idx) { self(idx) = o_host(b, idx[1] + query_offset, idx[0], idx[2]); });
         // clang-format on
+
+        printf("\no_host_result\n");
+        for(int i = 0; i < 10; ++i)
+        {
+            float v = ck_tile::type_convert<float>(o_host_result.mData[i]);
+            printf("%f\n", v);
+        }
+
+        printf("o_host_ref\n");
+        for(int i = 0; i < 10; ++i)
+        {
+            float v = ck_tile::type_convert<float>(o_host_result.mData[i]);
+            printf("%f\n", v);
+        }
 
         auto [rtol, atol] = get_elimit<DataType>(init_method);
         bool cur_pass     = ck_tile::check_err(

@@ -55,7 +55,7 @@ struct FmhaFwdTypeConfig<ck_tile::fp8_t>
     using SMPLComputeDataType = float; // data type for reduction, softmax
     using PDataType           = ck_tile::fp8_t; // data type for A matrix of second gemm
     using OaccDataType        = float;          // data type for second gemm accumulation
-    using ODataType           = ck_tile::fp8_t;
+    using ODataType           = float;
 };
 
 template <>

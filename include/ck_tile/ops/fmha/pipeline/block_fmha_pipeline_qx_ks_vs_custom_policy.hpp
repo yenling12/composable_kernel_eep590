@@ -102,7 +102,7 @@ struct BlockFmhaPipelineQXCustomPolicy</* QLoadOnce = */ true>
                               std::is_same_v<typename Problem::SaccDataType, float>)
             {
                 // TODO: hard coded here. Otherwise, it may incorrect result
-                constexpr index_t swizzle_factor = 4;
+                constexpr index_t swizzle_factor = 2;
                 return WarpGemmMfmaFp8Fp8F32M32N32K16SwizzleBTransposedCDistribution<
                     swizzle_factor>{};
             } // TODO - bf8_t
@@ -225,7 +225,7 @@ struct BlockFmhaPipelineQXCustomPolicy</* QLoadOnce = */ false>
                               std::is_same_v<typename Problem::SaccDataType, float>)
             {
                 // TODO: hard coded here. Otherwise, it may incorrect result
-                constexpr index_t swizzle_factor = 4;
+                constexpr index_t swizzle_factor = 2;
                 return WarpGemmMfmaFp8Fp8F32M32N32K16SwizzleBTransposedCDistribution<
                     swizzle_factor>{};
             } // TODO - bf8_t
