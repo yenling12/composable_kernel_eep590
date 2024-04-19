@@ -55,32 +55,11 @@ using Scales      = ck::tensor_operation::element_wise::Scales;
 using PassThrough = ck::tensor_operation::element_wise::PassThrough;
 using AddFastGelu = ck::tensor_operation::element_wise::AddFastGelu;
 
-struct Scales_
-{
-    template <typename Y, typename X0, typename X1>
-    __host__ __device__ constexpr void operator()(Y& y, const X0& x0, const X1& x1) const;
-
-    __host__ __device__ constexpr void
-    operator()(ck::bhalf2_t& y, const ck::int8x2_t& x0, const ck::bhalf2_t& x1) const
-    {
-        y = ck::bit_cast<ck::bhalf2_t>(ck::bit_cast<int16_t>(x0) * ck::bit_cast<int32_t>(x1));
-    }
-
-    __host__ __device__ constexpr void
-    operator()(ck::bhalf_t& y, const int8_t& x0, const ck::bhalf_t& x1) const
-    {
-        y = ck::type_convert<ck::bhalf_t>(ck::type_convert<float>(x0) *
-                                          ck::type_convert<float>(x1));
-    }
-
-    constexpr const static bool is_pack2_invocable = true;
-};
-
 using AElementOp   = PassThrough;
-using BElementOp   = Scales_;
+using BElementOp   = Scales;
 using CDEElementOp = AddFastGelu;
 
-static constexpr auto GemmSpec = ck::tensor_operation::device::GemmSpecialization::Default;
+static constexpr auto GemmSpec = ck::tensor_operation::device::GemmSpecialization::MNKPadding;
 
 using DeviceOpInstance = ck::tensor_operation::device::DeviceGemmMultipleABD_Xdl_CShuffle
     // clang-format off
@@ -217,7 +196,7 @@ int main(int argc, char* argv[])
                                N,
                                K,
                                std::array<ck::index_t, NumATensor>{StrideA},
-                               std::array<ck::index_t, NumBTensor>{StrideB, 0},
+                               std::array<ck::index_t, NumBTensor>{StrideB, ck::Number<0>{}},
                                std::array<ck::index_t, NumDTensor>{StrideD},
                                StrideE,
                                a_element_op,

@@ -141,10 +141,13 @@ struct ThreadwiseTensorSliceTransfer_v7r2
     // SrcBuffers: Tuple<const SrcBuffer0&, const SrcBuffer1&, ...>
     template <typename SrcBuffers,
               index_t ThreadScratchId                                   = 0,
+              bool MultiLoad                                            = true,
               enable_if_t<SrcDescs::Size() == SrcBuffers::Size(), bool> = false>
-    __device__ void RunRead(const SrcDescs& src_descs,
-                            const SrcBuffers& src_bufs,
-                            Number<ThreadScratchId> thread_scratch_id = Number<ThreadScratchId>{})
+    __device__ void
+    RunRead(const SrcDescs& src_descs,
+            const SrcBuffers& src_bufs,
+            Number<ThreadScratchId> thread_scratch_id     = Number<ThreadScratchId>{},
+            integral_constant<bool, MultiLoad> multi_load = integral_constant<bool, true>{})
     {
         // loop over space-filling curve
         static_for<0, src_num_access, 1>{}([&](auto iAccess) {
@@ -153,19 +156,37 @@ struct ThreadwiseTensorSliceTransfer_v7r2
 
             bool oob_val = true;
 
-            // copy data from src_bufs into src_vectors
-            static_for<0, nSrc, 1>{}([&](auto i) {
-                using src_vector_t = typename remove_cvref_t<decltype(src_vectors[i])>::type;
+            ignore = multi_load;
 
-                const bool is_src_valid =
-                    coordinate_has_valid_offset_assuming_visible_index_is_valid(src_descs[i],
-                                                                                src_coords_[i]);
+            // if constexpr(true)
+            {
+                // copy data from src_bufs into src_vectors
+                static_for<0, nSrc, 1>{}([&](auto i) {
+                    using src_vector_t = typename remove_cvref_t<decltype(src_vectors[i])>::type;
 
-                oob_val = oob_val & is_src_valid;
+                    const bool is_src_valid =
+                        coordinate_has_valid_offset_assuming_visible_index_is_valid(src_descs[i],
+                                                                                    src_coords_[i]);
 
-                src_vectors(i).template AsType<src_vector_t>()(I0) =
-                    src_bufs[i].template Get<src_vector_t>(src_coords_[i].GetOffset(), true);
-            });
+                    oob_val = oob_val & is_src_valid;
+
+                    src_vectors(i).template AsType<src_vector_t>()(I0) =
+                        src_bufs[i].template Get<src_vector_t>(src_coords_[i].GetOffset(), true);
+                });
+            }
+            // else
+            //{
+            //    using src_vector_t = typename remove_cvref_t<decltype(src_vectors[I0])>::type;
+
+            //    const bool is_src_valid =
+            //        coordinate_has_valid_offset_assuming_visible_index_is_valid(src_descs[I0],
+            //                                                                    src_coords_[I0]);
+
+            //    oob_val = oob_val & is_src_valid;
+
+            //    src_vectors(I0).template AsType<src_vector_t>()(I0) =
+            //        src_bufs[I0].template Get<src_vector_t>(src_coords_[I0].GetOffset(), true);
+            //}
 
             constexpr auto get_elem_op_vec_len = []() {
                 if constexpr(is_detected<is_pack8_invocable_t, decltype(element_op_)>::value)

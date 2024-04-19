@@ -118,15 +118,17 @@ struct ThreadGroupTensorSliceTransfer_v7r2
         }
     }
 
-    template <typename SrcBuffers, index_t ThreadScratchId = 0>
-    __device__ void RunRead(const SrcDescs& src_descs,
-                            const SrcBuffers& src_bufs,
-                            Number<ThreadScratchId> thread_scratch_id = Number<ThreadScratchId>{})
+    template <typename SrcBuffers, index_t ThreadScratchId = 0, bool MultiLoad = true>
+    __device__ void
+    RunRead(const SrcDescs& src_descs,
+            const SrcBuffers& src_bufs,
+            Number<ThreadScratchId> thread_scratch_id     = Number<ThreadScratchId>{},
+            integral_constant<bool, MultiLoad> multi_load = integral_constant<bool, true>{})
     {
         if(ThreadGroup::GetNumOfThread() == thread_cluster_desc_.GetElementSize() or
            ThreadGroup::GetThreadId() < thread_cluster_desc_.GetElementSize())
         {
-            threadwise_transfer_.RunRead(src_descs, src_bufs, thread_scratch_id);
+            threadwise_transfer_.RunRead(src_descs, src_bufs, thread_scratch_id, multi_load);
         }
     }
 

@@ -235,6 +235,8 @@ struct BlockwiseGemmXdlops_pipeline_v4<BlockGemmPipelineScheduler::Intrawave,
         __builtin_amdgcn_sched_barrier(0);
     }
 
+    static constexpr auto multi_load = integral_constant<bool, false>{};
+
     template <bool HasMainLoop,
               TailNumber TailNum,
               typename AGridDesc,
@@ -281,8 +283,8 @@ struct BlockwiseGemmXdlops_pipeline_v4<BlockGemmPipelineScheduler::Intrawave,
         b_blockwise_copy.MoveSrcSliceWindow(b_grid_desc, b_block_copy_step);
 
         // Global prefetch 2
-        a_blockwise_copy.RunRead(a_grid_desc, a_grid_buf, I1);
-        b_blockwise_copy.RunRead(b_grid_desc, b_grid_buf, I1);
+        a_blockwise_copy.RunRead(a_grid_desc, a_grid_buf, I1, multi_load);
+        b_blockwise_copy.RunRead(b_grid_desc, b_grid_buf, I1, multi_load);
 
         a_blockwise_copy.MoveSrcSliceWindow(a_grid_desc, a_block_copy_step);
         b_blockwise_copy.MoveSrcSliceWindow(b_grid_desc, b_block_copy_step);
@@ -317,15 +319,15 @@ struct BlockwiseGemmXdlops_pipeline_v4<BlockGemmPipelineScheduler::Intrawave,
         });
 
         // Global prefetch 3
-        a_blockwise_copy.RunRead(a_grid_desc, a_grid_buf, I0);
-        b_blockwise_copy.RunRead(b_grid_desc, b_grid_buf, I0);
+        a_blockwise_copy.RunRead(a_grid_desc, a_grid_buf, I0, multi_load);
+        b_blockwise_copy.RunRead(b_grid_desc, b_grid_buf, I0, multi_load);
 
         a_blockwise_copy.MoveSrcSliceWindow(a_grid_desc, a_block_copy_step);
         b_blockwise_copy.MoveSrcSliceWindow(b_grid_desc, b_block_copy_step);
 
         // Global prefetch 4
-        a_blockwise_copy.RunRead(a_grid_desc, a_grid_buf, I1);
-        b_blockwise_copy.RunRead(b_grid_desc, b_grid_buf, I1);
+        a_blockwise_copy.RunRead(a_grid_desc, a_grid_buf, I1, multi_load);
+        b_blockwise_copy.RunRead(b_grid_desc, b_grid_buf, I1, multi_load);
 
         a_blockwise_copy.MoveSrcSliceWindow(a_grid_desc, a_block_copy_step);
         b_blockwise_copy.MoveSrcSliceWindow(b_grid_desc, b_block_copy_step);
@@ -373,8 +375,8 @@ struct BlockwiseGemmXdlops_pipeline_v4<BlockGemmPipelineScheduler::Intrawave,
                     b_blockwise_copy.RunWrite(
                         b_block_desc, b_block_buf.At(lds_write_buf), vmem_buf);
 
-                    a_blockwise_copy.RunRead(a_grid_desc, a_grid_buf, vmem_buf);
-                    b_blockwise_copy.RunRead(b_grid_desc, b_grid_buf, vmem_buf);
+                    a_blockwise_copy.RunRead(a_grid_desc, a_grid_buf, vmem_buf, multi_load);
+                    b_blockwise_copy.RunRead(b_grid_desc, b_grid_buf, vmem_buf, multi_load);
 
                     a_blockwise_copy.MoveSrcSliceWindow(a_grid_desc, a_block_copy_step);
                     b_blockwise_copy.MoveSrcSliceWindow(b_grid_desc, b_block_copy_step);
