@@ -156,9 +156,7 @@ struct ThreadwiseTensorSliceTransfer_v7r2
 
             bool oob_val = true;
 
-            ignore = multi_load;
-
-            // if constexpr(true)
+            if constexpr(multi_load)
             {
                 // copy data from src_bufs into src_vectors
                 static_for<0, nSrc, 1>{}([&](auto i) {
@@ -174,19 +172,19 @@ struct ThreadwiseTensorSliceTransfer_v7r2
                         src_bufs[i].template Get<src_vector_t>(src_coords_[i].GetOffset(), true);
                 });
             }
-            // else
-            //{
-            //    using src_vector_t = typename remove_cvref_t<decltype(src_vectors[I0])>::type;
+            else
+            {
+                src_vectors        = src_vectors_tuple_[iAccess];
+                using src_vector_t = typename remove_cvref_t<decltype(src_vectors[I0])>::type;
 
-            //    const bool is_src_valid =
-            //        coordinate_has_valid_offset_assuming_visible_index_is_valid(src_descs[I0],
-            //                                                                    src_coords_[I0]);
+                const bool is_src_valid =
+                    coordinate_has_valid_offset_assuming_visible_index_is_valid(src_descs[I0],
+                                                                                src_coords_[I0]);
+                oob_val = oob_val & is_src_valid;
 
-            //    oob_val = oob_val & is_src_valid;
-
-            //    src_vectors(I0).template AsType<src_vector_t>()(I0) =
-            //        src_bufs[I0].template Get<src_vector_t>(src_coords_[I0].GetOffset(), true);
-            //}
+                src_vectors(I0).template AsType<src_vector_t>()(I0) =
+                    src_bufs[I0].template Get<src_vector_t>(src_coords_[I0].GetOffset(), true);
+            }
 
             constexpr auto get_elem_op_vec_len = []() {
                 if constexpr(is_detected<is_pack8_invocable_t, decltype(element_op_)>::value)
@@ -246,6 +244,7 @@ struct ThreadwiseTensorSliceTransfer_v7r2
                 unpack2(element_op_, dst_data_refs, src_data_refs);
             });
 
+            src_vectors_tuple_(iAccess)                    = src_vectors;
             elm_vectors_tuple_(thread_scratch_id)(iAccess) = elm_vectors;
             oob_vectors_tuple_(thread_scratch_id)(iAccess) = oob_val;
 
@@ -634,8 +633,11 @@ struct ThreadwiseTensorSliceTransfer_v7r2
     static constexpr auto src_num_access = SrcSpaceFillingCurve::GetNumOfAccess();
     static constexpr auto dst_num_access = DstSpaceFillingCurve::GetNumOfAccess();
 
+    using SrcVectorTuple = StaticallyIndexedArray<SrcVectorsType, src_num_access>;
     using ElmVectorTuple = StaticallyIndexedArray<ElmVectorsType, src_num_access>;
     using DstVectorTuple = StaticallyIndexedArray<DstVectorsType, dst_num_access>;
+
+    SrcVectorTuple src_vectors_tuple_;
 
     StaticallyIndexedArray<ElmVectorTuple, NumThreadScratch> elm_vectors_tuple_;
     StaticallyIndexedArray<DstVectorTuple, NumThreadScratch> dst_vectors_tuple_;
