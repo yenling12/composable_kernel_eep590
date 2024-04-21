@@ -46,7 +46,7 @@ __global__ void
         karg.p_a_grid + splitk_batch_offset.a_k_split_offset,
         karg.p_b_grid + splitk_batch_offset.b_k_split_offset,
         karg.p_ds_grid,
-        karg.p_c_grid,
+        karg.p_c_grid + splitk_batch_offset.c_k_split_offset,
         p_shared,
         karg,
         karg.a_element_op,
@@ -82,7 +82,7 @@ __global__ void
         karg.p_a_grid + splitk_batch_offset.a_k_split_offset,
         karg.p_b_grid + splitk_batch_offset.b_k_split_offset,
         karg.p_ds_grid,
-        karg.p_c_grid,
+        karg.p_c_grid + splitk_batch_offset.c_k_split_offset,
         p_shared_0,
         p_shared_1,
         karg,
@@ -556,6 +556,16 @@ struct GridwiseGemm_xdl_cshuffle_v3
                       << "NBlock: " << NBlock << "}" << std::endl;
         }
 
+        __host__ void UpdateKBatch(const index_t KBatch_)
+        {
+
+            KBatch  = KBatch_;
+            KRead   = CalculateKRead(K, KBatch_);
+            KPadded = CalculateKPadded(K, KBatch_);
+            AK0     = CalculateAK0Padded(K, KBatch_);
+            BK0     = CalculateBK0Padded(K, KBatch_);
+        }
+
         index_t M;
         index_t N;
         index_t K;
@@ -631,16 +641,25 @@ struct GridwiseGemm_xdl_cshuffle_v3
             }
             else if constexpr(is_same_v<tensor_layout::gemm::ColumnMajor, ALayout>)
             {
-                a_k_split_offset = blockIdx.z * karg.KRead * karg.M;
+                a_k_split_offset = blockIdx.z * karg.KRead * karg.StrideA;
             }
 
             if constexpr(is_same_v<tensor_layout::gemm::RowMajor, BLayout>)
             {
-                b_k_split_offset = blockIdx.z * karg.KRead * karg.N;
+                b_k_split_offset = blockIdx.z * karg.KRead * karg.StrideB;
             }
             else if constexpr(is_same_v<tensor_layout::gemm::ColumnMajor, BLayout>)
             {
                 b_k_split_offset = blockIdx.z * karg.KRead;
+            }
+
+            if constexpr(is_same_v<tensor_layout::gemm::RowMajor, CLayout>)
+            {
+                c_k_split_offset = blockIdx.z * karg.M * karg.StrideC;
+            }
+            else if constexpr(is_same_v<tensor_layout::gemm::ColumnMajor, CLayout>)
+            {
+                c_k_split_offset = blockIdx.z * karg.N * karg.StrideC;
             }
 
             if(blockIdx.z < static_cast<uint32_t>(karg.KBatch - 1))
@@ -655,6 +674,7 @@ struct GridwiseGemm_xdl_cshuffle_v3
 
         index_t a_k_split_offset;
         index_t b_k_split_offset;
+        index_t c_k_split_offset;
     };
 
     __device__ static constexpr auto GetABlockDescriptor_AK0PerBlock_MPerBlock_AK1()

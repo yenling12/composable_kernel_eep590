@@ -79,7 +79,7 @@ struct PassThroughPack2
 
     __host__ __device__ constexpr void operator()(ck::bhalf2_t& y, const ck::int8x2_t& x) const
     {
-	    y = ck::bit_cast<ck::bhalf2_t>(static_cast<int32_t>(ck::bit_cast<int16_t>(x)));
+        y = ck::bit_cast<ck::bhalf2_t>(static_cast<int32_t>(ck::bit_cast<int16_t>(x)));
     }
 
     template <>
@@ -91,15 +91,14 @@ struct PassThroughPack2
     constexpr const static bool is_pack2_invocable = true;
 };
 
-
 using PassThrough = ck::tensor_operation::element_wise::PassThrough;
 using AddFastGelu = ck::tensor_operation::element_wise::AddFastGelu;
 
 using AElementOp   = PassThrough;
-using BElementOp   = PassThroughPack2;
+using BElementOp   = PassThrough;
 using CDEElementOp = MultiplyAddFastGelu;
 
-static constexpr auto GemmSpec = ck::tensor_operation::device::GemmSpecialization::Default;
+static constexpr auto GemmSpec = ck::tensor_operation::device::GemmSpecialization::MPadding;
 
 using DeviceOpInstance = ck::tensor_operation::device::DeviceGemmMultiD_Xdl_CShuffle_V3
     // clang-format off
@@ -107,7 +106,10 @@ using DeviceOpInstance = ck::tensor_operation::device::DeviceGemmMultiD_Xdl_CShu
 ///######|         |         |         |        |       Type|       Type|       Type|      Type|        Type|         DataType| Elementwise| Elementwise|  Elementwise| Spacialization|  Size| Block| Block| Block|    |    |  XDL|  XDL|  Per|  Per|   ThreadCluster|  ThreadCluster| SrcAccessOrder|   SrcVectorDim|      SrcScalar|      DstScalar| AddExtraM|   ThreadCluster|  ThreadCluster| SrcAccessOrder|  SrcVectorDim|      SrcScalar|      DstScalar| AddExtraN| MXdlPerWave| NXdlPerWave|         _MBlock_MWaveMPerXdl| ScalarPerVector|
 ///######|         |         |         |        |           |           |           |          |            |                 |   Operation|   Operation|    Operation|               |      |      |      |      |    |    |     |     | Wave| Wave| Lengths_K0_M_K1|   ArrangeOrder|               |               |      PerVector|   PerVector_K1|          | Lengths_K0_N_K1|   ArrangeOrder|               |              |      PerVector|   PerVector_K1|          |  PerShuffle|  PerShuffle|         _NBlock_NWaveNPerXdl|   _NWaveNPerXdl|
 ///######|         |         |         |        |           |           |           |          |            |                 |            |            |             |               |      |      |      |      |    |    |     |     |     |     |                |               |               |               |               |               |          |                |               |               |              |               |               |          |            |            |                             |                |
-         < A0Layout, B0Layout, DsLayout, ELayout, A0DataType, B0DataType, DsDataType, EDataType, AccDataType, CShuffleDataType,  AElementOp,  BElementOp, CDEElementOp,       GemmSpec,   256,   128,   128,    64,   8,   4,  32,   32,    2,    2,     S<8, 32, 1>,     S<1, 0, 2>,    S<1, 0, 2>,               2,              8,              8,          0,    S<16, 16, 1>,    S<0, 2, 1>,     S<0, 2, 1>,             1,               8,              4,          0,          1,           1,               S<1, 32, 1, 8>,               8,  ck::BlockGemmPipelineScheduler::Intrawave, ck::BlockGemmPipelineVersion::v4>;
+      ///< A0Layout, B0Layout, DsLayout, ELayout, A0DataType, B0DataType, DsDataType, EDataType, AccDataType, CShuffleDataType,  AElementOp,  BElementOp, CDEElementOp,       GemmSpec,   256,   128,   128,    64,   8,   4,  32,   32,    2,    2,     S<8, 32, 1>,     S<1, 0, 2>,    S<1, 0, 2>,               2,              8,              8,          0,    S<16, 16, 1>,    S<0, 2, 1>,     S<0, 2, 1>,             1,               8,              4,          0,          1,           1,               S<1, 32, 1, 8>,               8,  ck::BlockGemmPipelineScheduler::Intrawave, ck::BlockGemmPipelineVersion::v4>;
+      ///< A0Layout, B0Layout, DsLayout, ELayout, A0DataType, B0DataType, DsDataType, EDataType, AccDataType, CShuffleDataType,  AElementOp,  BElementOp, CDEElementOp,       GemmSpec,    64,    16,    16,   256,   8,   4,  16,   16,    1,    1,     S<32, 2, 1>,     S<1, 0, 2>,    S<1, 0, 2>,               2,              8,              8,          0,    S<64, 1, 1>,     S<0, 2, 1>,     S<0, 2, 1>,             1,              16,              4,          0,          1,           1,               S<1, 16, 1, 4>,               4,  ck::BlockGemmPipelineScheduler::Intrawave, ck::BlockGemmPipelineVersion::v1>;
+         < A0Layout, B0Layout, DsLayout, ELayout, A0DataType, B0DataType, DsDataType, EDataType, AccDataType, CShuffleDataType,  AElementOp,  BElementOp, CDEElementOp,       GemmSpec,    64,    16,    16,   128,   8,   4,  16,   16,    1,    1,     S<16, 4, 1>,     S<1, 0, 2>,    S<1, 0, 2>,               2,              8,              8,          0,    S<32, 2, 1>,     S<0, 2, 1>,     S<0, 2, 1>,             1,               8,              4,          0,          1,           1,               S<1, 16, 1, 4>,               4,  ck::BlockGemmPipelineScheduler::Intrawave, ck::BlockGemmPipelineVersion::v1>;
+      ///< A0Layout, B0Layout, DsLayout, ELayout, A0DataType, B0DataType, DsDataType, EDataType, AccDataType, CShuffleDataType,  AElementOp,  BElementOp, CDEElementOp,       GemmSpec,   128,    32,   128,    64,   8,   4,  32,   32,    1,    2,     S<8, 16, 1>,     S<1, 0, 2>,    S<1, 0, 2>,               2,              8,              8,          0,    S<16, 8, 1>,     S<0, 2, 1>,     S<0, 2, 1>,             1,              16,              4,          0,          1,           1,               S<1, 16, 1, 8>,               8,  ck::BlockGemmPipelineScheduler::Intrawave, ck::BlockGemmPipelineVersion::v2, BF16, BF16, BF16, I8>;
 // clang-format on
 
 int main(int argc, char* argv[])
@@ -126,6 +128,8 @@ int main(int argc, char* argv[])
     ck::index_t StrideD = 0;
     ck::index_t StrideE = N;
 
+    ck::index_t KBatch = 1;
+
     if(argc == 1)
     {
         // use default case
@@ -136,27 +140,30 @@ int main(int argc, char* argv[])
         init_method     = std::stoi(argv[2]);
         time_kernel     = std::stoi(argv[3]);
     }
-    else if(argc == 11)
+    else if(argc == 12)
     {
         do_verification = std::stoi(argv[1]);
         init_method     = std::stoi(argv[2]);
         time_kernel     = std::stoi(argv[3]);
 
-        M = std::stoi(argv[4]);
-        N = std::stoi(argv[5]);
-        K = std::stoi(argv[6]);
+        KBatch = std::stoi(argv[4]);
 
-        StrideA = std::stoi(argv[7]);
-        StrideB = std::stoi(argv[8]);
-        StrideD = std::stoi(argv[9]);
-        StrideE = std::stoi(argv[10]);
+        M = std::stoi(argv[5]);
+        N = std::stoi(argv[6]);
+        K = std::stoi(argv[7]);
+
+        StrideA = std::stoi(argv[8]);
+        StrideB = std::stoi(argv[9]);
+        StrideD = std::stoi(argv[10]);
+        StrideE = std::stoi(argv[11]);
     }
     else
     {
         printf("arg1: verification (0=no, 1=yes)\n");
         printf("arg2: initialization (0=no init, 1=integer value, 2=decimal value)\n");
         printf("arg3: time kernel (0=no, 1=yes)\n");
-        printf("arg4 to 9: M (256x), N(128x), K(32x), StrideA, StrideB, StrideD, StrideE\n");
+        printf("arg4: KBatch (default = 1)\n");
+        printf("arg5 to 11: M (256x), N(128x), K(32x), StrideA, StrideB, StrideD, StrideE\n");
         exit(0);
     }
 
@@ -213,7 +220,6 @@ int main(int argc, char* argv[])
     b0_device_buf.ToDevice(b0_k_n.mData.data());
     b1_device_buf.ToDevice(b1_k_n.mData.data());
     d_device_buf.ToDevice(d_m_n.mData.data());
-    e_device_buf.ToDevice(e_m_n_device_result.mData.data());
 
     auto a_element_op   = AElementOp{};
     auto b_element_op   = BElementOp{};
@@ -250,6 +256,10 @@ int main(int argc, char* argv[])
             "not support this GEMM problem");
     }
 
+    device_op.SetKBatch(argument, KBatch);
+    DeviceMem gemm_workspace_dev(device_op.GetWorkSpaceSize(&argument));
+    device_op.SetWorkSpacePointer(&argument, gemm_workspace_dev.GetDeviceBuffer());
+
     float ave_time = invoker.Run(argument, StreamConfig{nullptr, time_kernel, 20, 50});
 
     std::size_t flop = std::size_t(2) * M * N * K;
@@ -263,10 +273,10 @@ int main(int argc, char* argv[])
     std::cout << "Perf: " << ave_time << " ms, " << tflops << " TFlops, " << gb_per_sec << " GB/s"
               << std::endl;
 
-    e_device_buf.FromDevice(e_m_n_device_result.mData.data());
-
     if(do_verification)
     {
+        e_device_buf.FromDevice(e_m_n_device_result.mData.data());
+
         Tensor<CShuffleDataType> c_m_n({M, N});
 
         Tensor<A0DataType> a_m_k({M, K});

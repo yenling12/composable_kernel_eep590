@@ -51,6 +51,8 @@ struct DeviceGemmMultipleD : public BaseOperator
                         CDEElementwiseOperation cde_element_op) = 0;
 
     virtual std::unique_ptr<BaseInvoker> MakeInvokerPointer() = 0;
+
+    virtual void SetKBatch(BaseArgument* p_arg, index_t k_batch) const = 0;
 };
 
 } // namespace device
