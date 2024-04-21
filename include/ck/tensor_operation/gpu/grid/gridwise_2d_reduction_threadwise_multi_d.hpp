@@ -205,9 +205,9 @@ struct GridwiseReduction_mk_to_m_threadwise_multi_d
                                                         Sequence<MThreadSliceSize>, // SliceLengths
                                                         Sequence<0>, // DimAccessOrder
                                                         0,           // SrcVectorDim
+                                                        OutDstVectorSize,
                                                         1,
-                                                        1, // SrcScalarStrideInVector
-                                                        true>{
+                                                        false>{
                     ds_grid_desc_m[I], make_multi_index(thread_global_1d_id * MThreadSliceSize)};
             },
             Number<NumDTensor>{});

@@ -97,9 +97,9 @@ struct DeviceGemmMultiD_Xdl_CShuffle_V3 : public DeviceGemmMultipleD<ALayout,
         ADataType,
         BDataType,
         GemmAccDataType,
-        CShuffleDataType,
+        GemmAccDataType,
         Tuple<>,
-        CDataType,
+        GemmAccDataType,
         AElementwiseOperation,
         BElementwiseOperation,
         PassThrough,
@@ -144,7 +144,7 @@ struct DeviceGemmMultiD_Xdl_CShuffle_V3 : public DeviceGemmMultipleD<ALayout,
     using ReduceAdd = ck::reduce::Add;
 
     using DeviceReduceInstance = DeviceReduceThreadWiseMultiD<
-        CDataType, // InDataType,
+        GemmAccDataType, // InDataType,
         DsDataType,
         GemmAccDataType, // AccDataType,
         CDataType,       // OutDataType,
@@ -181,7 +181,7 @@ struct DeviceGemmMultiD_Xdl_CShuffle_V3 : public DeviceGemmMultipleD<ALayout,
             : GridwiseGemm::Argument{p_a_grid_,
                                      p_b_grid_,
                                      {},
-                                     p_c_grid_,
+                                     nullptr,
                                      M_,
                                      N_,
                                      K_,
@@ -213,7 +213,7 @@ struct DeviceGemmMultiD_Xdl_CShuffle_V3 : public DeviceGemmMultipleD<ALayout,
         {
 
             std::array<ck::index_t, 3> in_lengths = {arg.KBatch, arg.M, arg.N};
-            std::array<ck::index_t, 3> in_strides = {arg.M * arg.N, arg.M, 1};
+            std::array<ck::index_t, 3> in_strides = {arg.M * arg.N, arg.N, 1};
 
             std::array<std::array<ck::index_t, 2>, NumDTensor> ds_lengths, ds_strides;
 
@@ -290,16 +290,16 @@ struct DeviceGemmMultiD_Xdl_CShuffle_V3 : public DeviceGemmMultipleD<ALayout,
 
             const bool has_main_k_block_loop = GridwiseGemm::CalculateHasMainKBlockLoop(K_split);
 
-            if(arg.KBatch > 1)
+            if(1)
             {
                 auto p_gemm_arg_      = dynamic_cast<typename GridwiseGemm::Argument*>(&arg);
-                p_gemm_arg_->p_c_grid = static_cast<CDataType*>(arg.p_workspace_);
+                p_gemm_arg_->p_c_grid = static_cast<GemmAccDataType*>(arg.p_workspace_);
             }
-            else
-            {
-                auto p_gemm_arg_      = dynamic_cast<typename GridwiseGemm::Argument*>(&arg);
-                p_gemm_arg_->p_c_grid = static_cast<CDataType*>(arg.p_c_grid);
-            }
+            // else
+            //{
+            //    auto p_gemm_arg_      = dynamic_cast<typename GridwiseGemm::Argument*>(&arg);
+            //    p_gemm_arg_->p_c_grid = static_cast<CDataType*>(arg.p_c_grid);
+            //}
 
             const auto Run = [&](const auto& kernel) {
                 ave_time = launch_and_time_kernel(
@@ -688,8 +688,9 @@ struct DeviceGemmMultiD_Xdl_CShuffle_V3 : public DeviceGemmMultipleD<ALayout,
                 }
             }
 
-            if(arg.KBatch > 1)
-                ave_time += RunReduce(arg, StreamConfig{nullptr, true, 0, 1, 1});
+            std::cerr << "GEMM Perf: " << ave_time << " ms" << std::endl;
+
+            ave_time += RunReduce(arg, StreamConfig{nullptr, true, 0, 1, 1});
 
             return ave_time;
         }
@@ -855,7 +856,7 @@ struct DeviceGemmMultiD_Xdl_CShuffle_V3 : public DeviceGemmMultipleD<ALayout,
     size_t GetWorkSpaceSize(const BaseArgument* p_arg) const override
     {
         auto arg = *dynamic_cast<const Argument*>(p_arg);
-        return arg.KBatch * arg.M * arg.N * sizeof(CDataType);
+        return arg.KBatch * arg.M * arg.N * sizeof(GemmAccDataType);
     }
 
     void SetWorkSpacePointer(BaseArgument* p_arg,
