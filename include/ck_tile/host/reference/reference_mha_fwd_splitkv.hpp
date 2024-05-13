@@ -88,7 +88,7 @@ reference_mha_fwd_splitkv(const QueryTensor& query_bhsd,
                     .squeeze(0)
                     .repeat({nr, 1, 1});
             auto value_view_hsd = value_bhsd
-                    .index({Slice(0, batch_start, batch_end), Slice(3, key_start, key_end)})
+                    .index({Slice(0, batch_start, batch_end), Slice(3, split_key_start, split_key_end)})
                     .squeeze(0)
                     .repeat({nr, 1, 1});
             auto output_view_hsd = output_nbhsd
@@ -103,8 +103,8 @@ reference_mha_fwd_splitkv(const QueryTensor& query_bhsd,
             HostTensor<KeyDataType> key_hsd(key_view_hsd.get_lengths());
             HostTensor<ValueDataType> value_hsd(value_view_hsd.get_lengths());
             // create local tensors for holding intermediate result
-            HostTensor<SMPLComputeDataType> s_hss({nhead, real_seqlen_q, real_seqlen_k});
-            HostTensor<PDataType> p_hss({nhead, real_seqlen_q, real_seqlen_k});
+            HostTensor<SMPLComputeDataType> s_hss({nhead, real_seqlen_q, num_key_per_split});
+            HostTensor<PDataType> p_hss({nhead, real_seqlen_q, num_key_per_split});
 
             query_hsd.for_each([&](auto& self, auto i) { self(i) = query_view_hsd(i); });
             key_hsd.for_each([&](auto& self, auto i) { self(i) = key_view_hsd(i); });
