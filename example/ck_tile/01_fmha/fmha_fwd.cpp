@@ -540,15 +540,14 @@ bool run(const ck_tile::ArgParser& arg_parser)
     std::optional<ck_tile::span<const int32_t>> opt_seqstart_q;
     std::optional<ck_tile::span<const int32_t>> opt_seqstart_k;
 
-    using Slice = ck_tile::HostTensorSlice;
+    // using Slice = ck_tile::HostTensorSlice;
     if(use_bias)
     {
         opt_bias_host_view_bhss.emplace(bias_host_view_bhss);
     }
     if(store_lse)
     {
-        // extract tensor of first split
-        opt_lse_host_ref_view_bhs.emplace(lse_host_ref.index({Slice(0, 0, 1)}).squeeze(0));
+        opt_lse_host_ref_view_bhs.emplace(lse_host_ref);
     }
     if(mode == mode_enum::group)
     {
@@ -556,10 +555,7 @@ bool run(const ck_tile::ArgParser& arg_parser)
         opt_seqstart_k.emplace(seqstart_k_host);
     }
 
-    // extract tensor of first split
-    o_host_ref_view_bhsd = o_host_ref_view_bhsd.index({Slice(0, 0, 1)}).squeeze(0);
-
-    ck_tile::reference_mha_fwd<SaccDataType, SMPLComputeDataType, PDataType, OaccDataType>(
+    ck_tile::reference_mha_fwd_splitkv<SaccDataType, SMPLComputeDataType, PDataType, OaccDataType>(
         q_host_view_bhsd,
         k_host_view_bhsd,
         v_host_view_bhsd,
