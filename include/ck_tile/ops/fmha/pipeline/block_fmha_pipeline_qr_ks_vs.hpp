@@ -130,7 +130,9 @@ struct BlockFmhaPipelineQRKSVS
                const OAccElementFunction& o_acc_element_func,
                FmhaMask mask,
                float scale_s,
-               void* smem_ptr) const
+               void* smem_ptr,
+               index_t i_split,
+               index_t num_splits) const
     {
         static_assert(
             std::is_same_v<QDataType, remove_cvref_t<typename QDramBlockWindowTmp::DataType>> &&
@@ -198,9 +200,17 @@ struct BlockFmhaPipelineQRKSVS
         set_tile(m, -numeric<SMPLComputeDataType>::infinity());
         clear_tile(l);
 
-        const auto q_origin = q_dram_window.get_window_origin();
-        const auto [seqlen_k_start, seqlen_k_end] =
-            mask.GetTileRangeAlongX(q_origin.at(number<0>{}), number<kM0>{}, number<kN0>{});
+        const auto q_origin                       = q_dram_window.get_window_origin();
+        const auto [seqlen_k_start, seqlen_k_end] = mask.GetTileRangeAlongX(
+            q_origin.at(number<0>{}), number<kM0>{}, number<kN0>{}, i_split, num_splits);
+
+#if defined(DEBUG_PRINT)
+        if(blockIdx.x == 0 && blockIdx.y == 0 && blockIdx.z == 0 && threadIdx.x == 0)
+        {
+            printf("[POYENC] num_splits: %d, i_split: %d\n", num_splits, i_split);
+            printf("[POYENC] seqlen_k_start: %d, seqlen_k_end: %d\n", seqlen_k_start, seqlen_k_end);
+        }
+#endif
 
         const auto num_total_loop = integer_divide_ceil(seqlen_k_end - seqlen_k_start, kN0);
 
@@ -572,7 +582,9 @@ struct BlockFmhaPipelineQRKSVS
                LSEDramBlockWindowTmp& lse_dram_block_window_tmp,         // M0*1 tile
                FmhaMask mask,
                float scale_s,
-               void* smem_ptr) const
+               void* smem_ptr,
+               index_t i_split,
+               index_t num_splits) const
     {
         return operator()(q_dram_block_window_tmp,
                           identity{},
@@ -589,7 +601,9 @@ struct BlockFmhaPipelineQRKSVS
                           identity{},
                           mask,
                           scale_s,
-                          smem_ptr);
+                          smem_ptr,
+                          i_split,
+                          num_splits);
     }
 };
 

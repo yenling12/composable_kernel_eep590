@@ -269,6 +269,24 @@ struct SimplifiedGenericAttentionMask
         }
     }
 
+    // [POYENC] added
+    template <index_t TileHeight, index_t TileWidth>
+    CK_TILE_HOST_DEVICE constexpr auto GetTileRangeAlongX(index_t i_y,
+                                                          number<TileHeight> height,
+                                                          number<TileWidth> width,
+                                                          index_t i_split,
+                                                          index_t num_splits) const
+    {
+        auto [origin_start, origin_end] = GetTileRangeAlongX(i_y, height, width);
+
+        const index_t x_per_split = x_total / num_splits;
+        index_t split_start       = x_per_split * i_split;
+        index_t split_end         = split_start + x_per_split;
+
+        return ck_tile::make_tuple(ck_tile::max(origin_start, split_start),
+                                   ck_tile::min(origin_end, split_end));
+    }
+
     // per-pixel check if out-of-bound, if true, need mask a value(like -INF)
     CK_TILE_HOST_DEVICE constexpr auto IsOutOfBound(index_t i_y, index_t i_x) const
     {

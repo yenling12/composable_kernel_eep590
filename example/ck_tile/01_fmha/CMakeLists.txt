@@ -43,7 +43,13 @@ set(EXAMPLE_FMHA_FWD_COMPILE_OPTIONS)
 # NOTE: we turn off undefined-func-template to let source compile without explicit declare function specializations
 #       ... because they are auto-generated
 if(FMHA_FWD_FAST_EXP2)
-	list(APPEND EXAMPLE_FMHA_FWD_COMPILE_OPTIONS -Wno-undefined-func-template -DCK_TILE_FMHA_FWD_FAST_EXP2=1 -fgpu-flush-denormals-to-zero)
+  list(APPEND EXAMPLE_FMHA_FWD_COMPILE_OPTIONS 
+    -g
+    -DNUM_SPLITS=1
+    -DDEBUG_PRINT
+    -Wno-unused-parameter
+    -Wno-unused-variable
+    -Wno-undefined-func-template -DCK_TILE_FMHA_FWD_FAST_EXP2=1 -fgpu-flush-denormals-to-zero)
 else()
 	list(APPEND EXAMPLE_FMHA_FWD_COMPILE_OPTIONS -Wno-undefined-func-template -DCK_TILE_FMHA_FWD_FAST_EXP2=0)
 endif()

@@ -111,6 +111,8 @@ struct FmhaFwdKernel
         // for MQA/GQA, nhead could be different. This parameter is nhead_q / nhead_k
         // if this param is larger than 1, indicate MQA/GQA case
         ck_tile::index_t nhead_ratio_qk;
+        ck_tile::index_t num_splits;
+
         float scale_s;
 
         ck_tile::index_t row_stride_q;
@@ -158,6 +160,8 @@ struct FmhaFwdKernel
     struct FmhaFwdBatchModeLSEKargs : FmhaFwdCommonLSEKargs
     {
         ck_tile::index_t batch_stride_lse = 0;
+        ck_tile::index_t split_stride_o   = 0;
+        ck_tile::index_t split_stride_lse = 0;
     };
 
     struct FmhaFwdBatchModeKargs
@@ -200,6 +204,7 @@ struct FmhaFwdKernel
               ck_tile::index_t hdim_q,
               ck_tile::index_t hdim_v,
               ck_tile::index_t nhead_ratio_qk,
+              ck_tile::index_t num_splits,
               float scale_s,
               float scale_p,
               float scale_o,
@@ -220,6 +225,8 @@ struct FmhaFwdKernel
               ck_tile::index_t batch_stride_bias,
               ck_tile::index_t batch_stride_lse,
               ck_tile::index_t batch_stride_o,
+              ck_tile::index_t split_stride_lse,
+              ck_tile::index_t split_stride_o,
               ck_tile::index_t window_size_left,
               ck_tile::index_t window_size_right,
               ck_tile::index_t mask_type)
@@ -233,6 +240,7 @@ struct FmhaFwdKernel
                      hdim_q,
                      hdim_v,
                      nhead_ratio_qk,
+                     num_splits,
 #if CK_TILE_FMHA_FWD_FAST_EXP2
                      static_cast<float>(scale_s * ck_tile::log2e_v<>),
 #else
@@ -273,6 +281,9 @@ struct FmhaFwdKernel
             kargs.lse_ptr          = lse_ptr;
             kargs.nhead_stride_lse = nhead_stride_lse;
             kargs.batch_stride_lse = batch_stride_lse;
+
+            kargs.split_stride_lse = split_stride_lse;
+            kargs.split_stride_o   = split_stride_o;
         }
         if constexpr(kDoFp8StaticQuant)
         {
@@ -297,6 +308,7 @@ struct FmhaFwdKernel
               ck_tile::index_t hdim_q,
               ck_tile::index_t hdim_v,
               ck_tile::index_t nhead_ratio_qk,
+              ck_tile::index_t num_splits,
               float scale_s,
               float scale_p,
               float scale_o,
@@ -324,6 +336,7 @@ struct FmhaFwdKernel
                      hdim_q,
                      hdim_v,
                      nhead_ratio_qk,
+                     num_splits,
 #if CK_TILE_FMHA_FWD_FAST_EXP2
                      static_cast<float>(scale_s * ck_tile::log2e_v<>),
 #else
@@ -374,9 +387,10 @@ struct FmhaFwdKernel
     __host__ static constexpr auto GridSize(ck_tile::index_t batch_size_,
                                             ck_tile::index_t nhead_,
                                             ck_tile::index_t seqlen_q_,
-                                            ck_tile::index_t hdim_v_)
+                                            ck_tile::index_t hdim_v_,
+                                            ck_tile::index_t num_splits)
     {
-        return TilePartitioner::GridSize(batch_size_, nhead_, seqlen_q_, hdim_v_);
+        return TilePartitioner::GridSize(batch_size_, nhead_, seqlen_q_, hdim_v_, num_splits);
     }
 
     __host__ static constexpr auto BlockSize() { return dim3(kBlockSize); }
@@ -392,8 +406,8 @@ struct FmhaFwdKernel
         __shared__ char smem_ptr[GetSmemSize()];
 
         // divide problem
-        const auto [i_tile_m, i_tile_n, i_nhead, i_batch] =
-            TilePartitioner{}(kargs.seqlen_q, kargs.hdim_v);
+        const auto [i_tile_m, i_tile_n, i_split, i_nhead, i_batch] =
+            TilePartitioner{}(kargs.seqlen_q, kargs.hdim_v, kargs.num_splits);
 
         const index_t i_m0 = __builtin_amdgcn_readfirstlane(i_tile_m * FmhaPipeline::kM0);
         const index_t i_n1 = __builtin_amdgcn_readfirstlane(i_tile_n * FmhaPipeline::kN1);
@@ -486,7 +500,7 @@ struct FmhaFwdKernel
             batch_offset_v;
         ODataType* o_ptr = reinterpret_cast<ODataType*>(kargs.o_ptr) +
                            static_cast<long_index_t>(i_nhead) * kargs.nhead_stride_o +
-                           batch_offset_o;
+                           batch_offset_o + i_split * kargs.split_stride_o;
 
         // Q/K/V DRAM and DRAM window
         const auto q_dram = [&]() {
@@ -614,13 +628,14 @@ struct FmhaFwdKernel
         }();
 
         // lse
-        auto lse_dram_window = [&, i_nhead_ = i_nhead]() {
+        auto lse_dram_window = [&, i_nhead_ = i_nhead, i_split_ = i_split]() {
             constexpr auto lse_dram_window_lengths = make_tuple(number<FmhaPipeline::kM0>{});
             if constexpr(kStoreLSE)
             {
                 LSEDataType* lse_ptr =
                     reinterpret_cast<LSEDataType*>(kargs.lse_ptr) +
-                    static_cast<long_index_t>(i_nhead_) * kargs.nhead_stride_lse + batch_offset_lse;
+                    static_cast<long_index_t>(i_nhead_) * kargs.nhead_stride_lse +
+                    batch_offset_lse + i_split_ * kargs.split_stride_lse;
 
                 const auto lse_dram = [&]() {
                     const auto lse_dram_naive = make_naive_tensor_view<address_space_enum::global>(
@@ -654,7 +669,7 @@ struct FmhaFwdKernel
                 return FmhaMask{kargs.seqlen_q, kargs.seqlen_k};
         }();
 
-        auto o_acc_tile = [&]() {
+        auto o_acc_tile = [&, i_split_ = i_split]() {
             if constexpr(kDoFp8StaticQuant)
             {
                 return FmhaPipeline{}(
@@ -684,7 +699,9 @@ struct FmhaFwdKernel
                                       lse_dram_window,
                                       mask,
                                       kargs.scale_s,
-                                      smem_ptr);
+                                      smem_ptr,
+                                      i_split_,
+                                      kargs.num_splits);
             }
         }();
 

@@ -285,6 +285,18 @@ bool run(const ck_tile::ArgParser& arg_parser)
             return std::array<ck_tile::index_t, 4>{b, s, h, d};
     };
 
+    auto get_lengths2 = [&](bool permute,
+                            ck_tile::index_t num_splits,
+                            ck_tile::index_t b /*batch*/,
+                            ck_tile::index_t h /*nhead*/,
+                            ck_tile::index_t s /*seqlen*/,
+                            ck_tile::index_t d /*hdim*/) {
+        if(permute)
+            return std::array<ck_tile::index_t, 5>{num_splits, b, h, s, d};
+        else
+            return std::array<ck_tile::index_t, 5>{num_splits, b, s, h, d};
+    };
+
     bool is_v_rowmajor = vlayout == std::string("r");
 
     // host memory for storing all the tensor elements
@@ -309,12 +321,12 @@ bool run(const ck_tile::ArgParser& arg_parser)
             : std::array<ck_tile::index_t, 4>{1, 1, 1, 1} /* dummy shape for simplifying code */);
     // self define lse data layout as [shape_batch, nhead, shape_seqlen_q]
     ck_tile::HostTensor<LSEDataType> lse_host(
-        store_lse
-            ? std::array<ck_tile::index_t, 3>{shape_batch, nhead, shape_seqlen_q}
-            : std::array<ck_tile::index_t, 3>{1, 1, 1} /* dummy shape for simplifying code */);
+        store_lse ? std::array<ck_tile::index_t, 4>{NUM_SPLITS, shape_batch, nhead, shape_seqlen_q}
+                  : std::array<ck_tile::index_t, 4>{
+                        NUM_SPLITS, 1, 1, 1} /* dummy shape for simplifying code */);
 
     ck_tile::HostTensor<ODataType> o_host(
-        get_lengths(o_perm, shape_batch, nhead, shape_seqlen_q, hdim_v));
+        get_lengths2(o_perm, NUM_SPLITS, shape_batch, nhead, shape_seqlen_q, hdim_v));
 
     if(init_method == 0)
     {
@@ -418,21 +430,23 @@ bool run(const ck_tile::ArgParser& arg_parser)
         const ck_tile::index_t row_stride_k    = k_host.get_stride(1 + i_perm);
         const ck_tile::index_t row_stride_v    = v_host.get_stride(1 + i_perm);
         const ck_tile::index_t row_stride_bias = max_seqlen_k;
-        const ck_tile::index_t row_stride_o    = o_host.get_stride(1 + o_perm);
+        const ck_tile::index_t row_stride_o    = o_host.get_stride(1 + 1 + o_perm);
         // setup nhead_stride_* arguments
         const ck_tile::index_t nhead_stride_q    = q_host.get_stride(1 + !i_perm);
         const ck_tile::index_t nhead_stride_k    = k_host.get_stride(1 + !i_perm);
         const ck_tile::index_t nhead_stride_v    = v_host.get_stride(1 + !i_perm);
         const ck_tile::index_t nhead_stride_bias = 0;
         const ck_tile::index_t nhead_stride_lse  = shape_seqlen_q;
-        const ck_tile::index_t nhead_stride_o    = o_host.get_stride(1 + !o_perm);
+        const ck_tile::index_t nhead_stride_o    = o_host.get_stride(1 + 1 + !o_perm);
         // setup batch_stride_* arguments
         const ck_tile::index_t batch_stride_q    = q_host.get_stride(0);
         const ck_tile::index_t batch_stride_k    = k_host.get_stride(0);
         const ck_tile::index_t batch_stride_v    = v_host.get_stride(0);
         const ck_tile::index_t batch_stride_bias = 0;
-        const ck_tile::index_t batch_stride_lse  = nhead * shape_seqlen_q;
-        const ck_tile::index_t batch_stride_o    = o_host.get_stride(0);
+        const ck_tile::index_t batch_stride_lse  = lse_host.get_stride(1);
+        const ck_tile::index_t batch_stride_o    = o_host.get_stride(1);
+        const ck_tile::index_t split_stride_lse  = lse_host.get_stride(0);
+        const ck_tile::index_t split_stride_o    = o_host.get_stride(0);
 
         return fmha_fwd_args{q_buf.GetDeviceBuffer(),
                              k_buf.GetDeviceBuffer(),
@@ -451,6 +465,7 @@ bool run(const ck_tile::ArgParser& arg_parser)
                              hdim_v,
                              nhead,
                              nhead_k,
+                             NUM_SPLITS,
                              scale_s,
                              scale_p,
                              scale_o,
@@ -471,6 +486,8 @@ bool run(const ck_tile::ArgParser& arg_parser)
                              batch_stride_bias,
                              batch_stride_lse,
                              batch_stride_o,
+                             split_stride_lse,
+                             split_stride_o,
                              mask.left,
                              mask.right,
                              static_cast<ck_tile::index_t>(mask.type)};
@@ -515,7 +532,7 @@ bool run(const ck_tile::ArgParser& arg_parser)
     ck_tile::HostTensor<LSEDataType> lse_host_ref(lse_host.get_lengths());
     ck_tile::HostTensor<ODataType> o_host_ref(o_host.get_lengths());
 
-    auto o_host_ref_view_bhsd = (o_perm ? o_host_ref : o_host_ref.transpose(1, 2));
+    auto o_host_ref_view_bhsd = (o_perm ? o_host_ref : o_host_ref.transpose(2, 3));
 
     // prepare optional parameters for reference function
     std::optional<ck_tile::HostTensorView<const BiasDataType>> opt_bias_host_view_bhss;
@@ -523,19 +540,24 @@ bool run(const ck_tile::ArgParser& arg_parser)
     std::optional<ck_tile::span<const int32_t>> opt_seqstart_q;
     std::optional<ck_tile::span<const int32_t>> opt_seqstart_k;
 
+    using Slice = ck_tile::HostTensorSlice;
     if(use_bias)
     {
         opt_bias_host_view_bhss.emplace(bias_host_view_bhss);
     }
     if(store_lse)
     {
-        opt_lse_host_ref_view_bhs.emplace(lse_host_ref);
+        // extract tensor of first split
+        opt_lse_host_ref_view_bhs.emplace(lse_host_ref.index({Slice(0, 0, 1)}).squeeze(0));
     }
     if(mode == mode_enum::group)
     {
         opt_seqstart_q.emplace(seqstart_q_host);
         opt_seqstart_k.emplace(seqstart_k_host);
     }
+
+    // extract tensor of first split
+    o_host_ref_view_bhsd = o_host_ref_view_bhsd.index({Slice(0, 0, 1)}).squeeze(0);
 
     ck_tile::reference_mha_fwd<SaccDataType, SMPLComputeDataType, PDataType, OaccDataType>(
         q_host_view_bhsd,

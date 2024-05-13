@@ -9,6 +9,7 @@
 #include "ck_tile/ops/epilogue.hpp"
 #include "mask.hpp"
 #include <type_traits>
+#include <iostream>
 
 template <typename DataType>
 struct FmhaFwdTypeConfig;
@@ -100,6 +101,7 @@ struct fmha_fwd_args
     ck_tile::index_t hdim_v;
     ck_tile::index_t nhead_q;
     ck_tile::index_t nhead_k;
+    ck_tile::index_t num_splits;
     float scale_s;
     float scale_p;
     float scale_o;
@@ -120,6 +122,8 @@ struct fmha_fwd_args
     ck_tile::index_t batch_stride_bias;
     ck_tile::index_t batch_stride_lse;
     ck_tile::index_t batch_stride_o;
+    ck_tile::index_t split_stride_lse;
+    ck_tile::index_t split_stride_o;
     ck_tile::index_t window_size_left;
     ck_tile::index_t window_size_right;
     ck_tile::index_t mask_type;
@@ -145,6 +149,7 @@ auto fmha_fwd_create_kargs_and_grids(fmha_fwd_args args)
                                          args.hdim_q,
                                          args.hdim_v,
                                          args.nhead_q / args.nhead_k,
+                                         args.num_splits,
                                          args.scale_s,
                                          args.scale_p,
                                          args.scale_o,
@@ -176,6 +181,7 @@ auto fmha_fwd_create_kargs_and_grids(fmha_fwd_args args)
                                          args.hdim_q,
                                          args.hdim_v,
                                          args.nhead_q / args.nhead_k,
+                                         args.num_splits,
                                          args.scale_s,
                                          args.scale_p,
                                          args.scale_o,
@@ -196,13 +202,20 @@ auto fmha_fwd_create_kargs_and_grids(fmha_fwd_args args)
                                          args.batch_stride_bias,
                                          args.batch_stride_lse,
                                          args.batch_stride_o,
+                                         args.split_stride_lse,
+                                         args.split_stride_o,
                                          args.window_size_left,
                                          args.window_size_right,
                                          args.mask_type);
         }
     }();
 
-    dim3 grids = FmhaKernel::GridSize(args.batch, args.nhead_q, args.max_seqlen_q, args.hdim_v);
+    dim3 grids = FmhaKernel::GridSize(
+        args.batch, args.nhead_q, args.max_seqlen_q, args.hdim_v, args.num_splits);
+#if defined(DEBUG_PRINT)
+    std::cout << "[POYENC] grid size: (" << static_cast<int>(grids.x) << ", "
+              << static_cast<int>(grids.y) << ", " << static_cast<int>(grids.z) << ")" << std::endl;
+#endif
     return ck_tile::make_tuple(kargs, grids);
 }
 
