@@ -18,6 +18,7 @@
 #include "ck_tile/host/reference/reference_im2col.hpp"
 #include "ck_tile/host/reference/reference_mha_fwd.hpp"
 #include "ck_tile/host/reference/reference_mha_fwd_splitkv.hpp"
+#include "ck_tile/host/reference/reference_mha_fwd_splitkv_combine.hpp"
 #include "ck_tile/host/reference/reference_reduce.hpp"
 #include "ck_tile/host/reference/reference_softmax.hpp"
 #include "ck_tile/host/stream_config.hpp"

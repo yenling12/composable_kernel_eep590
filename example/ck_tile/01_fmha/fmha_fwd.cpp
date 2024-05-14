@@ -320,19 +320,11 @@ bool run(const ck_tile::ArgParser& arg_parser)
             ? get_lengths(i_perm, 1, 1, shape_seqlen_q, max_seqlen_k)
             : std::array<ck_tile::index_t, 4>{1, 1, 1, 1} /* dummy shape for simplifying code */);
 
-    ck_tile::HostTensor<LSEDataType> lse_acc_host_ref(
-        store_lse ? std::array<ck_tile::index_t, 4>{NUM_SPLITS, shape_batch, nhead, shape_seqlen_q}
-                  : std::array<ck_tile::index_t, 4>{
-                        NUM_SPLITS, 1, 1, 1} /* dummy shape for simplifying code */);
-
     // self define lse data layout as [shape_batch, nhead, shape_seqlen_q]
     ck_tile::HostTensor<LSEDataType> lse_host(
         store_lse ? std::array<ck_tile::index_t, 4>{NUM_SPLITS, shape_batch, nhead, shape_seqlen_q}
                   : std::array<ck_tile::index_t, 4>{
                         NUM_SPLITS, 1, 1, 1} /* dummy shape for simplifying code */);
-
-    ck_tile::HostTensor<OaccDataType> o_acc_host_ref(
-        get_lengths2(o_perm, NUM_SPLITS, shape_batch, nhead, shape_seqlen_q, hdim_v));
 
     ck_tile::HostTensor<ODataType> o_host(
         get_lengths2(o_perm, NUM_SPLITS, shape_batch, nhead, shape_seqlen_q, hdim_v));
@@ -542,9 +534,11 @@ bool run(const ck_tile::ArgParser& arg_parser)
     ck_tile::HostTensor<LSEDataType> lse_host_ref2({shape_batch, nhead, shape_seqlen_q});
     ck_tile::HostTensor<ODataType> o_host_ref(
         get_lengths(o_perm, shape_batch, nhead, shape_seqlen_q, hdim_v));
+    ck_tile::HostTensor<ODataType> o_host_ref2(
+        get_lengths(o_perm, shape_batch, nhead, shape_seqlen_q, hdim_v));
 
-    auto o_acc_host_ref_view_nbhsd = (o_perm ? o_acc_host_ref : o_acc_host_ref.transpose(2, 3));
-    auto o_host_ref_view_bhsd      = (o_perm ? o_host_ref : o_host_ref.transpose(1, 2));
+    auto o_host_ref_view_bhsd  = (o_perm ? o_host_ref : o_host_ref.transpose(1, 2));
+    auto o_host_ref2_view_bhsd = (o_perm ? o_host_ref2 : o_host_ref2.transpose(1, 2));
 
     // prepare optional parameters for reference function
     std::optional<ck_tile::HostTensorView<const BiasDataType>> opt_bias_host_view_bhss;
@@ -584,26 +578,36 @@ bool run(const ck_tile::ArgParser& arg_parser)
         oacc_element_func);
 
     // test
-    ck_tile::reference_mha_fwd_splitkv<SaccDataType, SMPLComputeDataType, PDataType, OaccDataType>(
+    ck_tile::HostTensor<LSEDataType> lse_acc_host_ref(
+        {NUM_SPLITS, shape_batch, nhead, shape_seqlen_q});
+    ck_tile::HostTensor<OaccDataType> o_acc_host_ref(
+        get_lengths2(o_perm, NUM_SPLITS, shape_batch, nhead, shape_seqlen_q, hdim_v));
+
+    auto o_acc_host_ref_view_bhsd = (o_perm ? o_acc_host_ref : o_acc_host_ref.transpose(2, 3));
+
+    ck_tile::reference_mha_fwd_splitkv<SaccDataType, SMPLComputeDataType, PDataType>(
         q_host_view_bhsd,
         k_host_view_bhsd,
         v_host_view_bhsd,
         opt_bias_host_view_bhss,
         lse_acc_host_ref,
-        o_acc_host_ref_view_nbhsd,
-        lse_host_ref2,
+        o_acc_host_ref_view_bhsd,
         nhead_k,
         scale_s,
         mask,
         opt_seqstart_q,
         opt_seqstart_k,
-        p_compute_element_func,
-        oacc_element_func);
+        p_compute_element_func);
+    ck_tile::reference_mha_fwd_splitkv_combine(lse_acc_host_ref,
+                                               o_acc_host_ref_view_bhsd,
+                                               lse_host_ref2,
+                                               o_host_ref2_view_bhsd,
+                                               opt_seqstart_q,
+                                               oacc_element_func);
 
     auto [rtol, atol] = get_elimit<DataType>(init_method);
     bool pass         = true;
     {
-
         bool cur_pass = ck_tile::check_err(
             o_host, o_acc_host_ref, std::string("OUT Error: Incorrect results!"), rtol, atol);
         pass &= cur_pass;
