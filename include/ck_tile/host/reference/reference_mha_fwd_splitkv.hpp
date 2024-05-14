@@ -23,8 +23,9 @@ template <typename SaccDataType,
           typename KeyTensor,
           typename ValueTensor,
           typename BiasTensor,
+          typename LSEAccTensor,
+          typename OutputAccTensor,
           typename LSETensor,
-          typename OutputTensor,
           typename MaskingType,
           typename PComputeElementFunction = identity,
           typename OAccElementFunction     = identity>
@@ -33,8 +34,9 @@ reference_mha_fwd_splitkv(const QueryTensor& query_bhsd,
                           const KeyTensor& key_bhsd,
                           const ValueTensor& value_bhsd,
                           std::optional<BiasTensor> bias_bhss,
-                          std::optional<LSETensor> lse_nbhs,
-                          OutputTensor& output_nbhsd,
+                          LSEAccTensor& lse_acc_nbhs,
+                          OutputAccTensor& output_acc_nbhsd,
+                          LSETensor& lse_bhs,
                           index_t nhead_k,
                           float scale_s,
                           const MaskingType& mask,
@@ -71,10 +73,10 @@ reference_mha_fwd_splitkv(const QueryTensor& query_bhsd,
         const index_t key_end     = key_start + real_seqlen_k;
         const index_t nr          = nhead / nhead_k;
 
-        for(index_t split = 0; split < NUM_SPLITS; ++split)
+        for(index_t i_split = 0; i_split < NUM_SPLITS; ++i_split)
         {
             index_t num_key_per_split = real_seqlen_k / NUM_SPLITS;
-            index_t split_key_start   = key_start + split * num_key_per_split;
+            index_t split_key_start   = key_start + i_split * num_key_per_split;
             index_t split_key_end     = split_key_start + num_key_per_split;
 
             // clang-format off
@@ -91,8 +93,8 @@ reference_mha_fwd_splitkv(const QueryTensor& query_bhsd,
                     .index({Slice(0, batch_start, batch_end), Slice(3, split_key_start, split_key_end)})
                     .squeeze(0)
                     .repeat({nr, 1, 1});
-            auto output_view_hsd = output_nbhsd
-                    .index({Slice(0, split, split + 1),
+            auto output_acc_view_hsd = output_acc_nbhsd
+                    .index({Slice(0, i_split, i_split + 1),
                             Slice(1, batch_start, batch_end), Slice(3, query_start, query_end)})
                     .squeeze(0)
                     .squeeze(0);
@@ -166,28 +168,97 @@ reference_mha_fwd_splitkv(const QueryTensor& query_bhsd,
                             mask.type == mask_enum::mask_top_left));
             }
 
-            if(lse_nbhs.has_value())
+            // clang-format off
+            auto lse_acc_view_hs = lse_acc_nbhs
+                    .index({Slice(0, i_split, i_split + 1),
+                            Slice(1, batch_start, batch_end), Slice(3, query_start, query_end)})
+                    .squeeze(0)
+                    .squeeze(0);
+            // clang-format on
+
+            reference_batched_softmax<SMPLComputeDataType>(
+                s_hss, p_hss, p_compute_element_func, lse_acc_view_hs);
+
+            reference_batched_gemm<OaccDataType>(
+                p_hss, value_hsd, output_acc_view_hsd, identity{}, identity{}, oacc_element_func);
+        }
+    }
+
+    // combine tensors
+    for(index_t b = 0; b < batch; ++b)
+    {
+        const index_t real_seqlen_q =
+            (is_batch_mode ? query_bhsd.get_length(2) : (*seqstart_q)[b + 1] - (*seqstart_q)[b]);
+
+        // adjust matrix index according to the mode
+        const index_t batch_start = (is_batch_mode ? b : 0);
+        const index_t batch_end   = batch_start + 1;
+        const index_t query_start = (is_batch_mode ? 0 : (*seqstart_q)[b]);
+        const index_t query_end   = query_start + real_seqlen_q;
+
+        using LSEDataType = ck_tile::tensor_value_t<LSEAccTensor>;
+
+        using Slice = HostTensorSlice;
+        // clang-format off
+        auto lse_view_hs = lse_bhs
+                .index({Slice(0, batch_start, batch_end), Slice(2, query_start, query_end)})
+                .squeeze(0);
+        // clang-format on
+
+        auto combine = [&](auto i_head) {
+            ck_tile::HostTensor<LSEDataType> lse_max({real_seqlen_q});
+            lse_max.for_each(
+                [&](auto& self, auto i) { self(i) = -ck_tile::numeric<LSEDataType>::infinity(); });
+
+            for(index_t i_split = 0; i_split < NUM_SPLITS; ++i_split)
             {
                 // clang-format off
-                auto lse_view_hs = (*lse_nbhs)
-                        .index({Slice(0, split, split + 1),
-                                Slice(1, batch_start, batch_end), Slice(3, query_start, query_end)})
+                auto lse_acc_view_s = lse_acc_nbhs
+                        .index({Slice(0, i_split, i_split + 1),
+                                Slice(1, batch_start, batch_end), 
+                                Slice(2, i_head, i_head + 1),
+                                Slice(3, query_start, query_end)})
+                        .squeeze(0)
                         .squeeze(0)
                         .squeeze(0);
                 // clang-format on
-
-                reference_batched_softmax<SMPLComputeDataType>(
-                    s_hss, p_hss, p_compute_element_func, lse_view_hs);
+                for(index_t is = 0; is < real_seqlen_q; ++is)
+                {
+                    if(lse_max(is) < lse_acc_view_s(is))
+                    {
+                        lse_max(is) = lse_acc_view_s(is);
+                    }
+                }
             }
-            else
+
+            ck_tile::HostTensor<LSEDataType> lse_sum({real_seqlen_q});
+            lse_sum.for_each([&](auto& self, auto i) { self(i) = 0; });
+
+            for(index_t i_split = 0; i_split < NUM_SPLITS; ++i_split)
             {
-                reference_batched_softmax<SMPLComputeDataType>(
-                    s_hss, p_hss, p_compute_element_func);
+                // clang-format off
+                auto lse_acc_view_s = lse_acc_nbhs
+                        .index({Slice(0, i_split, i_split + 1),
+                                Slice(1, batch_start, batch_end), 
+                                Slice(2, i_head, i_head + 1),
+                                Slice(3, query_start, query_end)})
+                        .squeeze(0)
+                        .squeeze(0)
+                        .squeeze(0);
+                // clang-format on
+                for(index_t is = 0; is < real_seqlen_q; ++is)
+                {
+                    lse_sum(is) += ck_tile::exp(lse_acc_view_s(is) - lse_max(is));
+                }
             }
 
-            reference_batched_gemm<OaccDataType>(
-                p_hss, value_hsd, output_view_hsd, identity{}, identity{}, oacc_element_func);
-        }
+            for(index_t is = 0; is < real_seqlen_q; ++is)
+            {
+                lse_view_hs(i_head, is) = logf(lse_sum(is)) + lse_max(is);
+            }
+        };
+
+        make_ParallelTensorFunctor(combine, nhead)(std::thread::hardware_concurrency());
     }
 }
 
