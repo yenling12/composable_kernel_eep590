@@ -104,7 +104,7 @@ CK_TILE_HOST void reference_mha_fwd_splitkv_combine(
 
             for(index_t is = 0; is < real_seqlen_q; ++is)
             {
-                const LSEAccDataType lse_logsum = logf(lse_sum(is)) + lse_max(is);
+                const LSEAccDataType lse_logsum = ck_tile::log(lse_sum(is)) + lse_max(is);
                 lse_view_hs(i_head, is)         = ck_tile::type_convert<LSEDataType>(lse_logsum);
             }
         };
