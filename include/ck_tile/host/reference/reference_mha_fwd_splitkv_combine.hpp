@@ -60,6 +60,8 @@ CK_TILE_HOST void reference_mha_fwd_splitkv_combine(
                 .squeeze(0);
         // clang-format on
 
+        output_view_hsd.for_each([&](auto& self, auto i) { self(i) = 0; });
+
         ck_tile::HostTensor<LSEAccDataType> lse_logsum_hs({nhead, real_seqlen_q});
 
         const auto combine = [&](auto i_head) {
