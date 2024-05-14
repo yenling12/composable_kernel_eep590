@@ -55,19 +55,21 @@ reference_mha_fwd(const QueryTensor& query_bhsd,
     using BiasDataType  = tensor_value_t<BiasTensor>;
 
     // verify result individually for each batch/group
-    for(index_t b = 0; b < batch; ++b)
+    for(index_t i_batch = 0; i_batch < batch; ++i_batch)
     {
         const index_t real_seqlen_q =
-            (is_batch_mode ? query_bhsd.get_length(2) : (*seqstart_q)[b + 1] - (*seqstart_q)[b]);
+            (is_batch_mode ? query_bhsd.get_length(2)
+                           : (*seqstart_q)[i_batch + 1] - (*seqstart_q)[i_batch]);
         const index_t real_seqlen_k =
-            (is_batch_mode ? key_bhsd.get_length(2) : (*seqstart_k)[b + 1] - (*seqstart_k)[b]);
+            (is_batch_mode ? key_bhsd.get_length(2)
+                           : (*seqstart_k)[i_batch + 1] - (*seqstart_k)[i_batch]);
 
         // adjust matrix index according to the mode
-        const index_t batch_start = (is_batch_mode ? b : 0);
+        const index_t batch_start = (is_batch_mode ? i_batch : 0);
         const index_t batch_end   = batch_start + 1;
-        const index_t query_start = (is_batch_mode ? 0 : (*seqstart_q)[b]);
+        const index_t query_start = (is_batch_mode ? 0 : (*seqstart_q)[i_batch]);
         const index_t query_end   = query_start + real_seqlen_q;
-        const index_t key_start   = (is_batch_mode ? 0 : (*seqstart_k)[b]);
+        const index_t key_start   = (is_batch_mode ? 0 : (*seqstart_k)[i_batch]);
         const index_t key_end     = key_start + real_seqlen_k;
         const index_t nr          = nhead / nhead_k;
 

@@ -608,8 +608,14 @@ bool run(const ck_tile::ArgParser& arg_parser)
     auto [rtol, atol] = get_elimit<DataType>(init_method);
     bool pass         = true;
     {
-        bool cur_pass = ck_tile::check_err(
-            o_host, o_acc_host_ref, std::string("OUT Error: Incorrect results!"), rtol, atol);
+        bool cur_pass =
+            ck_tile::check_err(o_host,
+                               o_acc_host_ref,
+                               std::string("OUT Acc Error: Incorrect results!"),
+                               rtol,
+                               atol) &&
+            ck_tile::check_err(
+                o_host_ref2, o_host_ref, std::string("OUT Error: Incorrect results!"), rtol, atol);
         pass &= cur_pass;
     }
 
