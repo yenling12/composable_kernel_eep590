@@ -22,7 +22,7 @@ template <typename LSEAccTensor,
           typename OAccElementFunction = identity>
 CK_TILE_HOST void reference_mha_fwd_splitkv_combine(
     const LSEAccTensor& lse_acc_nbhs,
-    const OutputAccTensor& output_acc_nbhsd,
+    OutputAccTensor output_acc_nbhsd,
     LSETensor& lse_bhs,
     OutputTensor& output_bhsd,
     std::optional<span<const int32_t>> seqstart_q, // only used in group mode
@@ -117,11 +117,10 @@ CK_TILE_HOST void reference_mha_fwd_splitkv_combine(
                     ck_tile::type_convert<LSEDataType>(lse_logsum_hs(i_head, i_s));
             }
 
-            for(index_t i_split = 0; i_split < 1; ++i_split)
             {
                 // clang-format off
                 auto lse_acc_view_s = lse_acc_nbhs
-                        .index({Slice(0, i_split, i_split + 1),
+                        .index({Slice(0, /*i_split=*/0, 1),
                                 Slice(1, batch_start, batch_end), 
                                 Slice(2, i_head, i_head + 1),
                                 Slice(3, query_start, query_end)})
@@ -136,8 +135,8 @@ CK_TILE_HOST void reference_mha_fwd_splitkv_combine(
                         ck_tile::exp(lse_acc_view_s(i_s) - lse_logsum_hs(i_head, i_s));
                     for(index_t i_d = 0; i_d < hdim_v; ++i_d)
                     {
-                        output_view_hsd(i_head, i_s, i_d) =
-                            lse_scale * output_acc_nbhsd(i_split, i_batch, i_head, i_s, i_d);
+                        output_acc_nbhsd(/*i_split=*/0, i_batch, i_head, i_s, i_d) =
+                            lse_scale * output_acc_nbhsd(/*i_split=*/0, i_batch, i_head, i_s, i_d);
                     }
                 }
             }
@@ -161,9 +160,18 @@ CK_TILE_HOST void reference_mha_fwd_splitkv_combine(
                         ck_tile::exp(lse_acc_view_s(i_s) - lse_logsum_hs(i_head, i_s));
                     for(index_t i_d = 0; i_d < hdim_v; ++i_d)
                     {
-                        output_view_hsd(i_head, i_s, i_d) +=
+                        output_acc_nbhsd(/*i_split=*/0, i_batch, i_head, i_s, i_d) +=
                             lse_scale * output_acc_nbhsd(i_split, i_batch, i_head, i_s, i_d);
                     }
+                }
+            }
+
+            for(index_t i_s = 0; i_s < real_seqlen_q; ++i_s)
+            {
+                for(index_t i_d = 0; i_d < hdim_v; ++i_d)
+                {
+                    output_view_hsd(i_head, i_s, i_d) = oacc_element_func(
+                        output_acc_nbhsd(/*i_split=*/0, i_batch, i_head, i_s, i_d));
                 }
             }
         };
