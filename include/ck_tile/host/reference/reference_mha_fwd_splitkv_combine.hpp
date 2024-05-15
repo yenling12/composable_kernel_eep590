@@ -60,8 +60,6 @@ CK_TILE_HOST void reference_mha_fwd_splitkv_combine(
                 .squeeze(0);
         // clang-format on
 
-        output_view_hsd.for_each([&](auto& self, auto i) { self(i) = 0; });
-
         ck_tile::HostTensor<LSEAccDataType> lse_logsum_hs({nhead, real_seqlen_q});
 
         const auto combine = [&](auto i_head) {
@@ -119,7 +117,32 @@ CK_TILE_HOST void reference_mha_fwd_splitkv_combine(
                     ck_tile::type_convert<LSEDataType>(lse_logsum_hs(i_head, i_s));
             }
 
-            for(index_t i_split = 0; i_split < num_splits; ++i_split)
+            for(index_t i_split = 0; i_split < 1; ++i_split)
+            {
+                // clang-format off
+                auto lse_acc_view_s = lse_acc_nbhs
+                        .index({Slice(0, i_split, i_split + 1),
+                                Slice(1, batch_start, batch_end), 
+                                Slice(2, i_head, i_head + 1),
+                                Slice(3, query_start, query_end)})
+                        .squeeze(0)
+                        .squeeze(0)
+                        .squeeze(0);
+                // clang-format on
+
+                for(index_t i_s = 0; i_s < real_seqlen_q; ++i_s)
+                {
+                    const LSEAccDataType lse_scale =
+                        ck_tile::exp(lse_acc_view_s(i_s) - lse_logsum_hs(i_head, i_s));
+                    for(index_t i_d = 0; i_d < hdim_v; ++i_d)
+                    {
+                        output_view_hsd(i_head, i_s, i_d) =
+                            lse_scale * output_acc_nbhsd(i_split, i_batch, i_head, i_s, i_d);
+                    }
+                }
+            }
+
+            for(index_t i_split = 1; i_split < num_splits; ++i_split)
             {
                 // clang-format off
                 auto lse_acc_view_s = lse_acc_nbhs
