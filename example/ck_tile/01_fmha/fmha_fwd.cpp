@@ -598,6 +598,20 @@ bool run(const ck_tile::ArgParser& arg_parser)
         opt_seqstart_q,
         opt_seqstart_k,
         p_compute_element_func);
+
+    auto [rtol, atol] = get_elimit<DataType>(init_method);
+    if(!ck_tile::check_err(
+           o_host, o_acc_host_ref, std::string("OUT Acc Error: Incorrect results!"), rtol, atol) ||
+       !ck_tile::check_err(lse_host,
+                           lse_acc_host_ref,
+                           "LSE Acc Error: Incorrect results!",
+                           rtol,
+                           atol,
+                           /* allow_infinity_ref = */ true))
+    {
+        return false;
+    }
+
     ck_tile::reference_mha_fwd_splitkv_combine(lse_acc_host_ref,
                                                o_acc_host_ref_view_bhsd,
                                                lse_host_ref2,
@@ -605,29 +619,16 @@ bool run(const ck_tile::ArgParser& arg_parser)
                                                opt_seqstart_q,
                                                oacc_element_func);
 
-    auto [rtol, atol] = get_elimit<DataType>(init_method);
-    bool pass         = true;
+    bool pass = true;
     {
-        bool cur_pass =
-            ck_tile::check_err(o_host,
-                               o_acc_host_ref,
-                               std::string("OUT Acc Error: Incorrect results!"),
-                               rtol,
-                               atol) &&
-            ck_tile::check_err(
-                o_host_ref2, o_host_ref, std::string("OUT Error: Incorrect results!"), rtol, atol);
+        bool cur_pass = ck_tile::check_err(
+            o_host_ref2, o_host_ref, std::string("OUT Error: Incorrect results!"), rtol, atol);
         pass &= cur_pass;
     }
 
     if(pass && store_lse)
     {
-        bool cur_pass = ck_tile::check_err(lse_host,
-                                           lse_acc_host_ref,
-                                           "LSE Acc Error: Incorrect results!",
-                                           rtol,
-                                           atol,
-                                           /* allow_infinity_ref = */ true) &&
-                        ck_tile::check_err(lse_host_ref2,
+        bool cur_pass = ck_tile::check_err(lse_host_ref2,
                                            lse_host_ref,
                                            "LSE Error: Incorrect results!",
                                            rtol,
