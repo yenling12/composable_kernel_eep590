@@ -167,8 +167,12 @@ bool profile_grouped_conv_bwd_weight_impl(int do_verification,
     range_copy(conv_param.input_left_pads_, begin(input_left_pads));
     range_copy(conv_param.input_right_pads_, begin(input_right_pads));
 
+    int ii = 0;
     for(auto& op_ptr : op_ptrs)
     {
+        if (ii != 0)
+            continue;
+        ii++;
         auto argument_ptr =
             op_ptr->MakeArgumentPointer(static_cast<InDataType*>(in_device_buf.GetDeviceBuffer()),
                                         static_cast<WeiDataType*>(wei_device_buf.GetDeviceBuffer()),

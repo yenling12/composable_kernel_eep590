@@ -272,7 +272,7 @@ struct GridwiseGemmDl_km_kn_mn_v1r3
 
         // divide block work by [M, N]
         const auto c_m0_n0_block_cluster_idx =
-            block_2_ctile_map.CalculateBottomIndex(make_multi_index(get_block_1d_id()));
+            block_2_ctile_map.CalculateBottomIndex(make_multi_index(static_cast<index_t>(blockIdx.z)/*get_block_1d_id()*/));
 
         // HACK: this forces index data into SGPR
         const index_t im0 = __builtin_amdgcn_readfirstlane(c_m0_n0_block_cluster_idx[I0]);
@@ -799,7 +799,7 @@ struct GridwiseGemmDl_bkm_bkn_mn_v1r3
 
         // divide block work by [M, N]
         const auto block_work_idx =
-            c_block_cluster_adaptor.CalculateBottomIndex(make_multi_index(get_block_1d_id()));
+            c_block_cluster_adaptor.CalculateBottomIndex(make_multi_index(static_cast<index_t>(blockIdx.z)/*get_block_1d_id()*/));
 
         const index_t k_batch_id = block_work_idx[I0];
 

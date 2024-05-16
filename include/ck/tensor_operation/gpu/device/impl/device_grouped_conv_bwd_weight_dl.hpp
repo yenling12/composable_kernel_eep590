@@ -13,6 +13,7 @@
 #include "ck/tensor_operation/gpu/device/tensor_layout.hpp"
 #include "ck/tensor_operation/gpu/device/device_grouped_conv_bwd_weight.hpp"
 #include "ck/tensor_operation/gpu/device/impl/device_grouped_conv_utils.hpp"
+#include "ck/tensor_operation/gpu/grid/gridwise_elementwise_2d.hpp"
 #include "ck/tensor_operation/gpu/device/convolution_backward_weight_specialization.hpp"
 #include "ck/tensor_operation/gpu/grid/gridwise_gemm_dl_v1r3.hpp"
 #include "ck/tensor_operation/gpu/device/matrix_padder.hpp"
@@ -51,8 +52,8 @@ __global__ void
 #if(!defined(__HIP_DEVICE_COMPILE__) || defined(__gfx906__) || defined(__gfx103__) || \
     defined(__gfx90a__) || defined(__gfx908__) || defined(__gfx94__) || defined(__gfx11__))
     const index_t num_blocks_per_batch =
-        __builtin_amdgcn_readfirstlane(get_grid_size() / batch_count);
-    const index_t g_idx = __builtin_amdgcn_readfirstlane(get_block_1d_id() / num_blocks_per_batch);
+        __builtin_amdgcn_readfirstlane(gridDim.x / batch_count);
+    const index_t g_idx = __builtin_amdgcn_readfirstlane(blockIdx.x / num_blocks_per_batch);
 
     const long_index_t a_batch_offset = __builtin_amdgcn_readfirstlane(
         static_cast<long_index_t>(compute_ptr_offset_of_batch.GetAPtrOffset(g_idx)));
@@ -765,8 +766,8 @@ struct DeviceGroupedConvBwdWeight_Dl : public DeviceGroupedConvBwdWeight<NDimSpa
         GridwiseGemmDl_bkm_bkn_mn_v1r3<BlockSize,
                                        ADataType,
                                        AccDataType,
-                                       CDataType,
-                                       InMemoryDataOperationEnum::Set,
+                                       AccDataType,
+                                       InMemoryDataOperationEnum::AtomicAdd,
                                        AGridDesc_B_K0_M_K1,
                                        BGridDesc_B_K0_N_K1,
                                        CGridDesc_M_N,
@@ -796,6 +797,30 @@ struct DeviceGroupedConvBwdWeight_Dl : public DeviceGroupedConvBwdWeight<NDimSpa
                                        CThreadTransferSrcDstAccessOrder,
                                        CThreadTransferSrcDstVectorDim,
                                        CThreadTransferDstScalarPerVector>;
+
+    using Block2TileMapElementwise = BlockToCTileMap_M00_N0_M01Adapt<MPerBlock, NPerBlock>;
+    static constexpr index_t ClusterLengthMPerBlock =
+        ABlockTransferThreadClusterLengths_K0_M0_M1_K1::At(3);
+    static constexpr index_t ClusterLengthNPerBlock =
+        BBlockTransferThreadClusterLengths_K0_N0_N1_K1::At(3);
+
+    using GridwiseElementwise =
+        GridwiseElementwise<Tuple<CGridDesc_M_N>,
+                            Tuple<CGridDesc_M_N>,
+                            Tuple<const AccDataType*>,
+                            Tuple<CDataType*>,
+                            Block2TileMapElementwise,
+                            element_wise::PassThrough,
+                            BlockSize,
+                            MPerBlock,
+                            NPerBlock,
+                            BlockSize /8 ,
+                            8,
+                            Sequence<0, 1>,
+                            Sequence<CThreadTransferDstScalarPerVector>,
+                            Sequence<CThreadTransferDstScalarPerVector>,
+                            I1,
+                            I1>;
 
     // Argument
     using AGridDesc_B_K0_M0_M1_K1 =
@@ -876,10 +901,18 @@ struct DeviceGroupedConvBwdWeight_Dl : public DeviceGroupedConvBwdWeight<NDimSpa
             block_2_ctile_map_ =
                 GridwiseGemm::MakeCBlockClusterAdaptor(c_grid_desc_m_n_, M01, N01, k_batch_);
 
+            elementwise_block_2_ctile_map_ = Block2TileMapElementwise{
+                c_grid_desc_m_n_.GetLength(I0), c_grid_desc_m_n_.GetLength(I1)};
+
             // A/B/C Batch Stride
             compute_ptr_offset_of_batch_.BatchStrideA_ = e_g_n_k_wos_strides[I0];
             compute_ptr_offset_of_batch_.BatchStrideB_ = a_g_n_c_wis_strides[I0];
             compute_ptr_offset_of_batch_.BatchStrideC_ = b_g_k_c_xs_strides[I0];
+        }
+
+        std::size_t GetWorkspaceSizeBytes() const
+        {
+            return sizeof(AccDataType) * c_grid_desc_m_n_.GetElementSpaceSize() * Conv_G_;
         }
 
         const ADataType* p_a_grid_;
@@ -896,6 +929,7 @@ struct DeviceGroupedConvBwdWeight_Dl : public DeviceGroupedConvBwdWeight<NDimSpa
 
         // DefaultBlock2CTileMap block_2_ctile_map_;
         Block2CTileMap block_2_ctile_map_;
+        Block2TileMapElementwise elementwise_block_2_ctile_map_;
 
         // for computing batch offset
         ComputePtrOffsetOfStridedBatch<> compute_ptr_offset_of_batch_;
@@ -954,18 +988,25 @@ struct DeviceGroupedConvBwdWeight_Dl : public DeviceGroupedConvBwdWeight<NDimSpa
                     "wrong! GridwiseGemm GridwiseGemmDl_bkm_bkn_mn_v1r3 has invalid setting");
             }
 
-            const index_t grid_size =
-                arg.block_2_ctile_map_.CalculateGridSize(arg.c_grid_desc_m_n_) * arg.Conv_G_;
 
             auto launch_kernel = [&](auto has_main_k_block_loop,
                                      auto has_double_tail_k_block_loop) {
+                const index_t grid_size =
+                    arg.block_2_ctile_map_.CalculateGridSize(arg.c_grid_desc_m_n_);// * arg.Conv_G_;
+                AccDataType* p_c_grid = type_convert<AccDataType*>(arg.p_workspace_);
+
+                auto preprocess = [&]() {
+                    hip_check_error(hipMemsetAsync(
+                        p_c_grid, 0, arg.GetWorkspaceSizeBytes(), stream_config.stream_id_));
+                };
+
                 constexpr bool has_main_loop   = has_main_k_block_loop.value;
                 constexpr bool has_double_loop = has_double_tail_k_block_loop.value;
 
                 const auto kernel = kernel_batched_gemm_dlops_bwd_weight<
                     GridwiseGemm,
                     ADataType, // TODO: distiguish A/B datatype
-                    CDataType,
+                    AccDataType,
                     remove_reference_t<DeviceOp::AGridDesc_B_K0_M0_M1_K1>,
                     remove_reference_t<DeviceOp::BGridDesc_B_K0_N0_N1_K1>,
                     remove_reference_t<DeviceOp::CGridDesc_M0_M10_M11_N0_N10_N11>,
@@ -974,14 +1015,15 @@ struct DeviceGroupedConvBwdWeight_Dl : public DeviceGroupedConvBwdWeight<NDimSpa
                     has_main_loop,
                     has_double_loop>;
 
-                return launch_and_time_kernel(stream_config,
+                return launch_and_time_kernel_with_preprocess(stream_config,
+                                                preprocess,
                                               kernel,
-                                              dim3(grid_size),
+                                              dim3(arg.Conv_G_, 1, grid_size),
                                               dim3(BlockSize),
                                               0,
                                               arg.p_a_grid_,
                                               arg.p_b_grid_,
-                                              arg.p_c_grid_,
+                                              p_c_grid,
                                               arg.Conv_G_,
                                               arg.a_grid_desc_kbatch_k0_m0_m1_k1_,
                                               arg.b_grid_desc_kbatch_k0_n0_n1_k1_,
@@ -990,31 +1032,73 @@ struct DeviceGroupedConvBwdWeight_Dl : public DeviceGroupedConvBwdWeight<NDimSpa
                                               arg.compute_ptr_offset_of_batch_);
             };
 
+
+            auto launch_elementwise_kernel = [&]() {
+                const AccDataType* p_c_grid = type_convert<const AccDataType*>(arg.p_workspace_);
+                const index_t grid_size =
+                    arg.elementwise_block_2_ctile_map_.CalculateGridSize(arg.c_grid_desc_m_n_) *
+                    arg.Conv_G_;
+
+                std::array<index_t, I1> in_out_batch_strides = {
+                    arg.compute_ptr_offset_of_batch_.BatchStrideC_};
+
+                const auto kernel = kernel_batched_elementwise<GridwiseElementwise,
+                                                               ck::Tuple<CGridDesc_M_N>,
+                                                               ck::Tuple<CGridDesc_M_N>,
+                                                               ck::Tuple<const AccDataType*>,
+                                                               ck::Tuple<CDataType*>,
+                                                               Block2TileMapElementwise,
+                                                               CElementwiseOperation,
+                                                               I1,
+                                                               I1>;
+
+                return launch_and_time_kernel(stream_config,
+                                              kernel,
+                                              dim3(grid_size),
+                                              dim3(BlockSize),
+                                              0,
+                                              make_tuple(arg.c_grid_desc_m_n_),
+                                              make_tuple(arg.c_grid_desc_m_n_),
+                                              make_tuple(p_c_grid),
+                                              make_tuple(arg.p_c_grid_),
+                                              arg.elementwise_block_2_ctile_map_,
+                                              arg.c_element_op_,
+                                              arg.Conv_G_,
+                                              in_out_batch_strides,
+                                              in_out_batch_strides);
+            };
+
             const auto K0                    = arg.a_grid_desc_kbatch_k0_m0_m1_k1_.GetLength(I1);
             const bool has_main_k_block_loop = GridwiseGemm::CalculateHasMainKBlockLoop(K0);
             const bool has_double_tail_k_block_loop =
                 GridwiseGemm::CalculateHasDoubleTailKBlockLoop(K0);
 
+            float avg = 0.f;
             if(has_main_k_block_loop && has_double_tail_k_block_loop)
             {
-                return launch_kernel(integral_constant<bool, true>{},
+                avg = launch_kernel(integral_constant<bool, true>{},
                                      integral_constant<bool, true>{});
             }
             else if(has_main_k_block_loop && !has_double_tail_k_block_loop)
             {
-                return launch_kernel(integral_constant<bool, true>{},
+                avg = launch_kernel(integral_constant<bool, true>{},
                                      integral_constant<bool, false>{});
             }
             else if(!has_main_k_block_loop && has_double_tail_k_block_loop)
             {
-                return launch_kernel(integral_constant<bool, false>{},
+                avg = launch_kernel(integral_constant<bool, false>{},
                                      integral_constant<bool, true>{});
             }
             else
             {
-                return launch_kernel(integral_constant<bool, false>{},
+                avg = launch_kernel(integral_constant<bool, false>{},
                                      integral_constant<bool, false>{});
             }
+
+
+                // (void)(launch_elementwise_kernel);
+            avg += launch_elementwise_kernel();
+            return avg;
         }
 
         float Run(const BaseArgument* p_arg,
@@ -1032,11 +1116,6 @@ struct DeviceGroupedConvBwdWeight_Dl : public DeviceGroupedConvBwdWeight<NDimSpa
 
     static bool IsSupportedArgument(const Argument& arg)
     {
-
-        // DL version only supports split_k equal to 1
-        if(arg.k_batch_ != 1)
-            return false;
-
         if constexpr(!((NDimSpatial == 1 &&
                         (is_NWGK_GKXC_NWGC<InLayout, WeiLayout, OutLayout>() ||
                          is_GNWK_GKXC_GNWC<InLayout, WeiLayout, OutLayout>())) ||
@@ -1049,6 +1128,14 @@ struct DeviceGroupedConvBwdWeight_Dl : public DeviceGroupedConvBwdWeight<NDimSpa
         {
             return false;
         }
+
+        if constexpr(ConvBackwardWeightSpecialization ==
+                     ConvolutionBackwardWeightSpecialization::Filter1x1Stride1Pad0) {
+                        return false;
+                     }
+                     (void)(arg);
+                     return true;
+
 
         if constexpr(ConvBackwardWeightSpecialization ==
                      ConvolutionBackwardWeightSpecialization::Filter1x1Stride1Pad0)
@@ -1226,6 +1313,34 @@ struct DeviceGroupedConvBwdWeight_Dl : public DeviceGroupedConvBwdWeight<NDimSpa
 
         return str.str();
     }
+    size_t GetWorkSpaceSize(const BaseArgument* p_arg) const override
+    {
+        auto arg = dynamic_cast<const Argument*>(p_arg);
+        if(arg)
+        {
+            return arg->GetWorkspaceSizeBytes();
+        }
+        else
+            throw std::runtime_error(
+                "The argument pointer is not an object of "
+                "DeviceGroupedConvBwdWeightTwoStage_Xdl_CShuffle::Argument structure!");
+    }
+
+    void SetWorkSpacePointer(BaseArgument* p_arg,
+                             void* p_workspace,
+                             const StreamConfig& = StreamConfig{}) const override
+    {
+        auto p_arg_ = dynamic_cast<Argument*>(p_arg);
+        if(p_arg_)
+        {
+            p_arg_->p_workspace_ = p_workspace;
+        }
+        else
+            throw std::runtime_error(
+                "The argument pointer is not an object of "
+                "DeviceGroupedConvBwdWeightTwoStage_Xdl_CShuffle::Argument structure!");
+    }
+
 };
 
 } // namespace device
