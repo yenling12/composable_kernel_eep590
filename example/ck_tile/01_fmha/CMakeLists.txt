@@ -44,12 +44,14 @@ set(EXAMPLE_FMHA_FWD_COMPILE_OPTIONS)
 #       ... because they are auto-generated
 if(FMHA_FWD_FAST_EXP2)
   list(APPEND EXAMPLE_FMHA_FWD_COMPILE_OPTIONS 
-    -g
-    -DNUM_SPLITS=1
-    -DDEBUG_PRINT
+    # -g
+    --save-temps
+    -Wno-gnu-line-marker
+    -DNUM_SPLITS=16
+    # -DDEBUG_PRINT
     -Wno-unused-parameter
     -Wno-unused-variable
-    -Wno-undefined-func-template -DCK_TILE_FMHA_FWD_FAST_EXP2=1 -fgpu-flush-denormals-to-zero)
+    -Wno-undefined-func-template -DCK_TILE_FMHA_FWD_FAST_EXP2=0 -fgpu-flush-denormals-to-zero)
 else()
 	list(APPEND EXAMPLE_FMHA_FWD_COMPILE_OPTIONS -Wno-undefined-func-template -DCK_TILE_FMHA_FWD_FAST_EXP2=0)
 endif()

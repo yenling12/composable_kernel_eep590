@@ -373,7 +373,7 @@ struct BlockFmhaPipelineQRKSVS
                         });
                 }
             }
-
+            static_assert(decltype(s_acc.thread_buf_)::size() == 64);
             const auto s = cast_tile<SMPLComputeDataType>(s_acc); // S{j}
             auto m_local = block_tile_reduce<SMPLComputeDataType>(
                 s,

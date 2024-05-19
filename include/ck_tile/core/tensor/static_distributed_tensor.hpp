@@ -187,4 +187,23 @@ set_tile_if(static_distributed_tensor<DataType, StaticTileDistribution>& out_ten
     });
 }
 
+template <typename DataType, typename StaticTileDistribution, typename Handler>
+CK_TILE_HOST_DEVICE void
+for_each(static_distributed_tensor<DataType, StaticTileDistribution>& out_tensor,
+         DataType value,
+         Handler handler)
+{
+    constexpr auto out_spans =
+        static_distributed_tensor<DataType, StaticTileDistribution>::get_distributed_spans();
+    sweep_tile_span(out_spans[number<0>{}], [&](auto idx0) {
+        sweep_tile_span(out_spans[number<1>{}], [&](auto idx1) {
+            constexpr auto distributed_indices = make_tuple(idx0, idx1);
+            const auto x_indices = get_x_indices_from_distributed_indices(StaticTileDistribution{},
+                                                                          distributed_indices);
+
+            handler(distributed_indices, x_indices, x_indices);
+        });
+    });
+}
+
 } // namespace ck_tile

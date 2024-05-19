@@ -5,7 +5,10 @@
 
 #include "ck_tile/ops/fmha/block/block_masking.hpp"
 #include "ck_tile/ops/fmha/kernel/fmha_fwd_kernel.hpp"
+#include "ck_tile/ops/fmha/kernel/fmha_fwd_splitkv_combine_kernel.hpp"
+#include "ck_tile/ops/fmha/kernel/fmha_fwd_splitkv_combine_tile_partitioner.hpp"
 #include "ck_tile/ops/fmha/kernel/fmha_fwd_tile_partitioner.hpp"
+#include "ck_tile/ops/fmha/pipeline/block_fmha_fwd_splitkv_combine_pipeline.hpp"
 #include "ck_tile/ops/fmha/pipeline/block_fmha_pipeline_enum.hpp"
 #include "ck_tile/ops/fmha/pipeline/block_fmha_pipeline_problem.hpp"
 #include "ck_tile/ops/fmha/pipeline/block_fmha_pipeline_qr_ks_vs.hpp"

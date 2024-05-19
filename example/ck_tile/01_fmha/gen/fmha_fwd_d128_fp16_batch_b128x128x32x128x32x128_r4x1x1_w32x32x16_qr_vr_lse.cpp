@@ -17,7 +17,8 @@ using fmha_shape_0 = ck_tile::TileFmhaShape<fmha_block_tile_0,
                                             fmha_warp_tile_0,
                                             true>;
 
-using fmha_trait_0 = ck_tile::TileFmhaTraits<false, false, false, false, false, true, false, -1>;
+using fmha_trait_0 = ck_tile::TileFmhaTraits<false, false, false, false, false, true, false, -1, 16>;
+
 using fmha_mask_0  = ck_tile::SimplifiedGenericAttentionMask<false>;
 
 using fmha_pipeline_problem_0 =
@@ -37,6 +38,8 @@ using fmha_pipeline_problem_0 =
                                       fmha_trait_0>;
 
 using fmha_pipeline_0 = ck_tile::BlockFmhaPipelineQRKSVS<fmha_pipeline_problem_0>;
+using fmha_fwd_splitkv_combine_pipeline_0 =
+    ck_tile::BlockFmhaFwdSplitKVCombinePipeline<fmha_pipeline_problem_0>;
 
 using fmha_epilogue_0 = ck_tile::Default2DEpilogue<
     ck_tile::Default2DEpilogueProblem<typename FmhaFwdTypeConfig<ck_tile::fp16_t>::OaccDataType,
@@ -46,6 +49,9 @@ using fmha_epilogue_0 = ck_tile::Default2DEpilogue<
 
 using fmha_kernel_0 = ck_tile::
     FmhaFwdKernel<ck_tile::FmhaFwdTilePartitioner<fmha_shape_0>, fmha_pipeline_0, fmha_epilogue_0>;
+using fmha_splitkv_combine_kernel_0 = ck_tile::
+    FmhaFwdSplitKVCombineKernel<
+    ck_tile::FmhaFwdSplitKVCombineTilePartitioner<fmha_shape_0>, fmha_fwd_splitkv_combine_pipeline_0, fmha_epilogue_0>;
 
 using trait_0 = fmha_fwd_traits_<128,
                                  ck_tile::fp16_t,
@@ -74,9 +80,22 @@ float fmha_fwd_<trait_0>(const ck_tile::stream_config& s, fmha_fwd_args a)
 {
     using k_ = fmha_kernel_0;
     if(s.log_level_ > 0)
-        std::cout << ", " << k_::GetName() << std::flush;
+        std::cout << ", " << k_::GetName() << std::endl;
+
+    float time_a = [&] {
     auto [kargs, grids]                    = fmha_fwd_create_kargs_and_grids<k_>(a);
     constexpr dim3 blocks                  = k_::BlockSize();
     constexpr ck_tile::index_t kBlockPerCu = k_::kBlockPerCu;
     return ck_tile::launch_kernel<blocks.x, kBlockPerCu>(s, k_{}, grids, blocks, 0, kargs);
+    }();
+
+    float time_b = [&] {
+    using combine_k_ = fmha_splitkv_combine_kernel_0;
+    auto [kargs, grids]                    = fmha_fwd_create_kargs_and_grids_combine<combine_k_>(a);
+    constexpr dim3 blocks                  = k_::BlockSize();
+    constexpr ck_tile::index_t kBlockPerCu = k_::kBlockPerCu;
+    return ck_tile::launch_kernel<blocks.x, kBlockPerCu>(s, combine_k_{}, grids, blocks, 0, kargs);
+    }();
+
+    return time_a + time_b;
 }

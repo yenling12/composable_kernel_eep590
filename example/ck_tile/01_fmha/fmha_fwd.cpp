@@ -321,13 +321,21 @@ bool run(const ck_tile::ArgParser& arg_parser)
             : std::array<ck_tile::index_t, 4>{1, 1, 1, 1} /* dummy shape for simplifying code */);
 
     // self define lse data layout as [shape_batch, nhead, shape_seqlen_q]
-    ck_tile::HostTensor<LSEDataType> lse_host(
+    ck_tile::HostTensor<LSEDataType> lse_acc_host(
         store_lse ? std::array<ck_tile::index_t, 4>{NUM_SPLITS, shape_batch, nhead, shape_seqlen_q}
                   : std::array<ck_tile::index_t, 4>{
                         NUM_SPLITS, 1, 1, 1} /* dummy shape for simplifying code */);
 
+    ck_tile::HostTensor<LSEDataType> lse_host(
+        store_lse ? std::array<ck_tile::index_t, 3>{shape_batch, nhead, shape_seqlen_q}
+                  : std::array<ck_tile::index_t, 3>{
+                        1, 1, 1} /* dummy shape for simplifying code */);
+
+    ck_tile::HostTensor<ODataType> o_acc_host(
+        {NUM_SPLITS, shape_batch, nhead, shape_seqlen_q, hdim_v});
+
     ck_tile::HostTensor<ODataType> o_host(
-        get_lengths2(o_perm, NUM_SPLITS, shape_batch, nhead, shape_seqlen_q, hdim_v));
+        get_lengths(o_perm, shape_batch, nhead, shape_seqlen_q, hdim_v));
 
     if(init_method == 0)
     {
@@ -370,6 +378,10 @@ bool run(const ck_tile::ArgParser& arg_parser)
     ck_tile::DeviceMem o_buf(o_host.get_element_space_size_in_bytes());
     ck_tile::DeviceMem seqstart_q(seqstart_q_host.size() * sizeof(int32_t));
     ck_tile::DeviceMem seqstart_k(seqstart_k_host.size() * sizeof(int32_t));
+
+    // workspace 
+    ck_tile::DeviceMem lse_acc_buf(lse_acc_host.get_element_space_size_in_bytes());
+    ck_tile::DeviceMem o_acc_buf(o_acc_host.get_element_space_size_in_bytes());
 
     q_buf.ToDevice(q_host.data());
     k_buf.ToDevice(k_host.data());
@@ -446,13 +458,13 @@ bool run(const ck_tile::ArgParser& arg_parser)
         const ck_tile::index_t batch_stride_bias = 0;
         const ck_tile::index_t batch_stride_lse  = lse_host.get_stride(1);
         const ck_tile::index_t batch_stride_o    = o_host.get_stride(1);
-        const ck_tile::index_t split_stride_lse  = lse_host.get_stride(0);
-        const ck_tile::index_t split_stride_o    = o_host.get_stride(0);
 
         return fmha_fwd_args{q_buf.GetDeviceBuffer(),
                              k_buf.GetDeviceBuffer(),
                              v_buf.GetDeviceBuffer(),
                              bias_buf.GetDeviceBuffer(),
+                             lse_acc_buf.GetDeviceBuffer(),
+                             o_acc_buf.GetDeviceBuffer(),
                              lse_buf.GetDeviceBuffer(),
                              o_buf.GetDeviceBuffer(),
                              seqstart_q.GetDeviceBuffer(),
@@ -461,6 +473,7 @@ bool run(const ck_tile::ArgParser& arg_parser)
                              shape_seqlen_q,
                              shape_seqlen_k,
                              batch,
+                             nhead,
                              max_seqlen_q,
                              hdim_q,
                              hdim_v,
@@ -487,13 +500,11 @@ bool run(const ck_tile::ArgParser& arg_parser)
                              batch_stride_bias,
                              batch_stride_lse,
                              batch_stride_o,
-                             split_stride_lse,
-                             split_stride_o,
                              mask.left,
                              mask.right,
                              static_cast<ck_tile::index_t>(mask.type)};
     }();
-
+    std::cout << std::endl;
     float ave_time = fmha_fwd(fmha_traits, fmha_args, stream_config);
 
     if(ave_time < 0)
@@ -516,8 +527,10 @@ bool run(const ck_tile::ArgParser& arg_parser)
         return true;
     }
 
-    o_buf.FromDevice(o_host.data());
+    lse_acc_buf.FromDevice(lse_acc_host.data());
+    o_acc_buf.FromDevice(o_acc_host.data());
     lse_buf.FromDevice(lse_host.data());
+    o_buf.FromDevice(o_host.data());
 
     // unify tensor views to [b, h, s, d] layout
     auto q_host_view_bhsd = (i_perm ? q_host : q_host.transpose(1, 2));
@@ -581,9 +594,7 @@ bool run(const ck_tile::ArgParser& arg_parser)
     ck_tile::HostTensor<LSEDataType> lse_acc_host_ref(
         {NUM_SPLITS, shape_batch, nhead, shape_seqlen_q});
     ck_tile::HostTensor<OaccDataType> o_acc_host_ref(
-        get_lengths2(o_perm, NUM_SPLITS, shape_batch, nhead, shape_seqlen_q, hdim_v));
-
-    auto o_acc_host_ref_view_bhsd = (o_perm ? o_acc_host_ref : o_acc_host_ref.transpose(2, 3));
+        {NUM_SPLITS, shape_batch, nhead, shape_seqlen_q, hdim_v});
 
     ck_tile::reference_mha_fwd_splitkv<SaccDataType, SMPLComputeDataType, PDataType>(
         q_host_view_bhsd,
@@ -591,7 +602,7 @@ bool run(const ck_tile::ArgParser& arg_parser)
         v_host_view_bhsd,
         opt_bias_host_view_bhss,
         lse_acc_host_ref,
-        o_acc_host_ref_view_bhsd,
+        o_acc_host_ref,
         nhead_k,
         scale_s,
         mask,
@@ -599,10 +610,52 @@ bool run(const ck_tile::ArgParser& arg_parser)
         opt_seqstart_k,
         p_compute_element_func);
 
+    int threadId = 0;
+    #if 1
+    std::cout << std::endl;
+    {
+    int start_i = threadId * 8;
+    int end_i = start_i + 8;
+    ck_tile::HostTensor<LSEDataType> lse_max({8});
+    for (int i = start_i; i < end_i; ++i) {
+        lse_max(i - start_i) = -ck_tile::numeric<LSEDataType>::infinity();
+        for (int i_split = 0; i_split < NUM_SPLITS; ++i_split) {
+            if (lse_max(i - start_i) < lse_acc_host_ref(i_split, 0, 0, i)) {
+                lse_max(i - start_i) = lse_acc_host_ref(i_split, 0, 0, i);
+            }
+        }
+        printf("[POYENC][HOST] lse_max[%d] = %11.7f\n", i, lse_max(i - start_i));
+    }
+    std::cout << std::endl;
+    ck_tile::HostTensor<LSEDataType> lse_sum({8});
+    for (int i = start_i; i < end_i; ++i) {
+        lse_sum(i - start_i) = 0;
+        for (int i_split = 0; i_split < NUM_SPLITS; ++i_split) {
+            lse_sum(i - start_i) += ck_tile::exp(lse_acc_host_ref(i_split, 0, 0, i) - lse_max(i - start_i));
+        }
+        printf("[POYENC][HOST] lse_sum[%d] = %11.7f\n", i, lse_sum(i - start_i));
+    }
+    }
+    #endif
+    #if 1
+    std::cout << std::endl;
+    {
+    int start_i = threadId * 8;
+    int end_i = start_i + 8;
+    for (int i = start_i; i < end_i; ++i) {
+        printf("[POYENC][HOST] lse_accum[%d] = \t", i);
+        for (int i_split = 0; i_split < NUM_SPLITS; ++i_split) {
+            printf("%11.7f", lse_acc_host_ref(i_split, 0, 0, i));
+        }
+        printf("\n");
+    }
+    }
+    #endif
+
     auto [rtol, atol] = get_elimit<DataType>(init_method);
     if(!ck_tile::check_err(
-           o_host, o_acc_host_ref, std::string("OUT Acc Error: Incorrect results!"), rtol, atol) ||
-       !ck_tile::check_err(lse_host,
+           o_acc_host, o_acc_host_ref, std::string("OUT Acc Error: Incorrect results!"), rtol, atol) ||
+       !ck_tile::check_err(lse_acc_host,
                            lse_acc_host_ref,
                            "LSE Acc Error: Incorrect results!",
                            rtol,
@@ -613,7 +666,7 @@ bool run(const ck_tile::ArgParser& arg_parser)
     }
 
     ck_tile::reference_mha_fwd_splitkv_combine(lse_acc_host_ref,
-                                               o_acc_host_ref_view_bhsd,
+                                               o_acc_host_ref,
                                                lse_host_ref2,
                                                o_host_ref2_view_bhsd,
                                                opt_seqstart_q,
@@ -628,7 +681,7 @@ bool run(const ck_tile::ArgParser& arg_parser)
 
     if(pass && store_lse)
     {
-        bool cur_pass = ck_tile::check_err(lse_host_ref2,
+        bool cur_pass = ck_tile::check_err(lse_host,
                                            lse_host_ref,
                                            "LSE Error: Incorrect results!",
                                            rtol,

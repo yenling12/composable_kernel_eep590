@@ -49,6 +49,9 @@ struct BlockFmhaPipelineProblem
     static constexpr bool kStoreLSE         = Traits::kStoreLSE;
     static constexpr bool kDoFp8StaticQuant = Traits::kDoFp8StaticQuant;
     static constexpr index_t kBlockPerCu    = Traits::kBlockPerCu;
+    static constexpr index_t kMaxSplits = Traits::kMaxSplits;
+    
+    // static constexpr index_t kBlockM = (BlockFmhaShape::kN1 % 128 == 0 ? 8 : (BlockFmhaShape::kN1 % 64 == 0 ? 16 : 32));
 };
 
 } // namespace ck_tile
