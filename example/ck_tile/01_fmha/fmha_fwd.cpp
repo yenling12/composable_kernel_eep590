@@ -389,6 +389,7 @@ bool run(const ck_tile::ArgParser& arg_parser)
     bias_buf.ToDevice(bias_host.data());
     seqstart_q.ToDevice(seqstart_q_host.data());
     seqstart_k.ToDevice(seqstart_k_host.data());
+    lse_buf.SetZero();
 
     // clang-format off
     auto layout_str = [&](bool permute){
@@ -610,13 +611,14 @@ bool run(const ck_tile::ArgParser& arg_parser)
         opt_seqstart_k,
         p_compute_element_func);
 
-    int threadId = 0;
-#if 1
     std::cout << std::endl;
     {
-        int start_i = threadId * 8;
-        int end_i   = start_i + 8;
-        ck_tile::HostTensor<LSEDataType> lse_max({8});
+        constexpr int MPerThread = 32;
+
+        int start_i = 32;
+        int end_i   = start_i + MPerThread;
+#if defined(PRINT_LSE_MAX)
+        ck_tile::HostTensor<LSEDataType> lse_max({MPerThread});
         for(int i = start_i; i < end_i; ++i)
         {
             lse_max(i - start_i) = -ck_tile::numeric<LSEDataType>::infinity();
@@ -627,9 +629,11 @@ bool run(const ck_tile::ArgParser& arg_parser)
                     lse_max(i - start_i) = lse_acc_host_ref(i_split, 0, 0, i);
                 }
             }
-            printf("[POYENC][HOST] lse_max[%d] = %11.7f\n", i, lse_max(i - start_i));
+            printf("[POYENC][HOST] lse_max[%2d]: %11.7f\n", i, lse_max(i - start_i));
         }
-        ck_tile::HostTensor<LSEDataType> lse_sum({8});
+#endif
+#if defined(PRINT_LSE_SUM)
+        ck_tile::HostTensor<LSEDataType> lse_sum({MPerThread});
         for(int i = start_i; i < end_i; ++i)
         {
             lse_sum(i - start_i) = 0;
@@ -638,19 +642,22 @@ bool run(const ck_tile::ArgParser& arg_parser)
                 lse_sum(i - start_i) +=
                     ck_tile::exp(lse_acc_host_ref(i_split, 0, 0, i) - lse_max(i - start_i));
             }
-            printf("[POYENC][HOST] lse_sum[%d] = %11.7f\n", i, lse_sum(i - start_i));
+            printf("[POYENC][HOST] lse_sum[%2d]: %11.7f\n", i, lse_sum(i - start_i));
         }
-        ck_tile::HostTensor<LSEDataType> lse_logsum({8});
+#endif
+#if defined(PRINT_LSE_LOGSUM)
+        ck_tile::HostTensor<LSEDataType> lse_logsum({MPerThread});
         for(int i = start_i; i < end_i; ++i)
         {
             lse_logsum(i - start_i) = ck_tile::log(lse_sum(i - start_i)) + lse_max(i - start_i);
-            printf("[POYENC][HOST] lse_logsum[%d] = %11.7f\n", i, lse_logsum(i - start_i));
+            printf("[POYENC][HOST] lse_logsum[%2d]: %11.7f\n", i, lse_logsum(i - start_i));
         }
+#endif
 #if 0
-        ck_tile::HostTensor<LSEDataType> lse_scale({8, NUM_SPLITS});
+        ck_tile::HostTensor<LSEDataType> lse_scale({MPerThread, NUM_SPLITS});
         for(int i = start_i; i < end_i; ++i)
         {
-            printf("[POYENC][HOST] lse_scale[%d] = \t", i);
+            printf("[POYENC][HOST] lse_scale[%2d] = ", i);
             for(int i_split = 0; i_split < NUM_SPLITS; ++i_split)
             {
                 lse_scale(i - start_i, i_split) +=
@@ -660,22 +667,18 @@ bool run(const ck_tile::ArgParser& arg_parser)
             printf("\n");
         }
 #endif
-    }
-#endif
-#if 0
-    std::cout << std::endl;
-    {
-    int start_i = threadId * 8;
-    int end_i = start_i + 8;
-    for (int i = start_i; i < end_i; ++i) {
-        printf("[POYENC][HOST] lse_accum[%d] = \t", i);
-        for (int i_split = 0; i_split < NUM_SPLITS; ++i_split) {
-            printf("%11.7f", lse_acc_host_ref(i_split, 0, 0, i));
+#if defined(PRINT_LSE_ACCUM)
+        for(int i = start_i; i < end_i; ++i)
+        {
+            printf("[POYENC][HOST] lse_accum[%2d] = ", i);
+            for(int i_split = 0; i_split < NUM_SPLITS; ++i_split)
+            {
+                printf("%11.7f", lse_acc_host_ref(i_split, 0, 0, i));
+            }
+            printf("\n");
         }
-        printf("\n");
-    }
-    }
 #endif
+    }
 
     auto [rtol, atol] = get_elimit<DataType>(init_method);
     if(!ck_tile::check_err(o_acc_host,

@@ -69,7 +69,8 @@ struct BlockFmhaFwdSplitKVCombinePipeline
 
     CK_TILE_HOST_DEVICE static constexpr ck_tile::index_t GetSmemSize()
     {
-        return kMaxSplits * (kM0 + 1);
+        /// TODO: add padding to avoid bank conflict
+        return kM0 * kMaxSplits;
     }
 
 #define MARKER(msg)                     \
@@ -88,7 +89,8 @@ struct BlockFmhaFwdSplitKVCombinePipeline
                LSEDramBlockWindowTmp& lse_dram_window_tmp,
                const LSEElementFunction& lse_element_func,
                const OaccElementFunction& o_acc_element_func,
-               void* smem_ptr) const
+               void* smem_ptr,
+               index_t num_splits) const
     {
         MARKER("begin pipeline");
 
@@ -107,7 +109,7 @@ struct BlockFmhaFwdSplitKVCombinePipeline
         static_assert(8 == decltype(lse_acc.thread_buf_)::size());
         MARKER("after load lse_acc");
 
-#define TID 15
+#define TID 64
 #define ENABLE_DEBUG_STMTS
 #if defined(ENABLE_DEBUG_STMTS)
 #define DEBUG_STMTS if(blockIdx.x == 0 && blockIdx.y == 0 && blockIdx.z == 0 && threadIdx.x == TID)
@@ -136,7 +138,8 @@ struct BlockFmhaFwdSplitKVCombinePipeline
                 });
             });
         }
-        block_sync_lds();
+        __syncthreads();
+
         auto lse_accum_dist = Policy::template MakeLSEaccTDramTileDistribution<Problem>();
         auto lse_accum      = make_static_distributed_tensor<LSEDataType>(lse_accum_dist);
 
@@ -156,10 +159,18 @@ struct BlockFmhaFwdSplitKVCombinePipeline
                     const auto row = x_indices.at(number<0>{});
                     const auto col = x_indices.at(number<1>{});
 
-                    lse_accum(distributed_indices) = lse_acc_lds_ptr[col + row * kMaxSplits];
+                    if(col < num_splits)
+                    {
+                        lse_accum(distributed_indices) = lse_acc_lds_ptr[col + row * kMaxSplits];
+                    }
+                    else
+                    {
+                        lse_accum(distributed_indices) = -numeric<LSEDataType>::infinity();
+                    }
+
                     DEBUG_STMTS
                     {
-                        printf("pos: (%2d, %2d), value: %11.7f\n",
+                        printf("[POYENC][DEVICE] lse_accum[%2d,%2d]: %11.7f\n",
                                row,
                                col,
                                lse_accum(distributed_indices));
@@ -172,12 +183,9 @@ struct BlockFmhaFwdSplitKVCombinePipeline
         const auto f_max = [](auto e0, auto e1) { return ck_tile::max(e0, e1); };
         const auto f_sum = [](auto e0, auto e1) { return e0 + e1; };
 
-#if 0
+#if 1
         auto lse_max = block_tile_reduce<LSEDataType>(
-                lse_accum,
-                sequence<1>{},
-                f_max,
-                -numeric<LSEDataType>::infinity());
+            lse_accum, sequence<1>{}, f_max, -numeric<LSEDataType>::infinity());
         block_tile_reduce_sync(lse_max, f_max, bool_constant<false>{});
 #else // reduce by hand
         auto lse_max = decltype(block_tile_reduce<LSEDataType>(
@@ -194,7 +202,7 @@ struct BlockFmhaFwdSplitKVCombinePipeline
                 const auto row = x_indices.at(number<0>{});
 
                 LSEDataType the_max = -numeric<LSEDataType>::infinity();
-                for(int col = 0; col < 16; ++col)
+                for(int col = 0; col < num_splits; ++col)
                 {
                     if(the_max < lse_acc_lds_ptr[col + row * kMaxSplits])
                     {
@@ -206,6 +214,7 @@ struct BlockFmhaFwdSplitKVCombinePipeline
         }
 #endif
 
+#if defined(PRINT_LSE_MAX)
         DEBUG_STMTS
         {
             constexpr auto out_spans =
@@ -218,9 +227,11 @@ struct BlockFmhaFwdSplitKVCombinePipeline
 
                 const auto row = x_indices.at(number<0>{});
 
-                printf("[POYENC][DEVICE] lse_max[%d]: %11.7f\n", row, lse_max(distributed_indices));
+                printf(
+                    "[POYENC][DEVICE] lse_max[%2d]: %11.7f\n", row, lse_max(distributed_indices));
             });
         }
+#endif
 
         static const auto get_validated_m = [](LSEDataType raw_m) {
             /// NOTICE: bias might be materialized mask including -inf values, need
@@ -238,6 +249,7 @@ struct BlockFmhaFwdSplitKVCombinePipeline
 
         auto p_compute = make_static_distributed_tensor<LSEDataType>(
             lse_accum.get_tile_distribution()); // Pcompute{j}
+        clear_tile(p_compute);
         {
             constexpr auto p_spans = decltype(p_compute)::get_distributed_spans();
             sweep_tile_span(p_spans[number<0>{}], [&](auto idx0) {
@@ -250,21 +262,30 @@ struct BlockFmhaFwdSplitKVCombinePipeline
                     const auto row = x_indices.at(number<0>{});
                     const auto col = x_indices.at(number<1>{});
 
+#if 0
                     // from dist tensor
-                    // p_compute(i_j_idx) = ck_tile::exp(lse_accum(i_j_idx) -
-                    // get_validated_m(lse_max(i_idx))); from shared memory
-                    p_compute(i_j_idx) = ck_tile::exp(lse_acc_lds_ptr[col + row * kMaxSplits] -
-                                                      get_validated_m(lse_max(i_idx)));
+                    p_compute(i_j_idx) = ck_tile::exp(lse_accum(i_j_idx) - get_validated_m(lse_max(i_idx)));
+#else
+                    if (col < num_splits) {
+                        // from shared memory
+                        p_compute(i_j_idx) = ck_tile::exp(lse_acc_lds_ptr[col + row * kMaxSplits] -
+                                                          get_validated_m(lse_max(i_idx)));
+                    }
+#endif
+                    DEBUG_STMTS
+                    {
+                        printf("[POYENC][DEVICE] p_compute[%2d,%2d]: %11.7f\n",
+                               row,
+                               col,
+                               p_compute(i_j_idx));
+                    }
                 });
             });
         }
-
-#if 0
+        __syncthreads();
+#if 1
         auto lse_sum = block_tile_reduce<LSEDataType>(
-                p_compute,
-                sequence<1>{},
-                f_sum,
-                type_convert<LSEDataType>(0));
+            p_compute, sequence<1>{}, f_sum, type_convert<LSEDataType>(0));
         block_tile_reduce_sync(lse_sum, f_sum, bool_constant<false>{});
 #else // reduce by hand
         decltype(lse_max) lse_sum;
@@ -278,7 +299,7 @@ struct BlockFmhaFwdSplitKVCombinePipeline
                 LSEDataType the_sum = 0;
 
                 const auto row = x_indices.at(number<0>{});
-                for(int col = 0; col < 16; ++col)
+                for(int col = 0; col < num_splits; ++col)
                 {
                     the_sum += ck_tile::exp(lse_acc_lds_ptr[col + row * kMaxSplits] -
                                             get_validated_m(lse_max(i_idx)));
@@ -288,7 +309,7 @@ struct BlockFmhaFwdSplitKVCombinePipeline
             });
         }
 #endif
-
+#if defined(PRINT_LSE_SUM)
         DEBUG_STMTS
         {
             constexpr auto out_spans =
@@ -301,9 +322,11 @@ struct BlockFmhaFwdSplitKVCombinePipeline
 
                 const auto row = x_indices.at(number<0>{});
 
-                printf("[POYENC][DEVICE] lse_sum[%d]: %11.7f\n", row, lse_sum(distributed_indices));
+                printf(
+                    "[POYENC][DEVICE] lse_sum[%2d]: %11.7f\n", row, lse_sum(distributed_indices));
             });
         }
+#endif
 
         decltype(lse_max) lse_logsum;
         {
@@ -324,6 +347,7 @@ struct BlockFmhaFwdSplitKVCombinePipeline
                         ck_tile::log(lse_sum(distributed_indices)) + lse_max(distributed_indices);
                 }
 
+#if defined(PRINT_LSE_LOGSUM)
                 DEBUG_STMTS
                 {
                     const auto x_indices = get_x_indices_from_distributed_indices(
@@ -334,8 +358,24 @@ struct BlockFmhaFwdSplitKVCombinePipeline
                            row,
                            lse_logsum(distributed_indices));
                 }
+#endif
             });
         }
+
+#if defined(PRINT_LSE_ACCUM)
+        DEBUG_STMTS
+        {
+            for(index_t row = 0; row < 32; ++row)
+            {
+                printf("[POYENC][DEVICE] lse_accum[%d] = ", row);
+                for(index_t col = 0; col < num_splits; ++col)
+                {
+                    printf("%11.7f", lse_acc_lds_ptr[col + row * kMaxSplits]);
+                }
+                printf("\n");
+            }
+        }
+#endif
 
         // write lse scales into LDS
         {
@@ -349,12 +389,20 @@ struct BlockFmhaFwdSplitKVCombinePipeline
 
                 const auto row = x_indices.at(number<0>{});
 
-                for(index_t col = 0; col < kMaxSplits; ++col)
+                for(index_t col = 0; col < num_splits; ++col)
                 {
                     lse_acc_lds_ptr[col + row * kMaxSplits] = ck_tile::exp(
                         lse_acc_lds_ptr[col + row * kMaxSplits] - lse_logsum(distributed_indices));
                 }
             });
+        }
+
+        if constexpr(kStoreLSE)
+        {
+            static_assert(kBlockSize == 256);
+            // static_assert(decltype(lse_accum.thread_buf_)::size() == kM0);
+            // static_assert(decltype(lse_max.thread_buf_)::size() == kM0);
+            store_tile(lse_dram_window_tmp, tile_elementwise_in(lse_element_func, lse_logsum));
         }
 
         constexpr auto gemm_1   = Policy::template GetKVBlockGemm<Problem>();
@@ -369,14 +417,16 @@ struct BlockFmhaFwdSplitKVCombinePipeline
     CK_TILE_HOST_DEVICE auto operator()(const LSEaccDramBlockWindow& lse_acc_dram_block_window,
                                         const OaccDramBlockWindow& o_acc_dram_block_window,
                                         LSEDramBlockWindow& lse_dram_block_window,
-                                        void* smem_ptr) const
+                                        void* smem_ptr,
+                                        index_t num_splits) const
     {
         return operator()(lse_acc_dram_block_window,
                           o_acc_dram_block_window,
                           lse_dram_block_window,
                           identity{},
                           identity{},
-                          smem_ptr);
+                          smem_ptr,
+                          num_splits);
     }
 };
 

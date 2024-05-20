@@ -1006,46 +1006,6 @@ struct BlockFmhaPipelineQXKSVSCustomPolicy : BlockFmhaPipelineQXCustomPolicy<QLo
         }
     }
 
-#if 0 // original implzs
-    template <typename Problem>
-    CK_TILE_HOST_DEVICE static constexpr auto MakeLSEaccTDramTileDistribution()
-    {
-        using LSEDataType = remove_cvref_t<typename Problem::LSEDataType>;
-
-        constexpr index_t kBlockSize = 256;
-        
-        constexpr index_t kNPerBlock = Problem::kMaxSplits;
-        constexpr index_t kMPerBlock = Problem::BlockFmhaShape::kM0;
-
-        constexpr index_t NumElements = (kMPerBlock * kNPerBlock);
-
-        static_assert(kBlockSize < NumElements);
-        if constexpr (NumElements < kBlockSize) {
-            
-        } else {
-            static_assert(kNPerBlock == 16);
-            static_assert(kMPerBlock == 128);
-
-            static_assert(sizeof(LSEDataType) == 4);
-
-            constexpr index_t MPerThread = 16 / sizeof(LSEDataType);        //  4
-            constexpr index_t MThreads = kMPerBlock / MPerThread;           // 32
-
-            constexpr index_t NThreadsPerWarp = get_warp_size() / MThreads;             //  2
-            constexpr index_t TotalWarps = kBlockSize / get_warp_size();                //  4
-            constexpr index_t NPerThread = kNPerBlock / (TotalWarps * NThreadsPerWarp); //  2
-
-            return make_static_tile_distribution(
-                tile_distribution_encoding<sequence<1>,
-                                            tuple<sequence<MThreads, MPerThread>,
-                                                  sequence<NPerThread, TotalWarps, NThreadsPerWarp>>,
-                                            tuple<sequence<2>, sequence<1, 2>>,
-                                            tuple<sequence<1>, sequence<0, 2>>,
-                                            sequence<2, 1>,
-                                            sequence<0, 1>>{});
-        }
-    }
-#else
     template <typename Problem>
     CK_TILE_HOST_DEVICE static constexpr auto MakeLSEaccTDramTileDistribution()
     {
@@ -1053,7 +1013,7 @@ struct BlockFmhaPipelineQXKSVSCustomPolicy : BlockFmhaPipelineQXCustomPolicy<QLo
 
         constexpr index_t kBlockSize = 256;
 
-        constexpr index_t kNPerBlock = Problem::kMaxSplits;
+        constexpr index_t kNPerBlock = max(Problem::kMaxSplits, get_warp_size());
         constexpr index_t kMPerBlock = Problem::BlockFmhaShape::kM0;
 
         constexpr index_t NumElements = (kMPerBlock * kNPerBlock);
@@ -1062,37 +1022,27 @@ struct BlockFmhaPipelineQXKSVSCustomPolicy : BlockFmhaPipelineQXCustomPolicy<QLo
         if constexpr(NumElements < kBlockSize) {}
         else
         {
-            static_assert(kNPerBlock == 16);
+            static_assert(kNPerBlock == 64);
             static_assert(kMPerBlock == 128);
 
             static_assert(sizeof(LSEDataType) == 4);
 
-            /*
-            constexpr index_t MPerThread = 16 / sizeof(LSEDataType);        //  4
-            constexpr index_t MThreads = kMPerBlock / MPerThread;           // 32
+            constexpr index_t NThreads   = get_warp_size();       // 64
+            constexpr index_t NPerThread = kNPerBlock / NThreads; // 1
 
-            constexpr index_t NThreadsPerWarp = get_warp_size() / MThreads;             //  2
-            constexpr index_t TotalWarps = kBlockSize / get_warp_size();                //  4
-            constexpr index_t NPerThread = kNPerBlock / (TotalWarps * NThreadsPerWarp); //  2
-            */
-            constexpr index_t MPerThread = 8;
-            constexpr index_t M1         = 4;
-            constexpr index_t M0         = 4;
-
-            constexpr index_t NThreads   = 16;
-            constexpr index_t NPerThread = 1;
+            constexpr index_t MThreads   = kBlockSize / NThreads; // 4
+            constexpr index_t MPerThread = kMPerBlock / MThreads; // 32
 
             return make_static_tile_distribution(
                 tile_distribution_encoding<
                     sequence<1>,
-                    tuple<sequence<M0, M1, MPerThread>, sequence<NPerThread, NThreads>>,
-                    tuple<sequence<1>, sequence<1, 2>>,
-                    tuple<sequence<0>, sequence<1, 1>>,
+                    tuple<sequence<MThreads, MPerThread>, sequence<NThreads, NPerThread>>,
+                    tuple<sequence<1>, sequence<2>>,
+                    tuple<sequence<0>, sequence<0>>,
                     sequence<1, 2>,
-                    sequence<2, 0>>{});
+                    sequence<1, 1>>{});
         }
     }
-#endif
 };
 
 } // namespace ck_tile

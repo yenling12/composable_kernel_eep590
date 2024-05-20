@@ -337,12 +337,16 @@ struct FmhaFwdSplitKVCombineKernel
                     lse_dram_window,
                     identity{},                                          // lse_element_func
                     composes(saturates<fp8_t>{}, scales{kargs.scale_o}), // o_acc_element_func
-                    smem_ptr);
+                    smem_ptr,
+                    kargs.num_splits);
             }
             else
             {
-                return MainPipeline{}(
-                    lse_acc_dram_window, o_acc_dram_window, lse_dram_window, smem_ptr);
+                return MainPipeline{}(lse_acc_dram_window,
+                                      o_acc_dram_window,
+                                      lse_dram_window,
+                                      smem_ptr,
+                                      kargs.num_splits);
             }
         }();
 
