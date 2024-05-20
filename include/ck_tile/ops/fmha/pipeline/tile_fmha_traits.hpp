@@ -15,7 +15,7 @@ template <bool kPadSeqLenQ_ /* padding for seqlen_q */,
           bool kStoreLSE_,
           bool kDoFp8StaticQuant_,
           index_t kBlockPerCu_ = -1 /* overwrite occupancy if not -1 */,
-          index_t kMaxSplits_ = 1>
+          index_t kMaxSplits_  = 1>
 struct TileFmhaTraits
 {
     static constexpr bool kPadSeqLenQ       = kPadSeqLenQ_;
@@ -26,7 +26,7 @@ struct TileFmhaTraits
     static constexpr bool kStoreLSE         = kStoreLSE_;
     static constexpr bool kDoFp8StaticQuant = kDoFp8StaticQuant_;
     static constexpr index_t kBlockPerCu    = kBlockPerCu_;
-    static constexpr index_t kMaxSplits = kMaxSplits_;
+    static constexpr index_t kMaxSplits     = kMaxSplits_;
     static_assert(kMaxSplits <= 128);
 };
 

@@ -965,48 +965,48 @@ struct BlockFmhaPipelineQXKSVSCustomPolicy : BlockFmhaPipelineQXCustomPolicy<QLo
         using LSEDataType = remove_cvref_t<typename Problem::LSEDataType>;
 
         constexpr index_t kBlockSize = 256;
-        
+
         constexpr index_t kNPerBlock = Problem::BlockFmhaShape::kM0;
         constexpr index_t kMPerBlock = Problem::kMaxSplits;
 
         constexpr index_t NumElements = (kMPerBlock * kNPerBlock);
 
         static_assert(kBlockSize < NumElements);
-        if constexpr (NumElements < kBlockSize) {
-            
-        } else {
+        if constexpr(NumElements < kBlockSize) {}
+        else
+        {
             static_assert(kNPerBlock == 128);
             static_assert(kMPerBlock == 16);
 
             static_assert(sizeof(LSEDataType) == 4);
 
-            constexpr index_t NPerThread = 16 / sizeof(LSEDataType);        //  4
-            constexpr index_t NThreads = kNPerBlock / NPerThread;           // 32
+            constexpr index_t NPerThread = 16 / sizeof(LSEDataType); //  4
+            constexpr index_t NThreads   = kNPerBlock / NPerThread;  // 32
             static_assert(NThreads <= kBlockSize);
 
-            constexpr index_t MThreadsPerWarp = get_warp_size() / NThreads;             //  2
-            constexpr index_t TotalWarps = kBlockSize / get_warp_size();                //  4
-            constexpr index_t MPerThread = kMPerBlock / (TotalWarps * MThreadsPerWarp); //  2
+            constexpr index_t MThreadsPerWarp = get_warp_size() / NThreads;                  //  2
+            constexpr index_t TotalWarps      = kBlockSize / get_warp_size();                //  4
+            constexpr index_t MPerThread      = kMPerBlock / (TotalWarps * MThreadsPerWarp); //  2
             static_assert(1 <= MPerThread);
             static_assert(MThreadsPerWarp == 2);
             static_assert(TotalWarps == 4);
             static_assert(MPerThread == 2);
-            
+
             static_assert(NThreads * NPerThread == kNPerBlock);
             static_assert(MPerThread * TotalWarps * MThreadsPerWarp == kMPerBlock);
 
             return make_static_tile_distribution(
                 tile_distribution_encoding<sequence<1>,
-                                            tuple<sequence<MPerThread, TotalWarps, MThreadsPerWarp>, 
-                                                  sequence<NThreads, NPerThread>>,
-                                            tuple<sequence<1>, sequence<1, 2>>,
-                                            tuple<sequence<1>, sequence<2, 0>>,
-                                            sequence<1, 2>,
-                                            sequence<0, 1>>{});
+                                           tuple<sequence<MPerThread, TotalWarps, MThreadsPerWarp>,
+                                                 sequence<NThreads, NPerThread>>,
+                                           tuple<sequence<1>, sequence<1, 2>>,
+                                           tuple<sequence<1>, sequence<2, 0>>,
+                                           sequence<1, 2>,
+                                           sequence<0, 1>>{});
         }
     }
 
-    #if 0 // original implzs
+#if 0 // original implzs
     template <typename Problem>
     CK_TILE_HOST_DEVICE static constexpr auto MakeLSEaccTDramTileDistribution()
     {
@@ -1045,23 +1045,23 @@ struct BlockFmhaPipelineQXKSVSCustomPolicy : BlockFmhaPipelineQXCustomPolicy<QLo
                                             sequence<0, 1>>{});
         }
     }
-    #else
+#else
     template <typename Problem>
     CK_TILE_HOST_DEVICE static constexpr auto MakeLSEaccTDramTileDistribution()
     {
         using LSEDataType = remove_cvref_t<typename Problem::LSEDataType>;
 
         constexpr index_t kBlockSize = 256;
-        
+
         constexpr index_t kNPerBlock = Problem::kMaxSplits;
         constexpr index_t kMPerBlock = Problem::BlockFmhaShape::kM0;
 
         constexpr index_t NumElements = (kMPerBlock * kNPerBlock);
 
         static_assert(kBlockSize < NumElements);
-        if constexpr (NumElements < kBlockSize) {
-            
-        } else {
+        if constexpr(NumElements < kBlockSize) {}
+        else
+        {
             static_assert(kNPerBlock == 16);
             static_assert(kMPerBlock == 128);
 
@@ -1076,23 +1076,23 @@ struct BlockFmhaPipelineQXKSVSCustomPolicy : BlockFmhaPipelineQXCustomPolicy<QLo
             constexpr index_t NPerThread = kNPerBlock / (TotalWarps * NThreadsPerWarp); //  2
             */
             constexpr index_t MPerThread = 8;
-            constexpr index_t M1 = 4;
-            constexpr index_t M0 = 4;
+            constexpr index_t M1         = 4;
+            constexpr index_t M0         = 4;
 
             constexpr index_t NThreads   = 16;
             constexpr index_t NPerThread = 1;
 
             return make_static_tile_distribution(
-                tile_distribution_encoding<sequence<1>,
-                                            tuple<sequence<M0, M1, MPerThread>,
-                                                  sequence<NPerThread, NThreads>>,
-                                            tuple<sequence<1>, sequence<1, 2>>,
-                                            tuple<sequence<0>, sequence<1, 1>>,
-                                            sequence<1, 2>,
-                                            sequence<2, 0>>{});
+                tile_distribution_encoding<
+                    sequence<1>,
+                    tuple<sequence<M0, M1, MPerThread>, sequence<NPerThread, NThreads>>,
+                    tuple<sequence<1>, sequence<1, 2>>,
+                    tuple<sequence<0>, sequence<1, 1>>,
+                    sequence<1, 2>,
+                    sequence<2, 0>>{});
         }
     }
-    #endif
+#endif
 };
 
 } // namespace ck_tile

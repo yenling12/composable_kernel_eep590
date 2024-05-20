@@ -155,7 +155,7 @@ struct FmhaFwdKernel
 
     struct FmhaFwdCommonLSEKargs
     {
-        void* lse_acc_ptr                     = nullptr;
+        void* lse_acc_ptr = nullptr;
     };
 
     struct FmhaFwdBatchModeKargs
@@ -267,7 +267,7 @@ struct FmhaFwdKernel
         }
         if constexpr(kStoreLSE)
         {
-            kargs.lse_acc_ptr          = lse_acc_ptr;
+            kargs.lse_acc_ptr = lse_acc_ptr;
         }
         if constexpr(kDoFp8StaticQuant)
         {
@@ -357,7 +357,7 @@ struct FmhaFwdKernel
         }
         if constexpr(kStoreLSE)
         {
-            kargs.lse_acc_ptr          = lse_acc_ptr;
+            kargs.lse_acc_ptr = lse_acc_ptr;
         }
         if constexpr(kDoFp8StaticQuant)
         {
@@ -465,9 +465,11 @@ struct FmhaFwdKernel
             }
             if constexpr(kStoreLSE)
             {
-                batch_offset_lse = static_cast<long_index_t>(i_batch) * (kargs.nhead * kargs.max_seqlen_q);
+                batch_offset_lse =
+                    static_cast<long_index_t>(i_batch) * (kargs.nhead * kargs.max_seqlen_q);
             }
-            batch_offset_o = static_cast<long_index_t>(i_batch) * (kargs.nhead * kargs.max_seqlen_q * kargs.hdim_v);
+            batch_offset_o = static_cast<long_index_t>(i_batch) *
+                             (kargs.nhead * kargs.max_seqlen_q * kargs.hdim_v);
         }
 
         // for simplicity, batch stride we just modify the pointer
@@ -482,9 +484,11 @@ struct FmhaFwdKernel
             reinterpret_cast<const VDataType*>(kargs.v_ptr) +
             static_cast<long_index_t>(i_nhead / kargs.nhead_ratio_qk) * kargs.nhead_stride_v +
             batch_offset_v;
-        ODataType* o_acc_ptr = reinterpret_cast<ODataType*>(kargs.o_acc_ptr) +
-                           static_cast<long_index_t>(i_nhead) * (kargs.max_seqlen_q * kargs.hdim_v) +
-                           batch_offset_o + i_split * (kargs.batch * kargs.nhead * kargs.max_seqlen_q * kargs.hdim_v);
+        ODataType* o_acc_ptr =
+            reinterpret_cast<ODataType*>(kargs.o_acc_ptr) +
+            static_cast<long_index_t>(i_nhead) * (kargs.max_seqlen_q * kargs.hdim_v) +
+            batch_offset_o +
+            i_split * (kargs.batch * kargs.nhead * kargs.max_seqlen_q * kargs.hdim_v);
 
         // Q/K/V DRAM and DRAM window
         const auto q_dram = [&]() {
@@ -618,16 +622,17 @@ struct FmhaFwdKernel
             {
                 LSEDataType* lse_acc_ptr =
                     reinterpret_cast<LSEDataType*>(kargs.lse_acc_ptr) +
-                    static_cast<long_index_t>(i_nhead_) * (kargs.max_seqlen_q) +
-                    batch_offset_lse + i_split_ * (kargs.batch * kargs.nhead * kargs.max_seqlen_q);
+                    static_cast<long_index_t>(i_nhead_) * (kargs.max_seqlen_q) + batch_offset_lse +
+                    i_split_ * (kargs.batch * kargs.nhead * kargs.max_seqlen_q);
 
                 const auto lse_acc_dram = [&]() {
-                    const auto lse_acc_dram_naive = make_naive_tensor_view<address_space_enum::global>(
-                        lse_acc_ptr,
-                        make_tuple(kargs.seqlen_q),
-                        make_tuple(1),
-                        number<1>{},
-                        number<1>{});
+                    const auto lse_acc_dram_naive =
+                        make_naive_tensor_view<address_space_enum::global>(
+                            lse_acc_ptr,
+                            make_tuple(kargs.seqlen_q),
+                            make_tuple(1),
+                            number<1>{},
+                            number<1>{});
 
                     return pad_tensor_view(
                         lse_acc_dram_naive, lse_acc_dram_window_lengths, sequence<kPadSeqLenQ>{});

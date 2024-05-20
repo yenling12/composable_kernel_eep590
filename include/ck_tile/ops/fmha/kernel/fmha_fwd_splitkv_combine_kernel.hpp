@@ -16,9 +16,9 @@ struct FmhaFwdSplitKVCombineKernel
     static constexpr ck_tile::index_t kBlockPerCu = MainPipeline::kBlockPerCu;
     static_assert(kBlockPerCu > 0);
 
-    using LSEDataType    = ck_tile::remove_cvref_t<typename MainPipeline::LSEDataType>;
-    using OaccDataType   = ck_tile::remove_cvref_t<typename MainPipeline::OaccDataType>;
-    using ODataType      = ck_tile::remove_cvref_t<typename MainPipeline::ODataType>;
+    using LSEDataType  = ck_tile::remove_cvref_t<typename MainPipeline::LSEDataType>;
+    using OaccDataType = ck_tile::remove_cvref_t<typename MainPipeline::OaccDataType>;
+    using ODataType    = ck_tile::remove_cvref_t<typename MainPipeline::ODataType>;
 
     static constexpr bool kIsGroupMode      = MainPipeline::kIsGroupMode;
     static constexpr bool kPadSeqLenQ       = MainPipeline::kPadSeqLenQ;
@@ -198,15 +198,14 @@ struct FmhaFwdSplitKVCombineKernel
         __shared__ char smem_ptr[GetSmemSize()];
 
         // divide problem
-        const auto [i_tile_m, i_nhead, i_batch] =
-            TilePartitioner{}(kargs.seqlen_q, kargs.hdim_v);
+        const auto [i_tile_m, i_nhead, i_batch] = TilePartitioner{}(kargs.seqlen_q, kargs.hdim_v);
 
         const index_t i_m0 = __builtin_amdgcn_readfirstlane(i_tile_m * MainPipeline::kM0);
 
         long_index_t batch_offset_lse_acc = 0;
         long_index_t batch_offset_o_acc   = 0;
-        long_index_t batch_offset_lse    = 0;
-        long_index_t batch_offset_o      = 0;
+        long_index_t batch_offset_lse     = 0;
+        long_index_t batch_offset_o       = 0;
 
         if constexpr(kIsGroupMode)
         {
@@ -234,7 +233,8 @@ struct FmhaFwdSplitKVCombineKernel
         }
         else
         {
-            batch_offset_lse_acc = static_cast<long_index_t>(i_batch) * (kargs.h * kargs.max_seqlen_q);
+            batch_offset_lse_acc =
+                static_cast<long_index_t>(i_batch) * (kargs.h * kargs.max_seqlen_q);
             batch_offset_o_acc =
                 static_cast<long_index_t>(i_batch) * (kargs.h * kargs.max_seqlen_q * kargs.hdim_v);
             if constexpr(kStoreLSE)
@@ -245,12 +245,13 @@ struct FmhaFwdSplitKVCombineKernel
         }
 
         // for simplicity, batch stride we just modify the pointer
-        const LSEDataType* lse_acc_ptr =
-            reinterpret_cast<const LSEDataType*>(kargs.lse_acc_ptr) +
-            static_cast<long_index_t>(i_nhead) * (kargs.max_seqlen_q) + batch_offset_lse_acc;
+        const LSEDataType* lse_acc_ptr = reinterpret_cast<const LSEDataType*>(kargs.lse_acc_ptr) +
+                                         static_cast<long_index_t>(i_nhead) * (kargs.max_seqlen_q) +
+                                         batch_offset_lse_acc;
         const OaccDataType* o_acc_ptr =
             reinterpret_cast<const OaccDataType*>(kargs.o_acc_ptr) +
-            static_cast<long_index_t>(i_nhead) * (kargs.max_seqlen_q * kargs.hdim_v) + batch_offset_o_acc;
+            static_cast<long_index_t>(i_nhead) * (kargs.max_seqlen_q * kargs.hdim_v) +
+            batch_offset_o_acc;
         ODataType* o_ptr = reinterpret_cast<ODataType*>(kargs.o_ptr) +
                            static_cast<long_index_t>(i_nhead) * kargs.nhead_stride_o +
                            batch_offset_o;
@@ -284,19 +285,17 @@ struct FmhaFwdSplitKVCombineKernel
                 sequence<true, kPadSeqLenQ>{});
         }();
 
-        auto lse_acc_dram_window =
-            make_tile_window(lse_acc_dram,
-                             [&]() {
-                                 return make_tuple(number<MainPipeline::kMaxSplits>{},
-                                                   number<MainPipeline::kM0>{});
-                             }(),
-                             {0, i_m0});
+        auto lse_acc_dram_window = make_tile_window(
+            lse_acc_dram,
+            [&]() {
+                return make_tuple(number<MainPipeline::kMaxSplits>{}, number<MainPipeline::kM0>{});
+            }(),
+            {0, i_m0});
 
         auto o_acc_dram_window = make_tile_window(
             o_acc_dram,
             [&]() {
-                return make_tuple(number<MainPipeline::kMaxSplits>{},
-                                  number<MainPipeline::kM0>{});
+                return make_tuple(number<MainPipeline::kMaxSplits>{}, number<MainPipeline::kM0>{});
             }(),
             {0, i_m0});
 

@@ -12,8 +12,8 @@ struct FmhaFwdSplitKVCombineTilePartitioner
 {
     using BlockFmhaShape = ck_tile::remove_cvref_t<BlockFmhaShape_>;
 
-    static constexpr ck_tile::index_t kM0     = BlockFmhaShape::kM0;
-    static constexpr ck_tile::index_t kN1     = BlockFmhaShape::kN0;
+    static constexpr ck_tile::index_t kM0 = BlockFmhaShape::kM0;
+    static constexpr ck_tile::index_t kN1 = BlockFmhaShape::kN0;
     // constexpr static ck_tile::index_t kBlockM = kN1 % 128 == 0 ? 4 : (kN1 % 64 == 0 ? 8 : 16);
 
     __host__ static constexpr auto

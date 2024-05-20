@@ -221,8 +221,8 @@ auto fmha_fwd_create_kargs_and_grids_combine(fmha_fwd_args args)
 {
     assert(args.nhead_q % args.nhead_k == 0);
     auto kargs = [&] {
-        // create group mode kernel arguments
-        #if 0
+// create group mode kernel arguments
+#if 0
         if constexpr(FmhaKernel::kIsGroupMode)
         {
             return FmhaKernel::MakeKargs(args.q_ptr,
@@ -254,7 +254,7 @@ auto fmha_fwd_create_kargs_and_grids_combine(fmha_fwd_args args)
                                          args.nhead_stride_o);
         }
         else
-        #endif
+#endif
         { // create batch mode kernel arguments
             return FmhaKernel::MakeKargs(args.lse_acc_ptr,
                                          args.o_acc_ptr,
@@ -275,8 +275,7 @@ auto fmha_fwd_create_kargs_and_grids_combine(fmha_fwd_args args)
         }
     }();
 
-    dim3 grids = FmhaKernel::GridSize(
-        args.batch, args.nhead_q, args.max_seqlen_q);
+    dim3 grids = FmhaKernel::GridSize(args.batch, args.nhead_q, args.max_seqlen_q);
 #if defined(DEBUG_PRINT)
     std::cout << "[POYENC] grid size: (" << static_cast<int>(grids.x) << ", "
               << static_cast<int>(grids.y) << ", " << static_cast<int>(grids.z) << ")" << std::endl;
