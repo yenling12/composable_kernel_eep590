@@ -635,9 +635,25 @@ bool run(const ck_tile::ArgParser& arg_parser)
         }
         printf("[POYENC][HOST] lse_sum[%d] = %11.7f\n", i, lse_sum(i - start_i));
     }
+    std::cout << std::endl;
+    ck_tile::HostTensor<LSEDataType> lse_logsum({8});
+    for (int i = start_i; i < end_i; ++i) {
+        lse_logsum(i - start_i) = ck_tile::log(lse_sum(i - start_i)) + lse_max(i - start_i);
+        printf("[POYENC][HOST] lse_logsum[%d] = %11.7f\n", i, lse_logsum(i - start_i));
+    }
+    std::cout << std::endl;
+    ck_tile::HostTensor<LSEDataType> lse_scale({8, NUM_SPLITS});
+    for (int i = start_i; i < end_i; ++i) {
+        printf("[POYENC][HOST] lse_scale[%d] = \t", i);
+        for (int i_split = 0; i_split < NUM_SPLITS; ++i_split) {
+            lse_scale(i - start_i, i_split) += ck_tile::exp(lse_acc_host_ref(i_split, 0, 0, i) - lse_logsum(i - start_i));
+            printf("%11.7f", lse_scale(i - start_i, i_split));
+        }
+        printf("\n");
+    }
     }
     #endif
-    #if 1
+    #if 0
     std::cout << std::endl;
     {
     int start_i = threadId * 8;
