@@ -70,7 +70,7 @@ struct BlockFmhaFwdSplitKVCombinePipeline
     CK_TILE_HOST_DEVICE static constexpr ck_tile::index_t GetSmemSize()
     {
         /// TODO: add padding to avoid bank conflict
-        return kM0 * kMaxSplits;
+        return kM0 * kMaxSplits * sizeof(LSEDataType);
     }
 
 #define MARKER(msg)                     \
@@ -92,8 +92,6 @@ struct BlockFmhaFwdSplitKVCombinePipeline
                void* smem_ptr,
                index_t num_splits) const
     {
-        MARKER("begin pipeline");
-
         LSEDataType* lse_acc_lds_ptr =
             static_cast<LSEDataType*>(static_cast<void*>(static_cast<char*>(smem_ptr)));
 
@@ -104,10 +102,8 @@ struct BlockFmhaFwdSplitKVCombinePipeline
                              lse_acc_dram_block_window_tmp.get_window_origin(),
                              lse_acc_dist);
 
-        MARKER("before load lse_acc");
         auto lse_acc = load_tile(lse_acc_dram_window); // [kMaxSplits, kM0]
         static_assert(8 == decltype(lse_acc.thread_buf_)::size());
-        MARKER("after load lse_acc");
 
 #define TID 64
 #define ENABLE_DEBUG_STMTS
@@ -138,7 +134,7 @@ struct BlockFmhaFwdSplitKVCombinePipeline
                 });
             });
         }
-        __syncthreads();
+        block_sync_lds();
 
         auto lse_accum_dist = Policy::template MakeLSEaccTDramTileDistribution<Problem>();
         auto lse_accum      = make_static_distributed_tensor<LSEDataType>(lse_accum_dist);
@@ -365,7 +361,7 @@ struct BlockFmhaFwdSplitKVCombinePipeline
 #if defined(PRINT_LSE_ACCUM)
         DEBUG_STMTS
         {
-            for(index_t row = 0; row < 32; ++row)
+            for(index_t row = 0; row < kM0; ++row)
             {
                 printf("[POYENC][DEVICE] lse_accum[%d] = ", row);
                 for(index_t col = 0; col < num_splits; ++col)
