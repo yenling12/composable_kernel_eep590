@@ -64,6 +64,7 @@ struct GridwiseGemmPipeline_v3
         while(num_loop > 0)
         {
             a_blockwise_copy.RunRead(a_grid_desc, a_grid_buf);
+            // Why sync after A but not after B?
             block_sync_lds();
             b_blockwise_copy.RunRead(b_grid_desc, b_grid_buf);
 

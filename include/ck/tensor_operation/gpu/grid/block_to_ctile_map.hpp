@@ -1005,6 +1005,8 @@ struct BlockToCTileMap_GemmStreamK
     uint32_t dp_start_block_idx;
     uint32_t reduction_start_block_idx;
     uint32_t k_iters_per_big_block;
+    // Pointer to himMalloc allocated array
+    uint32_t* block_itr_table; // Dynamically allocated uint32_t[reduction_start_block_idx][2]
     MDiv2 n_tiles;
     MDiv k_iters_per_tile;
     MDiv equiv_tiles_big;    // for reduction
@@ -1095,6 +1097,37 @@ struct BlockToCTileMap_GemmStreamK
         // using multiple blocks for parallel reduction
         reduction_start_block_idx = dp_start_block_idx + dp_num_blocks;
 
+        size_t table_size              = sizeof(uint32_t) * reduction_start_block_idx * 2;
+        uint32_t* host_block_itr_table = static_cast<uint32_t*>(malloc(table_size));
+        for(size_t block_idx = 0; block_idx < reduction_start_block_idx; block_idx++)
+        {
+            uint32_t iter_start, iter_end;
+
+            if(block_idx < sk_num_big_blocks)
+            {
+                iter_start = block_idx * k_iters_per_big_block;
+                iter_end   = iter_start + k_iters_per_big_block;
+            }
+            else if(block_idx < sk_num_blocks)
+            {
+                iter_start = (sk_num_big_blocks * k_iters_per_big_block) +
+                             (block_idx - sk_num_big_blocks) * (k_iters_per_big_block - 1);
+                iter_end = iter_start + (k_iters_per_big_block - 1);
+            }
+            else
+            {
+                uint32_t dp_iters_per_block = k_iters_per_tile.get();
+                iter_start = sk_total_iters + (block_idx - dp_start_block_idx) * dp_iters_per_block;
+                iter_end   = iter_start + dp_iters_per_block;
+            }
+
+            host_block_itr_table[block_idx * 2]     = iter_start;
+            host_block_itr_table[block_idx * 2 + 1] = iter_end;
+        }
+        std::ignore = hipMalloc(&block_itr_table, table_size);
+        std::ignore =
+            hipMemcpy(block_itr_table, host_block_itr_table, table_size, hipMemcpyHostToDevice);
+
         if constexpr(ReductionStrategy == StreamKReductionStrategy::Reduction)
         {
             uint32_t upper_big    = math::lcm(k_iters_per_big_block, k_iters_per_tile.get());
@@ -1127,6 +1160,10 @@ struct BlockToCTileMap_GemmStreamK
                get_workspace_size(sizeof(float)));
 #endif
     }
+
+    // Ownership of the hip allocated memory is somewhat difficult to track because
+    // this class can be copied.
+    //~BlockToCTileMap_GemmStreamK() { std::ignore = hipFree(block_itr_table); }
 
     __host__ __device__ uint32_t get_sk_total_iters() const
     {
@@ -1166,24 +1203,9 @@ struct BlockToCTileMap_GemmStreamK
     __device__ void
     get_block_itr(uint32_t block_idx, uint32_t& iter_start, uint32_t& iter_end) const
     {
-        if(block_idx < sk_num_big_blocks)
-        {
-            iter_start = block_idx * k_iters_per_big_block;
-            iter_end   = iter_start + k_iters_per_big_block;
-        }
-        else if(block_idx < sk_num_blocks)
-        {
-            iter_start = (sk_num_big_blocks * k_iters_per_big_block) +
-                         (block_idx - sk_num_big_blocks) * (k_iters_per_big_block - 1);
-            iter_end = iter_start + (k_iters_per_big_block - 1);
-        }
-        else if(block_idx >= dp_start_block_idx)
-        {
-            uint32_t sk_total_iters     = get_sk_total_iters();
-            uint32_t dp_iters_per_block = k_iters_per_tile.get();
-            iter_start = sk_total_iters + (block_idx - dp_start_block_idx) * dp_iters_per_block;
-            iter_end   = iter_start + dp_iters_per_block;
-        }
+        size_t i   = block_idx * 2;
+        iter_start = block_itr_table[i];
+        iter_end   = block_itr_table[i + 1];
     }
 
     __device__ uint32_t get_current_iter_length(uint32_t iter_start,
