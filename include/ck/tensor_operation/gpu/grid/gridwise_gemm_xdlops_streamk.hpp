@@ -177,13 +177,16 @@ struct GridwiseGemm_bk0mk1_bk0nk1_mn_xdlops_streamk
 
         void Print() const
         {
-            std::cout << "arg {"
-                      << "M:" << M << ", "
-                      << "N:" << N << ", "
-                      << "K:" << K << ", "
-                      << "SA:" << StrideA << ", "
-                      << "SB:" << StrideB << ", "
-                      << "SC:" << StrideC << std::endl;
+            std::cout << "arg {" << std::endl
+                      << "  M:" << M << ", " << std::endl
+                      << "  N:" << N << ", " << std::endl
+                      << "  K:" << K << ", " << std::endl
+                      << "  SA:" << StrideA << ", " << std::endl
+                      << "  SB:" << StrideB << ", " << std::endl
+                      << "  SC:" << StrideC << ", " << std::endl
+                      << "  num_cu:" << num_cu << ", " << std::endl
+                      << "  occupancy:" << occupancy << std::endl
+                      << "}" << std::endl;
         }
     };
 
@@ -675,7 +678,7 @@ struct GridwiseGemm_bk0mk1_bk0nk1_mn_xdlops_streamk
                                            thread_n_cluster_id *
                                                CBlockTransferScalarPerVector_NWaveNPerXDL),
                           CElementwiseOperation{}};
-                    // block synchronization                    
+                    // block synchronization
                     wg_barrier.wait_eq(0, block_mapping.sk_num_blocks);
 
 #if 0
