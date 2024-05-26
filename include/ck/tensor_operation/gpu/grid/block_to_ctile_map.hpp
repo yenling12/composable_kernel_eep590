@@ -1079,11 +1079,16 @@ struct BlockToCTileMap_GemmStreamK
             //      => b = sk_total_iters - m * sk_blocks
             //      NOTE: big could be zero
             uint32_t k_iters_per_sk_block = sk_total_iters / sk_num_blocks;
-            sk_num_big_blocks             = sk_total_iters - k_iters_per_sk_block * sk_num_blocks;
-            k_iters_per_big_block         = k_iters_per_sk_block + 1;
+            // sk_num_big_blocks             = sk_total_iters - k_iters_per_sk_block *
+            // sk_num_blocks;
+            //  Change the above to mod calculation for better reading
+            sk_num_big_blocks     = sk_total_iters % sk_num_blocks;
+            k_iters_per_big_block = k_iters_per_sk_block + 1;
 
-            dp_num_blocks      = dp_tiles;
-            dp_start_block_idx = ((sk_num_blocks + grid_size - 1) / grid_size) * grid_size;
+            dp_num_blocks = dp_tiles;
+            // This determines on which thread DP should start after Stream K tiles
+            // dp_start_block_idx = ((sk_num_blocks + grid_size - 1) / grid_size) * grid_size;
+            dp_start_block_idx = grid_size; // Above line is redundant as sk_num_blocks = grid_size
         }
 
         n_tiles = MDiv2(math::integer_divide_ceil(n, NPerBlock));
