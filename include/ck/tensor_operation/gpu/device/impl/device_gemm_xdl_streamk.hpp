@@ -17,6 +17,8 @@
 #include "ck/host_utility/kernel_launch.hpp"
 #include "ck/host_utility/hip_check_error.hpp"
 
+#include <roctracer/roctracer_ext.h>
+
 namespace ck {
 namespace tensor_operation {
 namespace device {
@@ -79,7 +81,7 @@ struct DeviceGemmXdlStreamK : public DeviceGemmStreamK<ALayout,
                                     NPerBlock,
                                     K0PerBlock * K1,
                                     StreamKReductionStrategy::Atomic>,
-                                    // StreamKReductionStrategy::Reduction>,
+        // StreamKReductionStrategy::Reduction>,
         ADataType, // TODO: distinguish A/B datatype
         AccDataType,
         CDataType,
@@ -142,6 +144,9 @@ struct DeviceGemmXdlStreamK : public DeviceGemmStreamK<ALayout,
             // dim3 grid_dims = karg.block_mapping.get_grid_dims(karg.num_cu, karg.occupancy);
 
             int occupancy, num_cu;
+
+            roctracer_start();
+
             const auto kernel = kernel_gemm_xdlops_streamk<GridwiseGemm>;
             hip_check_error(
                 hipOccupancyMaxActiveBlocksPerMultiprocessor(&occupancy, kernel, BlockSize, 0));
@@ -152,7 +157,7 @@ struct DeviceGemmXdlStreamK : public DeviceGemmStreamK<ALayout,
             num_cu = dev_prop.multiProcessorCount;
             dim3 grid_dims =
                 (karg.block_mapping.sk_num_blocks ? karg.block_mapping.sk_num_blocks
-                                                  : karg.block_mapping.reduction_start_block_idx);            
+                                                  : karg.block_mapping.reduction_start_block_idx);
             float ave_time = 0;
 
             // TODO: remove clear buffer for streamk kernels
@@ -209,6 +214,8 @@ struct DeviceGemmXdlStreamK : public DeviceGemmStreamK<ALayout,
                                                                   karg.StrideC,
                                                                   karg.block_mapping);
             }
+
+            roctracer_stop();
 
             return ave_time;
         }
