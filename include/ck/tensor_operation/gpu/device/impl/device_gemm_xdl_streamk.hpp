@@ -18,6 +18,7 @@
 #include "ck/host_utility/hip_check_error.hpp"
 
 #include <roctracer/roctracer_ext.h>
+#include <roctracer/roctx.h>
 
 namespace ck {
 namespace tensor_operation {
@@ -164,6 +165,8 @@ struct DeviceGemmXdlStreamK : public DeviceGemmStreamK<ALayout,
             if constexpr(GridwiseGemm::Block2CTileMap::ReductionStrategy ==
                          StreamKReductionStrategy::Atomic)
             {
+                // roctxMark("before launch_and_time_kernel");
+                roctxRangePush("ROCTX-RANGE: hipLaunchKernel");
                 hipGetErrorString(hipMemsetAsync(karg.p_c_grid,
                                                  0,
                                                  karg.M * karg.N * sizeof(CDataType),
