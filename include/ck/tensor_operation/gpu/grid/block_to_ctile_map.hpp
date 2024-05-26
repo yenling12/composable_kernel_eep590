@@ -1161,23 +1161,24 @@ struct BlockToCTileMap_GemmStreamK
     __device__ void
     get_block_itr(uint32_t block_idx, uint32_t& iter_start, uint32_t& iter_end) const
     {
-        // Table approach
-        uint8_t key = 0;
-        key += block_idx >= sk_num_big_blocks; // Add one to key if this condition is true
-        key += block_idx >= sk_num_blocks;     // Add one to key again if this condition is true
-
-        const uint32_t sk_total_iters     = get_sk_total_iters();
-        const uint32_t dp_iters_per_block = k_iters_per_tile.get();
-        uint32_t table[3][2]              = {
-            {block_idx * k_iters_per_big_block, k_iters_per_big_block},
-            {sk_num_big_blocks * k_iters_per_big_block +
-                              (block_idx - sk_num_big_blocks) * (k_iters_per_big_block - 1),
-                          (k_iters_per_big_block - 1)},
-            {sk_total_iters + (block_idx - dp_start_block_idx) * dp_iters_per_block,
-                          dp_iters_per_block},
-        };
-        iter_start = table[key][0];
-        iter_end   = iter_start + table[key][1];
+        if(block_idx < sk_num_big_blocks)
+        {
+            iter_start = block_idx * k_iters_per_big_block;
+            iter_end   = iter_start + k_iters_per_big_block;
+        }
+        else if(block_idx < sk_num_blocks)
+        {
+            iter_start = (sk_num_big_blocks * k_iters_per_big_block) +
+                         (block_idx - sk_num_big_blocks) * (k_iters_per_big_block - 1);
+            iter_end = iter_start + (k_iters_per_big_block - 1);
+        }
+        else if(block_idx >= dp_start_block_idx)
+        {
+            uint32_t sk_total_iters     = get_sk_total_iters();
+            uint32_t dp_iters_per_block = k_iters_per_tile.get();
+            iter_start = sk_total_iters + (block_idx - dp_start_block_idx) * dp_iters_per_block;
+            iter_end   = iter_start + dp_iters_per_block;
+        }
     }
 
     __device__ uint32_t get_current_iter_length(uint32_t iter_start,
